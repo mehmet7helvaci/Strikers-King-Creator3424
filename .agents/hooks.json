@@ -1,0 +1,20 @@
+﻿{
+  "version": "1.0.0",
+  "description": "TAKIM SEÇME UYGULAMASI Lifecycle Safety & Validation Hooks",
+  "hooks": {
+    "pre-tool-call": [
+      {
+        "name": "dangerous-command-guard",
+        "action": "block-destructive",
+        "description": "Riskli silme ve geri döndürülemez komutları kullanıcı onayı olmadan engeller."
+      }
+    ],
+    "post-tool-call": [
+      {
+        "name": "lint-and-validate",
+        "action": "verify-integrity",
+        "description": "Dosya düzenlendikten sonra sözdizimi ve kod bütünlüğünü denetler."
+      }
+    ]
+  }
+}

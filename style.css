@@ -1,0 +1,2033 @@
+:root {
+    --primary-color: #00e6e6; /* Turkuaz */
+    --primary-hover: #00cccc;
+    --secondary-color: #55c2ff; /* Açık Mavi */
+    --dark-bg: #111111; /* Siyah */
+    --panel-bg: rgba(17, 17, 17, 0.85);
+    --titanium: #878681; /* Titanyum */
+    --text-light: #ffffff;
+    --text-muted: #b3b3b3;
+    --danger: #ff4d4d;
+    --danger-hover: #e60000;
+    --success: #00ff00;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #111;
+    /* StrickersClüpCreator stadyum arka planı */
+    background-image: url('bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    color: var(--text-light);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Arka planı hafif karartmak için overlay */
+.background-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* Stadyum görünür ama içerik de okunur */
+    z-index: -1;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--dark-bg);
+    padding: 15px 30px;
+    border-radius: 10px;
+    border: 2px solid var(--titanium);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    margin-bottom: 20px;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.logo span {
+    color: var(--text-light);
+    font-weight: 300;
+}
+
+.connection-panel {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.connection-panel input {
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: 1px solid var(--titanium);
+    background-color: #222;
+    color: white;
+    outline: none;
+}
+
+.connection-panel input:focus {
+    border-color: var(--primary-color);
+}
+
+.status {
+    font-size: 14px;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+.status.disconnected { color: var(--danger); }
+.status.connected { color: var(--success); }
+
+/* Buttons */
+.btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: var(--dark-bg);
+}
+.primary-btn:hover { background-color: var(--primary-hover); }
+
+.action-btn {
+    background-color: var(--secondary-color);
+    color: var(--dark-bg);
+}
+.action-btn:hover { background-color: #3bb2f5; }
+
+.danger-btn {
+    background-color: var(--danger);
+    color: white;
+}
+.danger-btn:hover { background-color: var(--danger-hover); }
+
+/* Controls Section */
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--panel-bg);
+    padding: 15px 30px;
+    border-radius: 10px;
+    border: 1px solid var(--titanium);
+    margin-bottom: 20px;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-group label {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.control-group select {
+    padding: 8px;
+    border-radius: 5px;
+    background-color: #222;
+    color: white;
+    border: 1px solid var(--titanium);
+    outline: none;
+    cursor: pointer;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* Workspace */
+.workspace {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Pool Container */
+.pool-container {
+    width: 300px;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--titanium);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pool-header {
+    background-color: var(--dark-bg);
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.badge {
+    background-color: var(--primary-color);
+    color: var(--dark-bg);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+}
+
+.add-manual {
+    display: flex;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border-bottom: 1px solid var(--titanium);
+}
+.add-manual input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--titanium);
+    background-color: #222;
+    color: white;
+    border-radius: 5px 0 0 5px;
+    outline: none;
+}
+.add-manual button {
+    padding: 8px 12px;
+    background-color: var(--primary-color);
+    color: var(--dark-bg);
+    border: none;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
+
+.player-list {
+    list-style: none;
+    padding: 10px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #1a1a1a; }
+::-webkit-scrollbar-thumb { background: var(--titanium); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }
+
+/* Player Item */
+.player-item {
+    background: linear-gradient(135deg, #222, #111);
+    border: 1px solid var(--titanium);
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    border-radius: 5px;
+    cursor: grab;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    transition: transform 0.2s, border-color 0.2s;
+    user-select: none;
+}
+
+.player-item:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.player-item:active {
+    cursor: grabbing;
+}
+
+.remove-player {
+    color: var(--danger);
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-size: 16px;
+}
+.remove-player:hover { color: var(--danger-hover); }
+
+/* Teams Container */
+.teams-container {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-content: flex-start;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.team-box {
+    background-color: var(--panel-bg);
+    border: 2px solid var(--titanium);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.3s;
+}
+
+.team-box.full {
+    border-color: var(--danger);
+}
+
+/* Modlara göre takım genişlikleri */
+.mode-single .team-box {
+    width: calc(50% - 10px);
+    min-height: 400px;
+}
+
+.mode-tournament .team-box {
+    width: calc(25% - 15px); /* 4 columns */
+    min-height: 250px;
+}
+
+.team-header {
+    background-color: var(--dark-bg);
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+    color: var(--secondary-color);
+    border-bottom: 1px solid var(--titanium);
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.team-header input {
+    background: transparent;
+    border: none;
+    color: var(--secondary-color);
+    font-weight: bold;
+    font-size: 16px;
+    text-align: center;
+    width: 100%;
+    outline: none;
+}
+.team-header input:focus {
+    border-bottom: 1px solid var(--primary-color);
+}
+
+.team-list {
+    list-style: none;
+    padding: 10px;
+    flex: 1;
+    min-height: 100px;
+}
+
+.team-list .player-item {
+    background: linear-gradient(135deg, #1a2a3a, #111);
+    border-color: var(--secondary-color);
+}
+
+/* Ghost class for SortableJS */
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: var(--primary-color) !important;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: var(--dark-bg);
+    border-left: 5px solid var(--primary-color);
+    padding: 15px 25px;
+    border-radius: 5px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    transition: transform 0.3s, opacity 0.3s;
+    z-index: 1000;
+}
+.toast.hidden {
+    transform: translateX(120%);
+    opacity: 0;
+}
+.toast.error {
+    border-left-color: var(--danger);
+}
+
+/* --- Açılış Ekranı (Splash Screen) --- */
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #050505;
+    background-image: radial-gradient(circle at center, #0a1428 0%, #030712 65%, #000 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+}
+
+.splash-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Teleportasyon Arka Plan Efektleri (Işınlanma Dalgası & Lazer Hattı) */
+.splash-warp-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 0 50px rgba(0, 230, 230, 0.7), inset 0 0 35px rgba(0, 230, 230, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    animation: warpRingBurst 0.9s cubic-bezier(0.1, 0.9, 0.2, 1) 0.08s forwards;
+}
+
+.splash-scanner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(0, 230, 230, 0.8), #fff, rgba(85, 194, 255, 0.8), transparent);
+    box-shadow: 0 0 25px #00e6e6, 0 0 50px #55c2ff;
+    opacity: 0;
+    pointer-events: none;
+    animation: teleportLaserStreak 0.75s cubic-bezier(0.15, 0.85, 0.35, 1.2) 0.08s forwards;
+}
+
+.splash-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 20px;
+    perspective: 1000px;
+}
+
+.splash-title {
+    font-size: clamp(2.4rem, 6.5vw, 4.8rem);
+    font-weight: 900;
+    color: var(--primary-color);
+    margin-bottom: 12px;
+    letter-spacing: 2px;
+    line-height: 1.15;
+    text-transform: uppercase;
+}
+
+.splash-subtitle {
+    font-size: clamp(1.1rem, 2.8vw, 1.8rem);
+    font-weight: 600;
+    color: #94a3b8;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+}
+
+/* Aniden Işınlanan Kelimeler (Sudden Teleport Effect) */
+.teleport-word {
+    display: inline-block;
+    opacity: 0;
+    margin: 0 0.18em;
+    will-change: transform, opacity, filter;
+    animation: suddenTeleport 0.35s cubic-bezier(0.12, 0.95, 0.22, 1.15) var(--delay, 0s) forwards;
+}
+
+/* Işınlanma Anahtar Kareleri (Sudden Teleport / Warp In) */
+@keyframes suddenTeleport {
+    0% {
+        opacity: 0;
+        /* Uzay boşluğundan yatay laser ışını gibi aşırı sıkışmış & kör edici parlaklıkta */
+        transform: scale(3.5, 0.03) translateY(-6px);
+        filter: blur(14px) brightness(12);
+        text-shadow: 0 0 50px #fff, 0 0 90px var(--primary-color), 0 0 140px var(--secondary-color);
+    }
+    20% {
+        opacity: 1;
+        /* Tam ışınlandığı an: Boyut patlaması & şiddetli enerji şoku */
+        transform: scale(1.2, 0.85) translateY(-4px) skewX(-7deg);
+        filter: blur(2px) brightness(4);
+        /* Işınlanma kırılması (RGB Glitch) */
+        text-shadow: -6px 0 #ff0055, 6px 0 #00ffff, 0 0 35px #00e6e6, 0 0 70px #fff;
+    }
+    50% {
+        transform: scale(0.95, 1.05) translateY(2px) skewX(3deg);
+        filter: blur(0px) brightness(1.8);
+        text-shadow: 3px 0 #ff0055, -3px 0 #00ffff, 0 0 25px #00e6e6;
+    }
+    75% {
+        transform: scale(1.02, 0.99) translateY(0) skewX(-1deg);
+        filter: brightness(1.2);
+        text-shadow: -1px 0 #ff0055, 1px 0 #00ffff, 0 0 20px #00e6e6;
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0) skewX(0);
+        filter: brightness(1);
+        text-shadow: 0 0 20px rgba(0, 230, 230, 0.65), 0 0 40px rgba(0, 230, 230, 0.35), 2px 2px 5px #000;
+    }
+}
+
+/* Işınlanma Şok Dalgası Halka Animasyonu */
+@keyframes warpRingBurst {
+    0% {
+        transform: translate(-50%, -50%) scale(0.1);
+        opacity: 0;
+    }
+    30% {
+        transform: translate(-50%, -50%) scale(1.4);
+        opacity: 0.9;
+        border-width: 3px;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.8);
+        opacity: 0;
+        border-width: 0px;
+    }
+}
+
+/* Yatay Işınlanma Lazer Çizgisi */
+@keyframes teleportLaserStreak {
+    0% {
+        width: 0%;
+        opacity: 0;
+    }
+    25% {
+        width: 85%;
+        opacity: 1;
+        height: 4px;
+    }
+    60% {
+        width: 100%;
+        opacity: 0.7;
+        height: 2px;
+    }
+    100% {
+        width: 115%;
+        opacity: 0;
+        height: 0px;
+    }
+}
+
+/* ==========================================================================
+   Kullanım Rehberi (Interactive Tour / Guide) Stilleri
+   ========================================================================== */
+
+.guide-btn {
+    background: linear-gradient(135deg, rgba(0, 230, 230, 0.15), rgba(85, 194, 255, 0.25));
+    border: 1px solid var(--primary-color) !important;
+    color: var(--primary-color) !important;
+    font-weight: 600;
+    box-shadow: 0 0 10px rgba(0, 230, 230, 0.2);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.guide-btn:hover {
+    background: var(--primary-color) !important;
+    color: var(--dark-bg) !important;
+    box-shadow: 0 0 18px rgba(0, 230, 230, 0.6);
+    transform: translateY(-1px);
+}
+
+/* Overlay & Spotlight */
+.guide-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 8500;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease, visibility 0.3s;
+}
+
+.guide-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.guide-spotlight {
+    position: fixed;
+    border-radius: 12px;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 0 25px rgba(0, 230, 230, 0.7), 0 0 0 9999px rgba(0, 0, 0, 0.72);
+    transition: top 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+    z-index: 8501;
+}
+
+/* Rehber Kartı (Modal / Tooltip) */
+.guide-card {
+    position: fixed;
+    z-index: 8505;
+    width: 440px;
+    max-width: calc(100vw - 40px);
+    background: rgba(14, 18, 25, 0.95);
+    border: 1px solid rgba(0, 230, 230, 0.4);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 230, 230, 0.15);
+    backdrop-filter: blur(14px);
+    transition: top 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+                opacity 0.25s ease;
+    box-sizing: border-box;
+}
+
+.guide-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.guide-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: rotate(90deg);
+}
+
+.guide-badge {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(0, 230, 230, 0.12);
+    color: var(--primary-color);
+    border: 1px solid rgba(0, 230, 230, 0.3);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+}
+
+.guide-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.guide-title i {
+    color: var(--primary-color);
+}
+
+.guide-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #d1d5db;
+    margin-bottom: 20px;
+    min-height: 50px;
+}
+
+.guide-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.guide-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.guide-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.guide-dot.active {
+    width: 20px;
+    border-radius: 10px;
+    background: var(--primary-color);
+    box-shadow: 0 0 8px var(--primary-color);
+}
+
+.guide-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.guide-btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ccc;
+}
+
+.guide-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+}
+
+.guide-hint {
+    margin-top: 12px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.guide-hint kbd {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: var(--primary-color);
+    font-family: inherit;
+}
+
+/* ==========================================================================
+   Rekabetçi Rank Sistemi & Sıralama Paneli Stilleri
+   ========================================================================== */
+
+/* Header Rank Paneli Butonu */
+.rank-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #111 !important;
+    font-weight: 700;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+.rank-btn:hover {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.7);
+    transform: translateY(-1px);
+}
+
+/* Takım Galibiyet Butonu (Team Header) */
+.team-win-btn {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.35));
+    border: 1px solid #f59e0b;
+    color: #fbbf24;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+.team-win-btn:hover {
+    background: #f59e0b;
+    color: #111;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+    transform: scale(1.05);
+}
+
+/* Oyuncu Kartı İçi Detaylar & Rank Rozetleri */
+.player-info-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    overflow: hidden;
+}
+.player-name-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.player-rank-chip {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-weight: 700;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+}
+
+/* Kademe Renkleri */
+.rank-champion {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.15);
+    border-color: #ffd700 !important;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+.rank-diamond {
+    color: #00e6e6;
+    background: rgba(0, 230, 230, 0.15);
+    border-color: #00e6e6 !important;
+    text-shadow: 0 0 8px rgba(0, 230, 230, 0.5);
+}
+.rank-platinum {
+    color: #55c2ff;
+    background: rgba(85, 194, 255, 0.15);
+    border-color: #55c2ff !important;
+}
+.rank-gold {
+    color: #f5b041;
+    background: rgba(245, 176, 65, 0.15);
+    border-color: #f5b041 !important;
+}
+.rank-silver {
+    color: #cbd5e1;
+    background: rgba(203, 213, 225, 0.12);
+    border-color: #cbd5e1 !important;
+}
+.rank-bronze {
+    color: #f97316;
+    background: rgba(249, 115, 22, 0.12);
+    border-color: #f97316 !important;
+}
+.rank-unranked {
+    color: #94a3b8;
+    background: rgba(148, 163, 184, 0.1);
+    border-color: #64748b !important;
+}
+
+/* ==========================================================================
+   Genel Modal Stilleri
+   ========================================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9000;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease, visibility 0.3s;
+}
+.modal-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+.modal-card {
+    background: rgba(18, 22, 30, 0.96);
+    border: 1px solid rgba(0, 230, 230, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 230, 230, 0.12);
+    color: var(--text-light);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalPop 0.25s ease-out;
+}
+@keyframes modalPop {
+    from { transform: scale(0.92); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    background: rgba(10, 14, 20, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.modal-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.modal-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.channel-badge {
+    background: rgba(85, 194, 255, 0.15);
+    border: 1px solid var(--secondary-color);
+    color: var(--secondary-color);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.channel-badge strong {
+    color: #fff;
+}
+.modal-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: rotate(90deg);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: rgba(10, 14, 20, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.storage-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.storage-info i {
+    color: var(--primary-color);
+}
+
+/* Sıralama Paneli Özel Stilleri */
+.leaderboard-card {
+    width: 860px;
+    max-width: 95vw;
+    height: 80vh;
+    max-height: 750px;
+}
+.leaderboard-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 14px 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    flex-wrap: wrap;
+}
+.search-wrap {
+    display: flex;
+    align-items: center;
+    background: #1e2430;
+    border: 1px solid var(--titanium);
+    border-radius: 6px;
+    padding: 6px 12px;
+    gap: 8px;
+    flex: 1;
+    min-width: 200px;
+}
+.search-wrap i {
+    color: var(--text-muted);
+}
+.search-wrap input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    width: 100%;
+    font-size: 14px;
+}
+.sort-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.sort-wrap select {
+    background: #1e2430;
+    color: #fff;
+    border: 1px solid var(--titanium);
+    border-radius: 6px;
+    padding: 6px 10px;
+    outline: none;
+    cursor: pointer;
+}
+.danger-btn-outline {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.danger-btn-outline:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* Sıralama Tablosu */
+.leaderboard-table-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 24px;
+}
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.leaderboard-table th {
+    text-align: left;
+    padding: 12px 10px;
+    color: var(--primary-color);
+    font-weight: 700;
+    border-bottom: 2px solid rgba(0, 230, 230, 0.3);
+    position: sticky;
+    top: 0;
+    background: #141822;
+    z-index: 5;
+}
+.th-rank { width: 50px; text-align: center !important; }
+.th-center { text-align: center !important; width: 60px; }
+.th-rate { width: 140px; text-align: right !important; }
+
+.leaderboard-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: middle;
+}
+.leaderboard-table tr:hover {
+    background: rgba(0, 230, 230, 0.05);
+}
+
+/* Derece Pozisyon Rozetleri (#1, #2, #3) */
+.pos-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 13px;
+}
+.pos-1 { background: linear-gradient(135deg, #ffd700, #b8860b); color: #000; box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+.pos-2 { background: linear-gradient(135deg, #e2e8f0, #94a3b8); color: #000; }
+.pos-3 { background: linear-gradient(135deg, #f97316, #b45309); color: #fff; }
+.pos-default { color: var(--text-muted); font-weight: 600; text-align: center; }
+
+.player-col {
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Win Rate Barı */
+.rate-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+.rate-val {
+    font-weight: 800;
+    color: var(--primary-color);
+}
+.rate-bar-bg {
+    width: 90px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.rate-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
+    border-radius: 3px;
+}
+
+.leaderboard-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    gap: 15px;
+}
+.leaderboard-empty i {
+    font-size: 48px;
+    color: var(--titanium);
+}
+
+/* Maç Sonuç Onay Modalı */
+.match-card {
+    width: 480px;
+    max-width: 90vw;
+}
+.match-content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.match-winner-display {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(0, 230, 230, 0.12));
+    border: 1px solid #f59e0b;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+}
+.winner-label {
+    font-size: 12px;
+    font-weight: 800;
+    color: #fbbf24;
+    letter-spacing: 1px;
+}
+.match-winner-display h3 {
+    font-size: 22px;
+    color: #fff;
+    margin: 6px 0 10px 0;
+}
+.winner-player-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+.player-pill {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #e2e8f0;
+}
+.match-loser-select-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.match-loser-select-group label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.match-loser-select-group select {
+    background: #1e2430;
+    border: 1px solid var(--titanium);
+    color: #fff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+}
+.match-info-note {
+    background: rgba(0, 230, 230, 0.08);
+    border-left: 3px solid var(--primary-color);
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+
+/* ==========================================================================
+   Kick Bağlantı Merkezi & Modal Stilleri
+   ========================================================================== */
+.icon-help-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #cbd5e1 !important;
+    padding: 9px 12px !important;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+.icon-help-btn:hover {
+    background: rgba(0, 230, 230, 0.2);
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+    box-shadow: 0 0 10px rgba(0, 230, 230, 0.3);
+}
+
+.kick-card {
+    width: 90%;
+    max-width: 580px;
+}
+.kick-modal-body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.kick-alert-box {
+    background: rgba(0, 230, 230, 0.08);
+    border: 1px solid rgba(0, 230, 230, 0.3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+.kick-alert-box i {
+    font-size: 20px;
+    color: var(--primary-color);
+    margin-top: 2px;
+}
+.kick-alert-box strong {
+    color: #fff;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 4px;
+}
+.kick-alert-box p {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.5;
+    margin: 0;
+}
+.kick-solution-option {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+}
+.kick-solution-option.primary-option {
+    border-color: rgba(0, 230, 230, 0.5);
+    background: linear-gradient(135deg, rgba(0, 230, 230, 0.06), rgba(85, 194, 255, 0.03));
+}
+.option-tag {
+    position: absolute;
+    top: -10px;
+    right: 16px;
+    background: linear-gradient(135deg, var(--primary-color), #55c2ff);
+    color: #0b0f19;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+}
+.kick-solution-option h4 {
+    font-size: 14px;
+    color: #fff;
+    margin: 0 0 6px 0;
+}
+.kick-solution-option p {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.5;
+    margin: 0 0 12px 0;
+}
+.kick-solution-divider {
+    text-align: center;
+    position: relative;
+    margin: -4px 0;
+}
+.kick-solution-divider::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+.kick-solution-divider span {
+    position: relative;
+    background: #141923;
+    padding: 0 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+}
+.kick-id-input-wrap {
+    display: flex;
+    gap: 8px;
+}
+.kick-id-input-wrap input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+}
+.kick-id-input-wrap input:focus {
+    border-color: var(--primary-color);
+}
+.kick-helper-actions {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.btn-link {
+    color: var(--primary-color);
+    font-size: 12px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.btn-link:hover {
+    text-decoration: underline;
+}
+.helper-hint {
+    font-size: 11px;
+    color: #64748b;
+}
+
+/* ==========================================================================
+   Katılım Komutu Input & Rozet Stilleri
+   ========================================================================== */
+.command-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.command-input-wrap {
+    display: flex;
+    align-items: center;
+    background: #1e2430;
+    border: 1px solid var(--titanium);
+    border-radius: 6px;
+    padding: 2px 8px;
+    gap: 6px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.command-input-wrap:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 8px rgba(0, 230, 230, 0.3);
+}
+.command-input-wrap input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    width: 90px;
+    outline: none;
+}
+.command-badge {
+    background: rgba(0, 230, 230, 0.15);
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 230, 230, 0.3);
+    text-transform: uppercase;
+}
+.pool-header .pool-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.pool-command-tag {
+    background: rgba(0, 230, 230, 0.12);
+    border: 1px solid rgba(0, 230, 230, 0.35);
+    color: var(--primary-color);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.pool-command-tag span {
+    color: #fff;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   Çift Taraflı Son 16 Turnuva Ağacı (UEFA / World Cup Bracket) Stilleri
+   ========================================================================== */
+.tournament-bracket-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow-x: auto;
+    overflow-y: auto;
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.bracket-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(17, 24, 39, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(85, 194, 255, 0.3);
+    border-radius: 10px;
+    padding: 12px 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.bracket-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.bracket-badge {
+    background: linear-gradient(135deg, rgba(0, 230, 230, 0.2), rgba(85, 194, 255, 0.2));
+    border: 1px solid var(--primary-color);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 0 12px rgba(0, 230, 230, 0.3);
+}
+
+.bracket-subtext {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.warning-btn {
+    background: #f59e0b;
+    color: #111;
+}
+.warning-btn:hover {
+    background: #d97706;
+}
+
+/* Bracket Tree Symmetrical Architecture */
+.bracket-tree {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 20px;
+    min-width: 1350px;
+    margin: 0 auto;
+    padding: 10px 0 30px 0;
+}
+
+.bracket-wing {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+}
+
+.bracket-left {
+    flex-direction: row;
+}
+
+.bracket-right {
+    flex-direction: row-reverse;
+}
+
+.bracket-round {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 200px;
+    max-width: 240px;
+}
+
+.round-header {
+    background: rgba(20, 25, 35, 0.9);
+    border: 1px solid var(--titanium);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.round-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--primary-color);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.round-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.round-matches {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    flex: 1;
+    gap: 15px;
+}
+
+/* Bracket Center (Grand Final & Trophy Podium) */
+.bracket-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 290px;
+    gap: 20px;
+    position: relative;
+}
+
+/* Champion Podium */
+.champion-podium {
+    width: 100%;
+    background: radial-gradient(circle at center, rgba(255, 215, 0, 0.15) 0%, rgba(20, 25, 35, 0.95) 75%);
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    border-radius: 12px;
+    padding: 16px 12px;
+    text-align: center;
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.15);
+    transition: all 0.3s ease;
+}
+
+.champion-podium.crowned {
+    border-color: #ffd700;
+    box-shadow: 0 0 35px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.2);
+    animation: podiumPulse 2s infinite alternate;
+}
+
+@keyframes podiumPulse {
+    0% { transform: scale(1); box-shadow: 0 0 25px rgba(255, 215, 0, 0.3); }
+    100% { transform: scale(1.02); box-shadow: 0 0 45px rgba(255, 215, 0, 0.6); }
+}
+
+.trophy-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 6px;
+}
+
+.trophy-icon {
+    font-size: 38px;
+    color: #ffd700;
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.7));
+}
+
+.champion-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #ffd700;
+    margin-bottom: 4px;
+}
+
+.champion-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+    margin-bottom: 8px;
+    min-height: 24px;
+}
+
+.champion-roster {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    max-height: 90px;
+    overflow-y: auto;
+}
+
+.grand-final-wrap {
+    width: 100%;
+}
+
+.grand-final-header {
+    border-color: rgba(255, 215, 0, 0.4);
+}
+.grand-final-header .round-title {
+    color: #ffd700;
+}
+
+/* Match Cards */
+.bracket-match-card {
+    background: rgba(18, 24, 36, 0.92);
+    border: 1px solid rgba(85, 194, 255, 0.25);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.bracket-match-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 6px 18px rgba(0, 230, 230, 0.2);
+}
+
+.bracket-match-card.final-match {
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.15);
+}
+
+.match-badge {
+    position: absolute;
+    top: -9px;
+    left: 12px;
+    background: #0f172a;
+    border: 1px solid var(--secondary-color);
+    color: var(--secondary-color);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+}
+
+/* Team Slot inside Match Card */
+.bracket-team-slot {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.bracket-team-slot.slot-winner {
+    background: rgba(0, 230, 230, 0.1);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px rgba(0, 230, 230, 0.25);
+}
+
+.bracket-team-slot.slot-eliminated {
+    opacity: 0.45;
+    background: rgba(255, 77, 77, 0.05);
+    border-color: rgba(255, 77, 77, 0.2);
+}
+
+.slot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.slot-name-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    outline: none;
+}
+.slot-name-input:focus {
+    border-bottom: 1px solid var(--primary-color);
+}
+
+.slot-name-text {
+    flex: 1;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slot-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.slot-win-btn {
+    background: rgba(0, 230, 230, 0.15);
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+
+.slot-win-btn:hover {
+    background: var(--primary-color);
+    color: var(--dark-bg);
+}
+
+.slot-winner-tag {
+    background: var(--primary-color);
+    color: var(--dark-bg);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.slot-eliminated-tag {
+    background: rgba(255, 77, 77, 0.2);
+    color: #ff6b6b;
+    border: 1px solid rgba(255, 77, 77, 0.4);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.slot-roster-btn {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.slot-roster-btn:hover {
+    color: #fff;
+    border-color: #fff;
+}
+
+/* Droppable team list inside Son 16 slot */
+.bracket-team-slot .team-list {
+    min-height: 48px;
+    max-height: 110px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 4px;
+    margin-top: 4px;
+}
+
+.bracket-team-slot .team-list .player-item {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+/* Empty Placeholder for Future Rounds */
+.slot-placeholder {
+    padding: 10px;
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    font-style: italic;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* VS divider */
+.match-vs-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin: 2px 0;
+}
+.match-vs-divider::before, .match-vs-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+.match-vs-divider span {
+    font-size: 10px;
+    font-weight: 800;
+    color: #64748b;
+    padding: 0 8px;
+    letter-spacing: 1px;
+}
+
+/* Inline Roster Popover/Accordion */
+.slot-roster-drawer {
+    background: rgba(10, 15, 25, 0.95);
+    border: 1px solid rgba(85, 194, 255, 0.2);
+    border-radius: 6px;
+    padding: 6px;
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.roster-pill {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.match-undo-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 11px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    margin-top: 2px;
+}
+.match-undo-btn:hover {
+    color: #f59e0b;
+    text-decoration: underline;
+}
+
+/* Audio Settings Button & Modal Styles */
+.audio-settings-btn {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+.audio-settings-btn:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+}
+
+.audio-card {
+    max-width: 520px;
+    width: 90%;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(0, 230, 230, 0.3);
+    box-shadow: 0 0 30px rgba(0, 230, 230, 0.15);
+}
+
+.audio-modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.audio-setting-group {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.setting-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.setting-icon {
+    font-size: 20px;
+    color: #00e6e6;
+}
+
+.setting-info strong {
+    display: block;
+    color: #f8fafc;
+    font-size: 15px;
+}
+
+.setting-info p {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #334155;
+    transition: .3s;
+    border-radius: 26px;
+}
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+input:checked + .toggle-slider {
+    background-color: #00e6e6;
+    box-shadow: 0 0 10px rgba(0, 230, 230, 0.4);
+}
+input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+    background-color: #0f172a;
+}
+
+/* Volume Slider */
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #cbd5e1;
+    font-size: 13px;
+}
+
+.volume-slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #334155;
+    outline: none;
+    accent-color: #00e6e6;
+}
+
+.volume-badge {
+    min-width: 42px;
+    text-align: center;
+    background: #0f172a;
+    border: 1px solid rgba(0, 230, 230, 0.3);
+    color: #00e6e6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.audio-test-row {
+    display: flex;
+    justify-content: center;
+}
+
