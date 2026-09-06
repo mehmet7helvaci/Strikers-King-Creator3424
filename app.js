@@ -411,6 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaderboardTbody = document.getElementById('leaderboardTbody');
     const leaderboardEmpty = document.getElementById('leaderboardEmpty');
     const resetChannelStatsBtn = document.getElementById('resetChannelStatsBtn');
+    const exportDataBtn = document.getElementById('exportDataBtn');
+    const importDataBtn = document.getElementById('importDataBtn');
+    const importFileInput = document.getElementById('importFileInput');
 
     const matchModal = document.getElementById('matchModal');
     const matchWinnerName = document.getElementById('matchWinnerName');
@@ -608,6 +611,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (exportDataBtn) {
+        exportDataBtn.addEventListener('click', () => {
+            exportAllDataToJson();
+        });
+    }
+
+    if (importDataBtn && importFileInput) {
+        importDataBtn.addEventListener('click', () => {
+            importFileInput.click();
+        });
+        importFileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                importDataFromJsonFile(e.target.files[0]);
+                importFileInput.value = '';
+            }
+        });
+    }
+
     if (leaderboardModal) {
         leaderboardModal.addEventListener('click', (e) => {
             if (e.target === leaderboardModal) closeLeaderboard();
@@ -733,112 +754,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // Çift Taraflı Son 16 Turnuva Ağacı Modülü
+    // 8 Takımlı Tek Taraflı (Soldan Sağa) Turnuva Ağacı Modülü
     // =========================================================================
     function getInitialTournamentMatches() {
         return {
-            // SOL KANAT - SON 16
-            'm_r16_1': {
-                id: 'm_r16_1', round: 'r16', matchNum: 1, name: 'Maç 1', wing: 'left',
-                nextMatchId: 'm_qf_1', nextSlot: 'teamA',
+            // 1. TUR (4 MAÇ - 8 TAKIM)
+            'm_r8_1': {
+                id: 'm_r8_1', round: 'r8', matchNum: 1, name: 'Maç 1', wing: 'left',
+                nextMatchId: 'm_sf_1', nextSlot: 'teamA',
                 teamA: { teamNum: 1, name: 'Takım 1', players: [] },
                 teamB: { teamNum: 2, name: 'Takım 2', players: [] },
                 winner: null
             },
-            'm_r16_2': {
-                id: 'm_r16_2', round: 'r16', matchNum: 2, name: 'Maç 2', wing: 'left',
-                nextMatchId: 'm_qf_1', nextSlot: 'teamB',
+            'm_r8_2': {
+                id: 'm_r8_2', round: 'r8', matchNum: 2, name: 'Maç 2', wing: 'left',
+                nextMatchId: 'm_sf_1', nextSlot: 'teamB',
                 teamA: { teamNum: 3, name: 'Takım 3', players: [] },
                 teamB: { teamNum: 4, name: 'Takım 4', players: [] },
                 winner: null
             },
-            'm_r16_3': {
-                id: 'm_r16_3', round: 'r16', matchNum: 3, name: 'Maç 3', wing: 'left',
-                nextMatchId: 'm_qf_2', nextSlot: 'teamA',
+            'm_r8_3': {
+                id: 'm_r8_3', round: 'r8', matchNum: 3, name: 'Maç 3', wing: 'left',
+                nextMatchId: 'm_sf_2', nextSlot: 'teamA',
                 teamA: { teamNum: 5, name: 'Takım 5', players: [] },
                 teamB: { teamNum: 6, name: 'Takım 6', players: [] },
                 winner: null
             },
-            'm_r16_4': {
-                id: 'm_r16_4', round: 'r16', matchNum: 4, name: 'Maç 4', wing: 'left',
-                nextMatchId: 'm_qf_2', nextSlot: 'teamB',
+            'm_r8_4': {
+                id: 'm_r8_4', round: 'r8', matchNum: 4, name: 'Maç 4', wing: 'left',
+                nextMatchId: 'm_sf_2', nextSlot: 'teamB',
                 teamA: { teamNum: 7, name: 'Takım 7', players: [] },
                 teamB: { teamNum: 8, name: 'Takım 8', players: [] },
                 winner: null
             },
-            // SAĞ KANAT - SON 16
-            'm_r16_5': {
-                id: 'm_r16_5', round: 'r16', matchNum: 5, name: 'Maç 5', wing: 'right',
-                nextMatchId: 'm_qf_3', nextSlot: 'teamA',
-                teamA: { teamNum: 9, name: 'Takım 9', players: [] },
-                teamB: { teamNum: 10, name: 'Takım 10', players: [] },
-                winner: null
-            },
-            'm_r16_6': {
-                id: 'm_r16_6', round: 'r16', matchNum: 6, name: 'Maç 6', wing: 'right',
-                nextMatchId: 'm_qf_3', nextSlot: 'teamB',
-                teamA: { teamNum: 11, name: 'Takım 11', players: [] },
-                teamB: { teamNum: 12, name: 'Takım 12', players: [] },
-                winner: null
-            },
-            'm_r16_7': {
-                id: 'm_r16_7', round: 'r16', matchNum: 7, name: 'Maç 7', wing: 'right',
-                nextMatchId: 'm_qf_4', nextSlot: 'teamA',
-                teamA: { teamNum: 13, name: 'Takım 13', players: [] },
-                teamB: { teamNum: 14, name: 'Takım 14', players: [] },
-                winner: null
-            },
-            'm_r16_8': {
-                id: 'm_r16_8', round: 'r16', matchNum: 8, name: 'Maç 8', wing: 'right',
-                nextMatchId: 'm_qf_4', nextSlot: 'teamB',
-                teamA: { teamNum: 15, name: 'Takım 15', players: [] },
-                teamB: { teamNum: 16, name: 'Takım 16', players: [] },
-                winner: null
-            },
 
-            // SOL KANAT - ÇEYREK FİNAL
-            'm_qf_1': {
-                id: 'm_qf_1', round: 'qf', matchNum: 1, name: 'ÇF 1', wing: 'left',
-                nextMatchId: 'm_sf_1', nextSlot: 'teamA',
+            // YARI FİNAL (2 MAÇ)
+            'm_sf_1': {
+                id: 'm_sf_1', round: 'sf', matchNum: 1, name: 'YF 1', wing: 'left',
+                nextMatchId: 'm_final', nextSlot: 'teamA',
                 sourceA: 'Maç 1 Galibi', sourceB: 'Maç 2 Galibi',
                 teamA: null, teamB: null, winner: null
             },
-            'm_qf_2': {
-                id: 'm_qf_2', round: 'qf', matchNum: 2, name: 'ÇF 2', wing: 'left',
-                nextMatchId: 'm_sf_1', nextSlot: 'teamB',
+            'm_sf_2': {
+                id: 'm_sf_2', round: 'sf', matchNum: 2, name: 'YF 2', wing: 'left',
+                nextMatchId: 'm_final', nextSlot: 'teamB',
                 sourceA: 'Maç 3 Galibi', sourceB: 'Maç 4 Galibi',
                 teamA: null, teamB: null, winner: null
             },
 
-            // SAĞ KANAT - ÇEYREK FİNAL
-            'm_qf_3': {
-                id: 'm_qf_3', round: 'qf', matchNum: 3, name: 'ÇF 3', wing: 'right',
-                nextMatchId: 'm_sf_2', nextSlot: 'teamA',
-                sourceA: 'Maç 5 Galibi', sourceB: 'Maç 6 Galibi',
-                teamA: null, teamB: null, winner: null
-            },
-            'm_qf_4': {
-                id: 'm_qf_4', round: 'qf', matchNum: 4, name: 'ÇF 4', wing: 'right',
-                nextMatchId: 'm_sf_2', nextSlot: 'teamB',
-                sourceA: 'Maç 7 Galibi', sourceB: 'Maç 8 Galibi',
-                teamA: null, teamB: null, winner: null
-            },
-
-            // YARI FİNALLER
-            'm_sf_1': {
-                id: 'm_sf_1', round: 'sf', matchNum: 1, name: 'YF 1', wing: 'left',
-                nextMatchId: 'm_final', nextSlot: 'teamA',
-                sourceA: 'ÇF 1 Galibi', sourceB: 'ÇF 2 Galibi',
-                teamA: null, teamB: null, winner: null
-            },
-            'm_sf_2': {
-                id: 'm_sf_2', round: 'sf', matchNum: 2, name: 'YF 2', wing: 'right',
-                nextMatchId: 'm_final', nextSlot: 'teamB',
-                sourceA: 'ÇF 3 Galibi', sourceB: 'ÇF 4 Galibi',
-                teamA: null, teamB: null, winner: null
-            },
-
-            // BÜYÜK FİNAL
+            // BÜYÜK FİNAL (1 MAÇ)
             'm_final': {
                 id: 'm_final', round: 'final', matchNum: 1, name: 'BÜYÜK FİNAL', wing: 'center',
                 nextMatchId: null, nextSlot: null,
@@ -852,7 +816,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const badge = document.getElementById('tournamentTitleBadge');
         if (!badge) return;
         const sizeVal = teamSizeSelect ? teamSizeSelect.value : '5';
-        badge.innerHTML = `<i class="fa-solid fa-sitemap"></i> ${sizeVal}v${sizeVal} Son 16 Turnuva Ağacı`;
+        badge.innerHTML = `<i class="fa-solid fa-sitemap"></i> ${sizeVal}v${sizeVal} 8 Takım Turnuva Ağacı`;
     }
 
     function initTournamentMode() {
@@ -871,8 +835,8 @@ document.addEventListener('DOMContentLoaded', () => {
         topbar.className = 'bracket-topbar';
         topbar.innerHTML = `
             <div class="bracket-info">
-                <span class="bracket-badge" id="tournamentTitleBadge"><i class="fa-solid fa-sitemap"></i> ${sizeVal}v${sizeVal} Son 16 Turnuva Ağacı</span>
-                <span class="bracket-subtext">UEFA & Dünya Kupası Çift Taraflı Format &bull; ${sizeVal}'er kişilik kadrolarla finale yükselme</span>
+                <span class="bracket-badge" id="tournamentTitleBadge"><i class="fa-solid fa-sitemap"></i> ${sizeVal}v${sizeVal} 8 Takım Turnuva Ağacı</span>
+                <span class="bracket-subtext">1. Tur (4 Maç) &bull; Yarı Final (2 Maç) &bull; Büyük Final (1 Maç)</span>
             </div>
             <div class="bracket-actions">
                 <button id="resetBracketBtn" class="btn warning-btn" title="Turnuva ağacındaki tüm maç sonuçlarını ve turları sıfırlar"><i class="fa-solid fa-rotate-left"></i> Ağacı Sıfırla</button>
@@ -880,20 +844,19 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         wrapper.appendChild(topbar);
 
-        // Bracket Tree
+        // Bracket Tree (Soldan Sağa Akış)
         const tree = document.createElement('div');
-        tree.className = 'bracket-tree';
+        tree.className = 'bracket-tree bracket-single-wing';
 
-        // --- SOL KANAT ---
+        // --- SOL KANAT (1. Tur & Yarı Final) ---
         const leftWing = document.createElement('div');
         leftWing.className = 'bracket-wing bracket-left';
 
-        leftWing.appendChild(buildRoundColumn('Son 16', '4 Maç', ['m_r16_1', 'm_r16_2', 'm_r16_3', 'm_r16_4']));
-        leftWing.appendChild(buildRoundColumn('Çeyrek Final', '2 Maç', ['m_qf_1', 'm_qf_2']));
-        leftWing.appendChild(buildRoundColumn('Yarı Final', '1 Maç', ['m_sf_1']));
+        leftWing.appendChild(buildRoundColumn('1. Tur', '4 Maç', ['m_r8_1', 'm_r8_2', 'm_r8_3', 'm_r8_4']));
+        leftWing.appendChild(buildRoundColumn('Yarı Final', '2 Maç', ['m_sf_1', 'm_sf_2']));
         tree.appendChild(leftWing);
 
-        // --- MERKEZ (Grand Final & Trophy Podium) ---
+        // --- SAĞ (Büyük Final & Şampiyonluk Podyumu) ---
         const centerWing = document.createElement('div');
         centerWing.className = 'bracket-center';
 
@@ -925,15 +888,6 @@ document.addEventListener('DOMContentLoaded', () => {
         centerWing.appendChild(grandFinalWrap);
 
         tree.appendChild(centerWing);
-
-        // --- SAĞ KANAT ---
-        const rightWing = document.createElement('div');
-        rightWing.className = 'bracket-wing bracket-right';
-
-        rightWing.appendChild(buildRoundColumn('Yarı Final', '1 Maç', ['m_sf_2']));
-        rightWing.appendChild(buildRoundColumn('Çeyrek Final', '2 Maç', ['m_qf_3', 'm_qf_4']));
-        rightWing.appendChild(buildRoundColumn('Son 16', '4 Maç', ['m_r16_5', 'm_r16_6', 'm_r16_7', 'm_r16_8']));
-        tree.appendChild(rightWing);
 
         wrapper.appendChild(tree);
         teamsContainer.appendChild(wrapper);
@@ -975,7 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.textContent = match.name;
         card.appendChild(badge);
 
-        if (match.round === 'r16') {
+        if (match.round === 'r16' || match.round === 'r8') {
             card.appendChild(buildR16TeamSlot(match, 'teamA'));
             
             const divider = document.createElement('div');
@@ -1188,7 +1142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let loserTeamName = '';
         let loserPlayers = [];
 
-        if (match.round === 'r16') {
+        if (match.round === 'r16' || match.round === 'r8') {
             const cardEl = document.querySelector(`.bracket-match-card[data-match-id="${matchId}"]`);
             const winInput = cardEl ? cardEl.querySelector(`.bracket-team-slot[data-slot="${winnerSlotKey}"] .slot-name-input`) : null;
             const loseInput = cardEl ? cardEl.querySelector(`.bracket-team-slot[data-slot="${loserSlotKey}"] .slot-name-input`) : null;
@@ -1231,14 +1185,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Galip oyunculara +1 W
         winnerPlayers.forEach(name => {
-            const s = getPlayerStats(name);
-            channelStats[s.key].wins += 1;
+            const key = name.trim().toLowerCase();
+            if (!channelStats[key]) {
+                channelStats[key] = { wins: 0, losses: 0, displayName: name.trim() };
+            }
+            channelStats[key].wins += 1;
         });
 
         // Mağlup oyunculara +1 L
         loserPlayers.forEach(name => {
-            const s = getPlayerStats(name);
-            channelStats[s.key].losses += 1;
+            const key = name.trim().toLowerCase();
+            if (!channelStats[key]) {
+                channelStats[key] = { wins: 0, losses: 0, displayName: name.trim() };
+            }
+            channelStats[key].losses += 1;
         });
 
         saveChannelStats();
@@ -1262,10 +1222,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (match.round === 'final') {
             playUiSfx('win');
             renderChampionPodium({ name: winnerTeamName, players: winnerPlayers });
-            showToast(`👑 TEBRİKLER! ${winnerTeamName.toUpperCase()} TURNUVA ŞAMPİYONU OLDU! 🎉`);
+            showToast(`👑 TEBRİKLER! ${winnerTeamName.toUpperCase()} BÜYÜK FİNALİ KAZANARAK TURNUVA ŞAMPİYONU OLDU! 🎉`);
+        } else if (match.round === 'sf') {
+            playUiSfx('win');
+            showToast(`🏆 ${winnerTeamName} kazandı! BÜYÜK FİNALE yükseldi! 🎉 (+1W/+1L işlendi)`);
         } else {
             playUiSfx('win');
-            showToast(`🏆 ${winnerTeamName} kazandı! Bir üst tura yükseldi. (+1W/+1L işlendi)`);
+            showToast(`🏆 ${winnerTeamName} kazandı! Yarı Finale yükseldi! (+1W/+1L işlendi)`);
         }
 
         updateTournamentMatchDOM(matchId);
@@ -1281,7 +1244,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let winnerPlayers = [];
         let loserPlayers = [];
 
-        if (match.round === 'r16') {
+        if (match.round === 'r16' || match.round === 'r8') {
             const winNum = match[prevWinnerSlot].teamNum;
             const loseNum = match[prevLoserSlot].teamNum;
             const winList = document.getElementById(`team-${winNum}`);
@@ -1357,13 +1320,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function moveTeamPlayersToPool() {
+        const teamPlayers = document.querySelectorAll('.team-list .player-item');
+        teamPlayers.forEach(playerEl => {
+            playerPool.appendChild(playerEl);
+        });
+        updatePoolCount();
+    }
+
     function resetTournamentBracket() {
-        if (!confirm('Turnuva ağacındaki tüm maç sonuçlarını ve turları sıfırlamak istediğinize emin misiniz? (Oyuncu havuzundaki oyuncular korunur)')) {
+        if (!confirm('Turnuva ağacındaki tüm maç sonuçlarını ve turları sıfırlamak istediğinize emin misiniz? (Takımlardaki oyuncular havuzuna aktarılacaktır)')) {
             return;
         }
+        moveTeamPlayersToPool();
         tournamentMatches = getInitialTournamentMatches();
         initTeams();
-        showToast('Turnuva ağacı sıfırlandı.');
+        showToast('Turnuva ağacı sıfırlandı ve oyuncular havuza aktarıldı.');
     }
 
     function initPoolSortable() {
@@ -1452,6 +1424,285 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             loadChannelStats('genel');
         }
+
+        // Otomatik eski sürüm veri algılama ve tarama motoru
+        autoMigrateLegacyData();
+
+        // Bilgisayardaki mühürlü (.json) kayıt dosyalarını otomatik tarama ve aktarma motoru
+        scanAndImportSealedBackupsViaApi();
+    }
+
+    // =========================================================================
+    // Otomatik Veri Göçü (Auto Migration Engine for Legacy Data)
+    // =========================================================================
+    function autoMigrateLegacyData() {
+        let migratedCount = 0;
+        const legacyKeys = [
+            'kick_strikers_stats',
+            'strikers_stats',
+            'strikers_players',
+            'kick_players',
+            'strikers_data',
+            'strikers_leaderboard',
+            'kick_channel_stats',
+            'player_stats',
+            'strikers_pool'
+        ];
+
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!key) continue;
+
+                const isLegacyKey = legacyKeys.includes(key) ||
+                    (key.startsWith('strikers_') && !key.startsWith('kick_strikers_stats_')) ||
+                    (key.startsWith('kick_') && !key.startsWith('kick_strikers_'));
+
+                if (isLegacyKey) {
+                    try {
+                        const val = localStorage.getItem(key);
+                        if (!val) continue;
+                        const parsed = JSON.parse(val);
+
+                        const count = mergeParsedDataIntoStats(parsed);
+                        migratedCount += count;
+                    } catch (e) {
+                        console.warn(`Legacy key ${key} migration parse error:`, e);
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('Auto migration error:', err);
+        }
+
+        if (migratedCount > 0) {
+            saveChannelStats();
+            refreshAllPlayerElements();
+            showToast(`📦 Eski sürüm verileri algılandı ve aktarıldı! (${migratedCount} oyuncu kaydı güncellendi)`);
+        }
+    }
+
+    function mergeParsedDataIntoStats(parsed, targetStats = channelStats) {
+        let count = 0;
+        if (!parsed) return count;
+
+        // Senaryo A: Dizi biçiminde oyuncu isimleri ["Ahmet", "Mehmet"]
+        if (Array.isArray(parsed)) {
+            parsed.forEach(item => {
+                let name = '';
+                let wins = 0;
+                let losses = 0;
+
+                if (typeof item === 'string') {
+                    name = item;
+                } else if (typeof item === 'object' && item !== null) {
+                    name = item.name || item.displayName || item.username || '';
+                    wins = parseInt(item.wins || item.win || item.w || 0);
+                    losses = parseInt(item.losses || item.lose || item.l || 0);
+                }
+
+                if (name.trim()) {
+                    const key = name.trim().toLowerCase();
+                    if (!targetStats[key]) {
+                        targetStats[key] = { wins, losses, displayName: name.trim() };
+                        count++;
+                    } else {
+                        targetStats[key].wins = Math.max(targetStats[key].wins, wins);
+                        targetStats[key].losses = Math.max(targetStats[key].losses, losses);
+                    }
+                }
+            });
+        }
+        // Senaryo B: Nesne biçiminde harita { "ahmet": { wins: 5, losses: 2 }, "mehmet": [5, 2] }
+        else if (typeof parsed === 'object') {
+            Object.keys(parsed).forEach(playerKey => {
+                const item = parsed[playerKey];
+                let name = playerKey;
+                let wins = 0;
+                let losses = 0;
+
+                if (Array.isArray(item)) {
+                    wins = parseInt(item[0] || 0);
+                    losses = parseInt(item[1] || 0);
+                } else if (typeof item === 'object' && item !== null) {
+                    name = item.displayName || item.name || playerKey;
+                    wins = parseInt(item.wins || item.win || item.w || 0);
+                    losses = parseInt(item.losses || item.lose || item.l || 0);
+                } else if (typeof item === 'number') {
+                    wins = item;
+                }
+
+                if (name.trim()) {
+                    const key = name.trim().toLowerCase();
+                    if (!targetStats[key]) {
+                        targetStats[key] = { wins, losses, displayName: name.trim() };
+                        count++;
+                    } else {
+                        targetStats[key].wins = Math.max(targetStats[key].wins, wins);
+                        targetStats[key].losses = Math.max(targetStats[key].losses, losses);
+                    }
+                }
+            });
+        }
+
+        return count;
+    }
+
+    // =========================================================================
+    // JSON Veri İçe / Dışa Aktarma (Export & Import Backup Engine)
+    // =========================================================================
+    function exportAllDataToJson() {
+        try {
+            const backupData = {
+                __seal: "STRICKERS_KING_OFFICIAL_SEAL_V2",
+                signature: "SKC-OFFICIAL-BACKUP-VERIFIED",
+                appName: 'Strickers King Creator',
+                version: '2.0',
+                exportDate: new Date().toISOString(),
+                activeChannel: currentChannel,
+                lastChannel: localStorage.getItem('kick_strikers_last_channel') || 'genel',
+                joinCommand: localStorage.getItem('kick_strikers_join_cmd') || '!kingsc',
+                channels: {}
+            };
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('kick_strikers_stats_')) {
+                    const chName = k.replace('kick_strikers_stats_', '');
+                    try {
+                        backupData.channels[chName] = JSON.parse(localStorage.getItem(k));
+                    } catch (e) {}
+                }
+            }
+
+            if (!backupData.channels[currentChannel]) {
+                backupData.channels[currentChannel] = channelStats;
+            }
+
+            const jsonStr = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Strickers_King_Data_Yedek_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            playUiSfx('click');
+            showToast('🛡️ Mühürlü veriler JSON dosyası olarak başarıyla indirildi!');
+        } catch (e) {
+            console.error('Dışa aktarma hatası:', e);
+            showToast('Veriler dışa aktarılırken bir hata oluştu.', true);
+        }
+    }
+
+    // =========================================================================
+    // Bilgisayardaki Mühürlü Kayıt Dosyalarını Otomatik Tarama Motoru
+    // =========================================================================
+    async function scanAndImportSealedBackupsViaApi() {
+        try {
+            const res = await fetch('/api/scan-backups');
+            if (!res.ok) return;
+            const data = await res.json();
+
+            if (data && data.success && data.files && data.files.length > 0) {
+                let totalAutoImported = 0;
+                let importedFiles = [];
+                try {
+                    importedFiles = JSON.parse(localStorage.getItem('skc_imported_sealed_files') || '[]');
+                } catch (e) {}
+
+                data.files.forEach(f => {
+                    if (importedFiles.includes(f.path)) return;
+
+                    try {
+                        const parsed = JSON.parse(f.content);
+                        const hasSeal = parsed.__seal === 'STRICKERS_KING_OFFICIAL_SEAL_V2' ||
+                            parsed.__seal === 'STRICKERS_KING_OFFICIAL_SEAL_V1' ||
+                            f.content.includes('STRICKERS_KING_OFFICIAL_SEAL') ||
+                            f.content.includes('Strickers King Creator');
+
+                        if (hasSeal) {
+                            let count = 0;
+                            if (parsed.channels && typeof parsed.channels === 'object') {
+                                Object.keys(parsed.channels).forEach(ch => {
+                                    count += mergeParsedDataIntoStats(parsed.channels[ch], channelStats);
+                                });
+                            } else {
+                                count = mergeParsedDataIntoStats(parsed, channelStats);
+                            }
+
+                            if (count > 0) {
+                                totalAutoImported += count;
+                                importedFiles.push(f.path);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Sealed file parse error:', f.filename, err);
+                    }
+                });
+
+                if (totalAutoImported > 0) {
+                    localStorage.setItem('skc_imported_sealed_files', JSON.stringify(importedFiles));
+                    saveChannelStats();
+                    refreshAllPlayerElements();
+                    showToast(`🛡️ Mühürlü Kayıt Dosyası Algılandı! (${totalAutoImported} oyuncu verisi otomatik aktarıldı)`);
+                }
+            }
+        } catch (e) {
+            console.warn('Backup scan API unavailable or offline:', e);
+        }
+    }
+
+    function importDataFromJsonFile(file) {
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const content = e.target.result;
+                const parsed = JSON.parse(content);
+
+                let totalImported = 0;
+
+                // 1. Durum: Yedek formatı (backupData)
+                if (parsed && parsed.channels && typeof parsed.channels === 'object') {
+                    Object.keys(parsed.channels).forEach(ch => {
+                        const chStats = parsed.channels[ch];
+                        const count = mergeParsedDataIntoStats(chStats, channelStats);
+                        totalImported += count;
+                        localStorage.setItem(`kick_strikers_stats_${ch}`, JSON.stringify(chStats));
+                    });
+
+                    if (parsed.joinCommand) {
+                        currentJoinCommand = parsed.joinCommand;
+                        localStorage.setItem('kick_strikers_join_cmd', currentJoinCommand);
+                        if (joinCommandInput) joinCommandInput.value = currentJoinCommand;
+                    }
+                }
+                // 2. Durum: Eski sürüm veya ham veri (Array veya Object)
+                else {
+                    totalImported = mergeParsedDataIntoStats(parsed, channelStats);
+                }
+
+                saveChannelStats();
+                refreshAllPlayerElements();
+                if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+                    renderLeaderboard();
+                }
+
+                playUiSfx('join');
+                showToast(`🎉 Yedek verileri başarıyla yüklendi! (${totalImported} oyuncu güncellendi)`);
+            } catch (err) {
+                console.error('JSON okuma hatası:', err);
+                showToast('Geçersiz veya bozuk JSON dosyası!', true);
+            }
+        };
+
+        reader.readAsText(file);
     }
 
     function loadChannelStats(channelName) {
@@ -1559,12 +1810,18 @@ document.addEventListener('DOMContentLoaded', () => {
         removeBtn.onclick = function() {
             li.remove();
             updatePoolCount();
+            const isTournament = gameModeSelect && gameModeSelect.value === 'tournament';
+            const maxSize = parseInt(teamSizeSelect.value);
             document.querySelectorAll('.team-list').forEach(list => {
                 const teamBox = list.closest('.team-box') || list.closest('.bracket-team-slot');
                 if (teamBox) {
                     const countBadge = teamBox.querySelector('.team-count');
-                    if (countBadge) countBadge.textContent = list.children.length;
-                    if (list.children.length < parseInt(teamSizeSelect.value)) {
+                    if (countBadge) {
+                        countBadge.textContent = isTournament
+                            ? `${list.children.length}/${maxSize}`
+                            : list.children.length;
+                    }
+                    if (list.children.length < maxSize) {
                         teamBox.classList.remove('full');
                     }
                 }
@@ -1663,9 +1920,11 @@ document.addEventListener('DOMContentLoaded', () => {
             allTeamLists.forEach(tl => {
                 const tNum = parseInt(tl.id.replace('team-', ''));
                 if (tNum !== teamNum) {
-                    const tBox = tl.parentElement;
-                    const tInput = tBox.querySelector('input');
-                    const tTitle = tInput ? tInput.value : `Takım ${tNum}`;
+                    // Bracket slot veya team-box parent'ını doğru bul
+                    const tSlot = tl.closest('.bracket-team-slot') || tl.closest('.team-box') || tl.parentElement;
+                    // Turnuva bracket'ında .slot-name-input, tek maç modunda düz input
+                    const tInput = tSlot ? (tSlot.querySelector('.slot-name-input') || tSlot.querySelector('input[type="text"]')) : null;
+                    const tTitle = tInput ? tInput.value.trim() : `Takım ${tNum}`;
                     const tPlayers = Array.from(tl.querySelectorAll('.player-item')).map(el => el.dataset.name);
                     
                     const opt = document.createElement('option');
@@ -1844,7 +2103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearAllPlayers() {
-        if(confirm('Tüm oyuncuları silmek istediğinize emin misiniz?')) {
+        if (confirm('Tüm izleyicileri havuzdan ve takımlardan silmek istediğinize emin misiniz?')) {
             playerPool.innerHTML = '';
             document.querySelectorAll('.team-list').forEach(list => {
                 list.innerHTML = '';
@@ -1860,7 +2119,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 initTeams();
             }
             updatePoolCount();
-            showToast('Tüm oyuncular temizlendi.');
+            showToast('Tüm izleyiciler sıfırlandı ve silindi.');
         }
     }
 
@@ -2251,8 +2510,8 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         {
             target: '.controls',
-            title: '<i class="fa-solid fa-sliders"></i> Oyun Modu & Son 16 Turnuva Ağacı',
-            text: 'Oyun formatını belirleyin! <b>Tek Maç (2 Takım)</b> veya <b>Turnuva (16 Takım - Son 16)</b> seçebilir; takım boyutunu <b>5v5, 8v8 veya 11v11</b> olarak ayarlayabilirsiniz. Katılım komutunu da bu alandan özelleştirebilirsiniz.'
+            title: '<i class="fa-solid fa-sliders"></i> Oyun Modu & 8 Takım Turnuva Ağacı',
+            text: 'Oyun formatını belirleyin! <b>Tek Maç (2 Takım)</b> veya <b>Turnuva (8 Takım - Turnuva Ağacı)</b> seçebilir; takım boyutunu <b>5v5, 8v8 veya 11v11</b> olarak ayarlayabilirsiniz. Katılım komutunu da bu alandan özelleştirebilirsiniz.'
         },
         {
             target: '.pool-container',
@@ -2266,8 +2525,8 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         {
             target: '#teamsContainer',
-            title: '<i class="fa-solid fa-sitemap"></i> Son 16 Turnuva Ağacı & Tur Atlama',
-            text: 'Turnuva modunda 16 takım çift taraflı (UEFA/Dünya Kupası stili) profesyonel ağaçta listelenir. Maçlarda <b>🏆 Kazandı</b> butonuna basarak galip takımı kadrosuyla birlikte Çeyrek Finale, Yarı Finale ve Büyük Finale yükseltebilirsiniz!'
+            title: '<i class="fa-solid fa-sitemap"></i> 8 Takım Turnuva Ağacı & Tur Atlama',
+            text: 'Turnuva modunda 8 takım 3 aşamalı profesyonel ağaçta listelenir. Sırasıyla <b>1. Tur (4 maç)</b>, <b>Yarı Final (2 maç)</b> ve <b>Büyük Final (1 maç)</b> aşamalarında <b>🏆 Kazandı</b> butonuna basarak galip takımı şampiyonluğa taşıyabilirsiniz!'
         },
         {
             target: '#leaderboardBtn',

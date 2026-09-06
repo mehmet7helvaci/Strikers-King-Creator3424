@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strickers King Creator</title>
     <link rel="icon" type="image/x-icon" href="app.ico">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=4.1">
     <!-- SortableJS for Drag and Drop -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <!-- Pusher for Kick Chat -->
@@ -55,7 +55,7 @@
                 <label>Oyun Modu:</label>
                 <select id="gameMode">
                     <option value="single">Tek Maç (2 Takım)</option>
-                    <option value="tournament">Turnuva (16 Takım - Son 16)</option>
+                    <option value="tournament">Turnuva (8 Takım - Turnuva Ağacı)</option>
                 </select>
             </div>
             
@@ -78,8 +78,8 @@
 
             <div class="action-buttons">
                 <button id="randomizeBtn" class="btn action-btn"><i class="fa-solid fa-shuffle"></i> Rastgele Dağıt</button>
-                <button id="resetTournamentBtn" class="btn warning-btn hidden" title="Turnuva ağacındaki tüm maç sonuçlarını sıfırlar"><i class="fa-solid fa-rotate-left"></i> Turnuvayı Sıfırla</button>
-                <button id="clearBtn" class="btn danger-btn"><i class="fa-solid fa-trash"></i> Temizle</button>
+                <button id="resetTournamentBtn" class="btn warning-btn hidden" title="Turnuva ağacındaki tüm maç sonuçlarını sıfırlar ve oyuncuları havuza taşır"><i class="fa-solid fa-rotate-left"></i> Turnuvayı Sıfırla</button>
+                <button id="clearBtn" class="btn danger-btn" title="Tüm izleyicileri havuzdan ve takımlardan siler"><i class="fa-solid fa-user-slash"></i> İzleyicileri Sıfırla</button>
             </div>
         </section>
 
@@ -160,6 +160,9 @@
                         <option value="matches">Toplam Maç</option>
                     </select>
                 </div>
+                <button id="exportDataBtn" class="btn secondary-btn" title="Tüm verileri JSON dosyası olarak yedekle"><i class="fa-solid fa-file-export"></i> Dışa Aktar</button>
+                <button id="importDataBtn" class="btn secondary-btn" title="Eski sürüm veya yedek JSON verisi yükle"><i class="fa-solid fa-file-import"></i> Veri Yükle (.json)</button>
+                <input type="file" id="importFileInput" accept=".json" style="display:none;" />
                 <button id="resetChannelStatsBtn" class="btn danger-btn-outline" title="Bu kanalın verilerini sıfırla"><i class="fa-solid fa-rotate-left"></i> Sıfırla</button>
             </div>
 
@@ -260,6 +263,12 @@
                     </div>
                 </div>
             </div>
+            <div class="modal-footer">
+                <button id="closeKickModalFooterBtn" class="btn primary-btn"><i class="fa-solid fa-xmark"></i> Kapat</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Ses & Müzik Ayarları Modalı (Audio Settings Modal) -->
     <div id="audioModal" class="modal-overlay hidden">
         <div class="modal-card audio-card">
@@ -323,6 +332,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=4.1"></script>
 </body>
 </html>

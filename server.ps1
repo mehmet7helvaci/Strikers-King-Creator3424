@@ -130,6 +130,59 @@ while ($listener.IsListening) {
             continue
         }
 
+        # Auto Scan Sealed Backup Files (/api/scan-backups)
+        if ($rawUrl.StartsWith("/api/scan-backups")) {
+            try {
+                $searchFolders = @(
+                    "$env:USERPROFILE\Downloads",
+                    "$env:USERPROFILE\Desktop",
+                    "$scriptDir"
+                )
+                
+                $sealedFiles = @()
+                foreach ($folder in $searchFolders) {
+                    if (Test-Path $folder) {
+                        $jsonFiles = Get-ChildItem -Path $folder -Filter "*.json" -ErrorAction SilentlyContinue | Select-Object -First 30
+                        foreach ($file in $jsonFiles) {
+                            try {
+                                $text = [System.IO.File]::ReadAllText($file.FullName)
+                                if ($text -like "*STRICKERS_KING_OFFICIAL_SEAL*" -or $text -like "*Strickers King Creator*") {
+                                    $sealedFiles += @{
+                                        filename = $file.Name
+                                        path = $file.FullName
+                                        content = $text
+                                    }
+                                }
+                            } catch {}
+                        }
+                    }
+                }
+
+                $jsonResp = @{
+                    success = $true
+                    count = $sealedFiles.Count
+                    files = $sealedFiles
+                } | ConvertTo-Json -Depth 5 -Compress
+
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+                $response.ContentType = "application/json; charset=utf-8"
+                $response.ContentLength64 = $buffer.Length
+                $response.StatusCode = 200
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.Close()
+                continue
+            } catch {
+                $response.StatusCode = 500
+                $jsonResp = '{"success":false,"error":"Tarama hatasi"}'
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+                $response.ContentType = "application/json; charset=utf-8"
+                $response.ContentLength64 = $buffer.Length
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.Close()
+                continue
+            }
+        }
+
         # Static file handling
         $path = $request.Url.LocalPath
         if ($path -eq "/" -or [string]::IsNullOrWhiteSpace($path)) {

@@ -77,7 +77,7 @@ namespace StrickersClubCreator
                 );
 
                 string args = string.Format(
-                    "--app=\"{0}\" --user-data-dir=\"{1}\" --name=\"Strickers King Creator\" --autoplay-policy=no-user-gesture-required",
+                    "--app=\"{0}\" --user-data-dir=\"{1}\" --name=\"Strickers King Creator\" --autoplay-policy=no-user-gesture-required --disable-http-cache",
                     targetUrl,
                     appDataDir
                 );

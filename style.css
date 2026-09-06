@@ -1495,6 +1495,11 @@ header {
     padding: 10px 0 30px 0;
 }
 
+.bracket-tree.bracket-single-wing {
+    justify-content: center;
+    min-width: 900px;
+}
+
 .bracket-wing {
     display: flex;
     gap: 20px;
