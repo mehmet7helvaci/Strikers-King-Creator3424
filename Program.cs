@@ -13,9 +13,17 @@ namespace StrickersClubCreator
         [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern int SetCurrentProcessExplicitAppUserModelID(string AppID);
 
+        static Mutex mutex = new Mutex(true, "{8F9A4C62-B9E1-438B-93D2-6C81B4B6E7E9}");
+
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
+            if (!mutex.WaitOne(TimeSpan.Zero, true))
+            {
+                MessageBox.Show("Uygulama zaten çalışıyor!", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             try
             {
                 // Set Windows Taskbar AppUserModelID so taskbar displays app icon properly
@@ -26,8 +34,27 @@ namespace StrickersClubCreator
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            string scriptDir = AppDomain.CurrentDomain.BaseDirectory;
+            string scriptDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app");
             string serverScript = Path.Combine(scriptDir, "server.ps1");
+
+            // Check if overlay mode was explicitly requested via arguments
+            bool isOverlayReq = false;
+            if (args != null && args.Length > 0)
+            {
+                foreach (string a in args)
+                {
+                    if (string.Equals(a, "--overlay", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(a, "-overlay", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(a, "overlay", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(a, "--obs", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(a, "-obs", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(a, "obs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        isOverlayReq = true;
+                        break;
+                    }
+                }
+            }
 
             // 1. Detect if HTTP server is already running on any port in range 18888-18895
             int activePort = FindActiveServerPort();
@@ -64,7 +91,9 @@ namespace StrickersClubCreator
             if (activePort == 0)
                 activePort = 18888;
 
-            string targetUrl = string.Format("http://localhost:{0}", activePort);
+            string targetUrl = isOverlayReq 
+                ? string.Format("http://localhost:{0}/?overlay=1", activePort)
+                : string.Format("http://localhost:{0}", activePort);
 
             // 2. Locate MS Edge or Chrome browser executable for standalone --app mode
             string browserPath = FindBrowserExecutable();
@@ -76,7 +105,7 @@ namespace StrickersClubCreator
                     "StrickersKingCreatorProfile"
                 );
 
-                string args = string.Format(
+                string browserArgs = string.Format(
                     "--app=\"{0}\" --user-data-dir=\"{1}\" --name=\"Strickers King Creator\" --autoplay-policy=no-user-gesture-required --disable-http-cache",
                     targetUrl,
                     appDataDir
@@ -85,7 +114,7 @@ namespace StrickersClubCreator
                 ProcessStartInfo browserInfo = new ProcessStartInfo
                 {
                     FileName = browserPath,
-                    Arguments = args,
+                    Arguments = browserArgs,
                     UseShellExecute = true
                 };
 

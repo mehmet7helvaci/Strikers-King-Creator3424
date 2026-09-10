@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strickers King Creator</title>
+    <link rel="icon" type="image/x-icon" href="app.ico">
+    <link rel="stylesheet" href="style.css?v=5.0">
+    <script>
+        function checkIsObsOverlay() {
+            try {
+                return (
+                    window.location.search.indexOf('overlay=1') !== -1 ||
+                    window.location.hash.indexOf('overlay') !== -1 ||
+                    window.obsstudio !== undefined ||
+                    (navigator.userAgent && (navigator.userAgent.indexOf('OBS') !== -1 || navigator.userAgent.indexOf('obs-browser') !== -1))
+                );
+            } catch(e) {
+                return false;
+            }
+        }
+        if (checkIsObsOverlay()) {
+            document.documentElement.classList.add('obs-overlay-mode');
+            if (document.body) {
+                document.body.classList.add('obs-overlay-mode');
+            } else {
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (document.body) document.body.classList.add('obs-overlay-mode');
+                });
+            }
+        }
+    </script>
+    <!-- SortableJS for Drag and Drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- Pusher for Kick Chat -->
+    <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Açılış Ekranı (Splash Screen) -->
+    <div id="splashScreen" class="splash-screen">
+        <div class="splash-warp-ring"></div>
+        <div class="splash-scanner"></div>
+        <div class="splash-content">
+            <h1 class="splash-title">
+                <span class="teleport-word" style="--delay: 0.15s">KING</span>
+                <span class="teleport-word" style="--delay: 0.38s">Ailesi</span>
+                <span class="teleport-word" style="--delay: 0.62s">Hoşgeldiniz</span>
+            </h1>
+            <p class="splash-subtitle">
+                <span class="teleport-word" style="--delay: 0.95s">Dev -MeH4n</span>
+            </p>
+        </div>
+    </div>
+
+    <div class="background-overlay"></div>
+    <div class="container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <img src="app.png" alt="Icon" class="logo-icon">
+                <span class="logo-title">Strikers King <span class="logo-accent">Creator</span></span>
+            </div>
+            
+            <div class="connection-panel">
+                <div class="kick-input-group">
+                    <i class="fa-brands fa-kickstarter kick-logo-icon"></i>
+                    <input type="text" id="channelName" placeholder="Kick Kanal Adı veya Sohbet ID (örn: wtcn)" autocomplete="off" />
+                </div>
+                <button id="connectBtn" class="btn primary-btn"><i class="fa-solid fa-plug"></i> <span>Chat'e Bağlan</span></button>
+                <span id="connectionStatus" class="status disconnected"><i class="fa-solid fa-circle"></i> <span>Bağlı Değil</span></span>
+            </div>
+
+            <div class="header-nav-actions">
+                <button id="obsOverlayBtn" class="btn obs-nav-btn" title="OBS Overlay Canlı Yönetimi & Linki (Kısayol: O)">
+                    <i class="fa-solid fa-display"></i>
+                    <span>OBS Overlay</span>
+                </button>
+                <button id="leaderboardBtn" class="btn rank-btn" title="Sıralama Paneli & Liderlik Tablosu">
+                    <i class="fa-solid fa-trophy"></i>
+                    <span>Sıralama</span>
+                </button>
+                <button id="guideBtn" class="btn guide-btn" title="Kullanım Rehberi & Kılavuz (Kısayol: H)">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>Rehber (H)</span>
+                </button>
+                <button id="settingsDrawerBtn" class="btn settings-btn" title="Kontrol & Ayarlar Çekmecesi (Kısayol: S)">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Ayarlar</span>
+                    <span id="hubStatusPill" class="hub-pill offline" title="Veri Merkezi Durumu">Yerel</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <section class="controls-wrapper">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="gameMode"><i class="fa-solid fa-trophy"></i> Mod:</label>
+                    <select id="gameMode">
+                        <option value="single">Tek Maç (2 Takım)</option>
+                        <option value="tournament">Turnuva Ağacı (Dinamik)</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="teamSize"><i class="fa-solid fa-users"></i> Boyut:</label>
+                    <select id="teamSize">
+                        <option value="1">1v1</option>
+                        <option value="2">2v2</option>
+                        <option value="3">3v3</option>
+                        <option value="5" selected>5v5</option>
+                        <option value="8">8v8</option>
+                        <option value="11">11v11</option>
+                    </select>
+                </div>
+
+                <div class="control-group tournament-size-group" id="tournamentSizeGroup" title="Turnuva modunda oynayacak toplam kişi sayısı">
+                    <label for="participantCountInput"><i class="fa-solid fa-users-gear"></i> Katılımcı:</label>
+                    <div class="participant-input-wrap">
+                        <input type="number" id="participantCountInput" min="2" max="256" value="40" placeholder="40" />
+                        <button type="button" id="applyParticipantCountBtn" class="btn primary-btn btn-xs" title="Girilen kişi sayısına ve takım boyutuna göre turnuva ağacını otomatik oluşturur">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Oluştur</span>
+                        </button>
+                    </div>
+                    <span class="participant-badge" id="participantCalcBadge" title="Otomatik Hesaplanan Turnuva Yapısı">8 Takım (Çeyrek Final)</span>
+                </div>
+
+                <div class="control-group command-group" title="Sadece bu komutu sohbete yazan izleyiciler listeye eklenir">
+                    <label for="joinCommandInput"><i class="fa-solid fa-terminal"></i> Komut:</label>
+                    <div class="command-input-wrap">
+                        <input type="text" id="joinCommandInput" value="!kingsc" placeholder="!kingsc" maxlength="30" />
+                        <span class="command-badge" id="commandActiveBadge">Aktif</span>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="randomizeBtn" class="btn action-btn" title="Oyuncuları dengeli ve rastgele dağıtır">
+                        <i class="fa-solid fa-shuffle"></i> <span>Rastgele Dağıt</span>
+                    </button>
+                    <button id="resetTournamentBtn" class="btn warning-btn hidden" title="Turnuva ağacındaki tüm maç sonuçlarını sıfırlar ve oyuncuları havuza taşır">
+                        <i class="fa-solid fa-rotate-left"></i> <span>Turnuvayı Sıfırla</span>
+                    </button>
+                    <button id="clearBtn" class="btn danger-btn" title="Tüm izleyicileri havuzdan ve takımlardan siler">
+                        <i class="fa-solid fa-trash-can"></i> <span>İzleyicileri Sıfırla</span>
+                    </button>
+                    <button id="toggleAdvancedToolsBtn" class="btn secondary-btn advanced-toggle-btn" title="Gelişmiş OBS & Test Araçlarını Aç/Kapat (Kısayol: T)">
+                        <i class="fa-solid fa-layer-group"></i> <span>Gelişmiş Araçlar</span>
+                        <i class="fa-solid fa-chevron-down toggle-arrow" id="advancedArrow"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Açılır/Kapanır Gelişmiş Kontrol Paneli -->
+            <div class="advanced-controls-panel hidden" id="advancedControlsPanel">
+                <div class="advanced-panel-inner">
+                    <div class="advanced-group test-group">
+                        <span class="advanced-group-title"><i class="fa-solid fa-vial"></i> Test:</span>
+                        <button id="addTestPlayersBtn" class="btn secondary-btn btn-sm" title="Yayın öncesi test için havuza 10 rastgele izleyici ekler">
+                            <i class="fa-solid fa-user-astronaut"></i> <span>+10 Test İzleyici</span>
+                        </button>
+                    </div>
+
+                    <div class="advanced-v-sep"></div>
+
+                    <!-- OBS Canlı Hızlı Ölçek & Canlı Maç Kontrol Çubuğu -->
+                    <div class="obs-quick-toolbar" id="obsQuickToolbar" title="OBS Canlı Yayın Ölçek & Canlı Maç Kontrolü (Kısayollar: [ ve ])">
+                        <span class="obs-quick-title"><i class="fa-solid fa-display"></i> OBS:</span>
+                        
+                        <!-- Auto Fit & Otomatik Kusursuzlaştırma Butonları -->
+                        <button id="obsQuickAutoBtn" class="btn-quick-auto active" title="Akıllı Otomatik Sığdırma (Auto-Fit) Aç/Kapat (Kısayol: \)">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Auto-Fit</span>
+                        </button>
+                        <button id="obsAutoEnhanceBtn" class="btn-quick-magic" title="Tek Tıkla OBS Düzenini Kusursuzlaştır & Sıfırla (Büyük çerçeveleri ve boşlukları engeller)">
+                            <i class="fa-solid fa-sparkles"></i> <span>✨ Otomatik Düzelt</span>
+                        </button>
+
+                        <!-- Zoom Adımları -->
+                        <div class="obs-zoom-group">
+                            <button id="obsZoomOutBtn" class="btn-quick-obs" title="OBS Ekranını Küçült (%5) (Kısayol: [ )"><i class="fa-solid fa-minus"></i></button>
+                            <span id="obsQuickScaleBadge" class="obs-quick-badge" title="Mevcut OBS Ölçeği">Auto</span>
+                            <button id="obsZoomInBtn" class="btn-quick-obs" title="OBS Ekranını Büyüt (%5) (Kısayol: ] )"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+
+                        <!-- Hızlı Yüzde Presetleri -->
+                        <div class="obs-preset-group">
+                            <button class="btn-quick-preset" data-scale="60">%60</button>
+                            <button class="btn-quick-preset" data-scale="75">%75</button>
+                            <button class="btn-quick-preset" data-scale="90">%90</button>
+                            <button class="btn-quick-preset" data-scale="100">%100</button>
+                            <button class="btn-quick-preset" data-scale="120">%120</button>
+                        </div>
+
+                        <div class="obs-quick-divider"></div>
+
+                        <!-- Canlı Maç Seçimi -->
+                        <div class="obs-quick-live-group" title="Turnuva Ağacında Canlı Oynanan Maçı Vurgula (Kırmızı Nabız)">
+                            <span class="obs-quick-live-label"><i class="fa-solid fa-satellite-dish"></i> Canlı:</span>
+                            <select id="obsQuickLiveMatchSelect" class="obs-quick-live-select">
+                                <option value="">Kapalı</option>
+                                <option value="m_r8_1">Maç 1</option>
+                                <option value="m_r8_2">Maç 2</option>
+                                <option value="m_r8_3">Maç 3</option>
+                                <option value="m_r8_4">Maç 4</option>
+                                <option value="m_sf_1">YF 1</option>
+                                <option value="m_sf_2">YF 2</option>
+                                <option value="m_final">🏆 Final</option>
+                            </select>
+                        </div>
+
+                        <!-- Odak Sıfırlama Butonu (Göz ile odaklanmışsa gösterilir) -->
+                        <button id="obsResetFocusBtn" class="btn-quick-reset-focus hidden" title="Tek maça odaklanmayı sıfırla ve tüm ağacı göster">
+                            <i class="fa-solid fa-eye-slash"></i> <span>Tüm Ağacı Göster</span>
+                        </button>
+
+                        <div class="obs-quick-divider"></div>
+
+                        <!-- Ayarlar & Link Modalı Aç Butonu -->
+                        <button id="obsQuickSettingsBtn" class="btn-quick-settings" title="OBS Linki ve Ayrıntılı Ayarları Aç (Kısayol: O)">
+                            <i class="fa-solid fa-gear"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Workspace -->
+        <main class="workspace" id="workspaceContainer">
+            
+            <!-- Player Pool (Left Panel) -->
+            <div class="pool-container" id="poolContainer">
+                <div class="pool-header">
+                    <div class="pool-title-wrap">
+                        <h3><i class="fa-solid fa-users"></i> İzleyici Havuzu</h3>
+                        <span id="poolCount" class="badge" title="Toplam İzleyici Sayısı">0</span>
+                    </div>
+                    <div class="pool-header-actions">
+                        <div class="pool-captain-limit-wrap" id="poolCaptainLimitWrap" title="Kaptanlık Limiti & Mevcut Kaptan Sayısı (!kingkaptan)">
+                            <span class="captain-limit-label"><i class="fa-solid fa-crown"></i> Kaptan:</span>
+                            <button id="captainLimitMinusBtn" class="captain-limit-btn" title="Kaptan Limitini Azalt"><i class="fa-solid fa-minus"></i></button>
+                            <span id="captainLimitDisplay" class="captain-limit-val">2</span>
+                            <button id="captainLimitPlusBtn" class="captain-limit-btn" title="Kaptan Limitini Arttır"><i class="fa-solid fa-plus"></i></button>
+                            <span id="captainCountBadge" class="captain-count-badge" title="Mevcut Kaptan Sayısı / Limit">0/2</span>
+                        </div>
+                        <div class="pool-command-tag" id="poolCommandTag" title="İzleyiciler sohbete bu komutu yazarak otomatik eklenir (Kaptan için: !kingkaptan)">
+                            <i class="fa-solid fa-bolt"></i> <span id="poolCommandDisplay">!kingsc</span>
+                        </div>
+                        <button id="togglePoolCollapseBtn" class="pool-toggle-btn" title="İzleyici Havuzunu Daralt / Genişlet">
+                            <i class="fa-solid fa-chevron-left" id="poolToggleIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="pool-body" id="poolBody">
+                    <div class="add-manual">
+                        <input type="text" id="manualName" placeholder="İsim ekle..." autocomplete="off" />
+                        <button id="addManualBtn" title="Oyuncuyu Ekle"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="pool-search-bar" id="poolSearchBar">
+                        <i class="fa-solid fa-magnifying-glass pool-search-icon"></i>
+                        <input type="text" id="poolSearchInput" placeholder="Havuzda ara (isim)..." autocomplete="off" />
+                        <span id="poolSearchCount" class="pool-search-badge hidden">0</span>
+                        <button id="clearPoolSearchBtn" class="clear-pool-search-btn hidden" title="Aramayı Temizle"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <ul id="playerPool" class="player-list sortable-list pool-list">
+                        <!-- Players will appear here -->
+                    </ul>
+                    <div id="poolNoMatch" class="pool-no-match hidden">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span>Eşleşen izleyici bulunamadı</span>
+                    </div>
+                </div>
+                <!-- Daraltılmış Havuz Dikey Şeridi -->
+                <div class="pool-collapsed-strip hidden" id="poolCollapsedStrip" title="İzleyici Havuzunu Genişlet">
+                    <i class="fa-solid fa-users"></i>
+                    <span class="collapsed-pool-badge" id="collapsedPoolCount">0</span>
+                    <span class="collapsed-pool-text">HAVUZ</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+            </div>
+
+            <!-- Teams (Right Panel) -->
+            <div class="teams-container mode-single" id="teamsContainer">
+                <div class="team-box" id="team1Box">
+                    <div class="team-header">
+                        <input type="text" class="team-name-input" value="Takım 1" />
+                        <span class="team-count badge">0/5</span>
+                    </div>
+                    <ul class="team-list sortable-list" id="team-1"></ul>
+                </div>
+                <div class="team-box" id="team2Box">
+                    <div class="team-header">
+                        <input type="text" class="team-name-input" value="Takım 2" />
+                        <span class="team-count badge">0/5</span>
+                    </div>
+                    <ul class="team-list sortable-list" id="team-2"></ul>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Konfeti Canvas (Turnuva Şampiyonu Kutlaması) -->
+    <canvas id="confettiCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;"></canvas>
+
+    <!-- Modals & Notifications -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Oyuncu İstatistik Kartı Popup & Hızlı Düzenleme Merkezi -->
+    <div id="playerStatCard" class="player-stat-card hidden" role="dialog" aria-label="Oyuncu İstatistik Kartı">
+        <button class="stat-card-close" id="statCardClose" title="Kapat (Esc)"><i class="fa-solid fa-xmark"></i></button>
+        <div class="stat-card-avatar" id="statCardAvatar"></div>
+        <div class="stat-card-name" id="statCardName"></div>
+        <div class="stat-card-rank" id="statCardRank"></div>
+        <div class="stat-card-badge-row" id="statCardBadgeRow"></div>
+
+        <!-- Özet Maç İstatistikleri -->
+        <div class="stat-card-summary-row">
+            <div class="summary-cell"><span class="stat-val green" id="statCardWins">0</span><span class="stat-lbl">Galibiyet (W)</span></div>
+            <div class="summary-cell"><span class="stat-val red" id="statCardLosses">0</span><span class="stat-lbl">Mağlubiyet (L)</span></div>
+            <div class="summary-cell"><span class="stat-val gold" id="statCardWinRate">%0</span><span class="stat-lbl">Win Rate</span></div>
+        </div>
+
+        <!-- Kolay Manuel İstatistik Düzenleyici (Gol, Asist, Kurtarış) -->
+        <div class="stat-card-edit-section">
+            <div class="stat-edit-header">
+                <span><i class="fa-solid fa-pen-to-square"></i> Hızlı İstatistik Girişi</span>
+                <small class="stat-edit-tip">Tek tıkla + / - yap veya sayı gir</small>
+            </div>
+
+            <!-- Gol Girişi -->
+            <div class="stat-stepper-row stat-goal-row">
+                <div class="stepper-label">
+                    <i class="fa-solid fa-futbol" style="color:#00e6e6;"></i>
+                    <span>Gol:</span>
+                </div>
+                <div class="stat-stepper-controls">
+                    <button type="button" class="stat-step-btn minus" data-stat="goals" title="1 Gol Azalt"><i class="fa-solid fa-minus"></i></button>
+                    <input type="number" id="statCardGoalsInput" class="stat-step-input" min="0" max="999" value="0" />
+                    <button type="button" class="stat-step-btn plus" data-stat="goals" title="1 Gol Ekle"><i class="fa-solid fa-plus"></i></button>
+                    <button type="button" class="stat-quick-add" data-stat="goals" data-add="1" title="+1 Gol Ekle">+1</button>
+                </div>
+            </div>
+
+            <!-- Asist / Pas Girişi -->
+            <div class="stat-stepper-row stat-assist-row">
+                <div class="stepper-label">
+                    <i class="fa-solid fa-wand-magic-sparkles" style="color:#55c2ff;"></i>
+                    <span>Pas/Asist:</span>
+                </div>
+                <div class="stat-stepper-controls">
+                    <button type="button" class="stat-step-btn minus" data-stat="assists" title="1 Asist Azalt"><i class="fa-solid fa-minus"></i></button>
+                    <input type="number" id="statCardAssistsInput" class="stat-step-input" min="0" max="999" value="0" />
+                    <button type="button" class="stat-step-btn plus" data-stat="assists" title="1 Asist Ekle"><i class="fa-solid fa-plus"></i></button>
+                    <button type="button" class="stat-quick-add" data-stat="assists" data-add="1" title="+1 Asist Ekle">+1</button>
+                </div>
+            </div>
+
+            <!-- Kurtarış Girişi -->
+            <div class="stat-stepper-row stat-save-row">
+                <div class="stepper-label">
+                    <i class="fa-solid fa-shield-halved" style="color:#a3e635;"></i>
+                    <span>Kurtarış:</span>
+                </div>
+                <div class="stat-stepper-controls">
+                    <button type="button" class="stat-step-btn minus" data-stat="saves" title="1 Kurtarış Azalt"><i class="fa-solid fa-minus"></i></button>
+                    <input type="number" id="statCardSavesInput" class="stat-step-input" min="0" max="999" value="0" />
+                    <button type="button" class="stat-step-btn plus" data-stat="saves" title="1 Kurtarış Ekle"><i class="fa-solid fa-plus"></i></button>
+                    <button type="button" class="stat-quick-add" data-stat="saves" data-add="1" title="+1 Kurtarış Ekle">+1</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card-actions">
+            <button id="statCardSaveBtn" class="btn primary-btn btn-sm stat-save-btn">
+                <i class="fa-solid fa-check"></i> <span>Kaydet & Kapat</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Turnuva Skor Tablosu Modal -->
+    <div id="tournamentScoreModal" class="modal-overlay hidden">
+        <div class="modal-card score-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-ranking-star"></i> Turnuva Skor Tablosu</h2>
+                <button id="closeScoreModalBtn" class="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="score-modal-body">
+                <table class="score-table">
+                    <thead><tr><th>#</th><th>Takım</th><th>Tur</th><th class="th-center">G</th><th class="th-center">M</th></tr></thead>
+                    <tbody id="scoreTableBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button id="closeScoreModalFooterBtn" class="btn primary-btn">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- İnteraktif Kullanım Rehberi (Tour Overlay) -->
+    <div id="guideOverlay" class="guide-overlay hidden">
+        <div class="guide-spotlight" id="guideSpotlight"></div>
+        <div class="guide-card" id="guideCard">
+            <button class="guide-close-btn" id="guideCloseBtn" title="Kapat (Esc)"><i class="fa-solid fa-xmark"></i></button>
+            <div class="guide-badge" id="guideStepBadge">Adım 1 / 8</div>
+            <h3 class="guide-title" id="guideTitle"><i class="fa-solid fa-compass"></i> Hoş Geldiniz!</h3>
+            <p class="guide-text" id="guideText">Uygulama tanıtım metni burada görünecek.</p>
+            <div class="guide-footer">
+                <div class="guide-dots" id="guideDots"></div>
+                <div class="guide-actions">
+                    <button id="guidePrevBtn" class="btn guide-btn-secondary"><i class="fa-solid fa-chevron-left"></i> Geri</button>
+                    <button id="guideNextBtn" class="btn primary-btn">İleri <i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+            <div class="guide-hint"><small><kbd>H</kbd> Aç/Kapat &bull; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> Geçiş &bull; <kbd>Esc</kbd> Çıkış</small></div>
+        </div>
+    </div>
+
+    <!-- Sıralama Paneli (Leaderboard Modal) -->
+    <div id="leaderboardModal" class="modal-overlay hidden">
+        <div class="modal-card leaderboard-card">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <h2><i class="fa-solid fa-trophy"></i> Sıralama Paneli & Liderlik Tablosu</h2>
+                    <span id="activeChannelBadge" class="channel-badge"><i class="fa-brands fa-kickstarter"></i> Kanal: <strong id="currentChannelNameDisplay">Genel</strong></span>
+                </div>
+                <button id="closeLeaderboardBtn" class="modal-close-btn" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="leaderboard-toolbar">
+                <div class="search-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="leaderboardSearch" placeholder="Oyuncu ara..." autocomplete="off" />
+                </div>
+                <div class="sort-wrap">
+                    <label for="leaderboardSort">Sırala:</label>
+                    <select id="leaderboardSort">
+                        <option value="winrate">Kazanma Oranı (Win Rate %)</option>
+                        <option value="wins">En Çok Galibiyet (W)</option>
+                        <option value="matches">Toplam Maç</option>
+                        <option value="goals">En Çok Gol</option>
+                        <option value="assists">En Çok Pas</option>
+                        <option value="saves">En Çok Kurtarış</option>
+                    </select>
+                </div>
+                <button id="exportDataBtn" class="btn secondary-btn" title="Tüm verileri JSON dosyası olarak yedekle"><i class="fa-solid fa-file-export"></i> Dışa Aktar</button>
+                <button id="importDataBtn" class="btn secondary-btn" title="Eski sürüm veya yedek JSON verisi yükle"><i class="fa-solid fa-file-import"></i> Veri Yükle (.json)</button>
+                <input type="file" id="importFileInput" accept=".json" style="display:none;" />
+                <button id="resetChannelStatsBtn" class="btn danger-btn-outline" title="Bu kanalın verilerini sıfırla"><i class="fa-solid fa-rotate-left"></i> Sıfırla</button>
+            </div>
+
+            <div class="leaderboard-table-container">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th class="th-rank">#</th>
+                            <th>Oyuncu</th>
+                            <th>Kademe (Rank)</th>
+                            <th class="th-center" title="Gol">G</th>
+                            <th class="th-center" title="Pas">P</th>
+                            <th class="th-center" title="Kurtarış">K</th>
+                            <th class="th-center">W</th>
+                            <th class="th-center">L</th>
+                            <th class="th-center">Maç</th>
+                            <th class="th-rate">Win Rate</th>
+                            <th class="th-center" style="width: 70px;">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardTbody">
+                        <!-- Dynamically filled -->
+                    </tbody>
+                </table>
+                <div id="leaderboardEmpty" class="leaderboard-empty hidden">
+                    <i class="fa-solid fa-user-slash"></i>
+                    <p>Bu kanalda henüz kayıtlı oyuncu veya maç bulunmuyor.</p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <span class="storage-info"><i class="fa-solid fa-cloud-arrow-up"></i> İstatistikler kanala özel kalıcı olarak kaydedilir ve asla silinmez.</span>
+                <button id="closeLeaderboardFooterBtn" class="btn primary-btn">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maç / Turnuva Sonuç Modal (Match Winner Modal) -->
+    <div id="matchModal" class="modal-overlay hidden">
+        <div class="modal-card match-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-medal"></i> Maç Sonucunu Onayla</h2>
+                <button id="closeMatchModalBtn" class="modal-close-btn" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="match-content">
+                <div class="match-winner-display">
+                    <span class="winner-label">🏆 KAZANAN TAKIM (+1 W)</span>
+                    <h3 id="matchWinnerName">Takım 1</h3>
+                </div>
+                
+                <div class="match-loser-select-group" id="loserSelectGroup">
+                    <label for="matchLoserSelect"><i class="fa-solid fa-circle-xmark"></i> Kaybeden Rakip Takım (+1 L):</label>
+                    <select id="matchLoserSelect"></select>
+                </div>
+
+                <div class="match-stats-entry-container" style="margin-top: 15px; margin-bottom: 15px; max-height: 250px; overflow-y: auto;">
+                    <table class="score-table">
+                        <thead>
+                            <tr>
+                                <th>Oyuncu</th>
+                                <th class="th-center" style="width: 105px;" title="Gol Sayısı"><i class="fa-solid fa-futbol" style="color:#00e6e6;"></i> Gol</th>
+                                <th class="th-center" style="width: 105px;" title="Pas / Asist Sayısı"><i class="fa-solid fa-wand-magic-sparkles" style="color:#55c2ff;"></i> Pas</th>
+                                <th class="th-center" style="width: 105px;" title="Kurtarış Sayısı"><i class="fa-solid fa-shield-halved" style="color:#a3e635;"></i> Kurtarış</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matchStatsEntryBody"></tbody>
+                    </table>
+                </div>
+                
+                <div class="match-info-note">
+                    <i class="fa-solid fa-circle-info"></i> Kazanan takımın oyuncularına <strong>+1 Galibiyet (W)</strong>, kaybeden takımın oyuncularına <strong>+1 Mağlubiyet (L)</strong> eklenir ve Win Rate oranları güncellenir.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelMatchBtn" class="btn guide-btn-secondary">Vazgeç</button>
+                <button id="confirmMatchBtn" class="btn primary-btn"><i class="fa-solid fa-check"></i> Sonucu Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kick Bağlantı & Manuel ID Modal -->
+    <div id="kickModal" class="modal-overlay hidden">
+        <div class="modal-card kick-card">
+            <div class="modal-header">
+                <h2><i class="fa-brands fa-kickstarter"></i> Kick Bağlantı Merkezi</h2>
+                <button id="closeKickModalBtn" class="modal-close-btn" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="kick-modal-body">
+                <div class="kick-alert-box">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <div>
+                        <strong>Kick Kesintisiz Bağlantı Rehberi</strong>
+                        <p>Tarayıcı güvenlik duvarları (CORS/Cloudflare) doğrudan Kick API erişimini engelleyebilir. Bağlantıyı garantilemek için 2 yöntem sunulmuştur:</p>
+                    </div>
+                </div>
+
+                <div class="kick-solution-option primary-option">
+                    <div class="option-tag"><i class="fa-solid fa-star"></i> EN KOLAY & %100 KESİN ÇÖZÜM</div>
+                    <h4>1. Klasördeki "StrickersKingCreator.exe" Dosyasını Çalıştırın</h4>
+                    <p>Uygulama klasöründeki <strong>StrickersKingCreator.exe</strong> dosyasına çift tıklayarak açtığınızda bilgisayarınızda yerel bir köprü kurulur ve Kick'e hiçbir güvenlik engeline takılmadan anında bağlanır.</p>
+                </div>
+
+                <div class="kick-solution-divider"><span>VEYA</span></div>
+
+                <div class="kick-solution-option">
+                    <h4>2. Kick Sohbet ID'sini (Chatroom ID) Manuel Girin</h4>
+                    <p>Kanalınızın sohbet ID'sini girip kaydedin. Bir kez kaydettikten sonra bir daha sormaz ve doğrudan Pusher ağına bağlanır:</p>
+                    <div class="kick-id-input-wrap">
+                        <input type="number" id="manualChatroomIdInput" placeholder="Örn: 1000890" />
+                        <button id="saveChatroomIdBtn" class="btn primary-btn"><i class="fa-solid fa-plug"></i> Kaydet ve Bağlan</button>
+                    </div>
+                    <div class="kick-helper-actions">
+                        <a id="findChatroomIdLink" href="https://kick.com" target="_blank" class="btn-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> Bu Kanalın ID'sini Göster</a>
+                        <span class="helper-hint">(Açılan sayfada "chatroom" içindeki "id" numarasıdır)</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="closeKickModalFooterBtn" class="btn primary-btn"><i class="fa-solid fa-xmark"></i> Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ses & Müzik Ayarları Modalı (Audio Settings Modal) -->
+    <div id="audioModal" class="modal-overlay hidden">
+        <div class="modal-card audio-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-sliders"></i> Ses & Müzik Ayarları</h2>
+                <button id="closeAudioModalBtn" class="modal-close-btn" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="audio-modal-body">
+                <!-- Arka Plan Müziği Ayarları -->
+                <div class="audio-setting-group">
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <i class="fa-solid fa-music setting-icon"></i>
+                            <div>
+                                <strong>Arka Plan Müziği (Stadyum Synth)</strong>
+                                <p>Uygulama çalışırken epik stadyum müziği çalar</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="musicToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="slider-row">
+                        <span>Ses Düzeyi:</span>
+                        <input type="range" id="musicVolumeSlider" min="0" max="100" value="40" class="volume-slider">
+                        <span id="musicVolumeValue" class="volume-badge">40%</span>
+                    </div>
+                </div>
+
+                <!-- Ses Efektleri Ayarları -->
+                <div class="audio-setting-group">
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <i class="fa-solid fa-bullhorn setting-icon"></i>
+                            <div>
+                                <strong>Arayüz Ses Efektleri (SFX)</strong>
+                                <p>Butonlar, oyuncu katılımı ve zafer sesleri</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sfxToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="slider-row">
+                        <span>Ses Düzeyi:</span>
+                        <input type="range" id="sfxVolumeSlider" min="0" max="100" value="70" class="volume-slider">
+                        <span id="sfxVolumeValue" class="volume-badge">70%</span>
+                    </div>
+                </div>
+
+                <!-- Test Butonu -->
+                <div class="audio-test-row">
+                    <button id="testAudioBtn" class="btn guide-btn-secondary"><i class="fa-solid fa-volume-low"></i> Efekt Sesini Test Et</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="closeAudioModalFooterBtn" class="btn primary-btn">Kaydet ve Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OBS Link & Canlı Ölçek Kontrol Modalı -->
+    <div id="obsLinkModal" class="modal-overlay hidden">
+        <div class="modal-card obs-settings-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-display"></i> OBS Overlay & Canlı Ölçek Kontrolü</h2>
+                <button id="closeObsLinkModalBtn" class="modal-close-btn" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="obs-settings-body">
+                <!-- OBS Bağlantı Linki -->
+                <div class="obs-setting-section">
+                    <label class="section-title"><i class="fa-solid fa-link"></i> OBS Browser Source Linki (Tek & Sabit Link)</label>
+                    <div style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.4);border-radius:10px;padding:8px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+                        <i class="fa-solid fa-bolt" style="color:#00f0ff;font-size:18px;"></i>
+                        <span style="font-size:13px;color:#d8f8ff;font-weight:600;">Bu linki OBS'e <strong>1 kez</strong> eklemeniz yeterlidir! Panelden yaptığınız tüm ayarlar (Ölçek, Canlı Maç, Çubuk) OBS'e anında canlı yansır. Linki tekrar değiştirmeye gerek yoktur.</span>
+                    </div>
+                    <p class="section-desc">Aşağıdaki bağlantıyı OBS'de yeni bir <strong>Tarayıcı (Browser Source)</strong> kaynağı olarak ekleyin:</p>
+                    <div class="obs-link-bar">
+                        <input type="text" id="obsLinkInput" readonly />
+                        <button id="copyObsLinkBtn" class="btn primary-btn"><i class="fa-solid fa-copy"></i> Kopyala</button>
+                        <a id="openObsPreviewBtn" href="?overlay=1" target="_blank" class="btn secondary-btn" title="Tarayıcıda Canlı Önizle"><i class="fa-solid fa-external-link"></i> Önizle</a>
+                    </div>
+                    <div class="obs-resolution-callout">
+                        <div class="callout-header">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <strong>Netlik & Çözünürlük Tavsiyesi (Full HD)</strong>
+                        </div>
+                        <p>OBS varsayılan olarak kaynağı <code>800x600</code> açar. Yayında pikselleşmeyi ve bulanıklığı önlemek için OBS Tarayıcı Kaynağı özelliklerinde genişlik ve yüksekliği aşağıdaki gibi ayarlayın:</p>
+                        <div class="res-chips">
+                            <span class="chip-item"><i class="fa-solid fa-arrows-left-right"></i> Genişlik (Width): <strong>1920</strong></span>
+                            <span class="chip-item"><i class="fa-solid fa-arrows-up-down"></i> Yükseklik (Height): <strong>1080</strong></span>
+                            <span class="chip-item"><i class="fa-solid fa-gauge-high"></i> FPS: <strong>60</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ölçeklendirme Modu & Slider -->
+                <div class="obs-setting-section">
+                    <label class="section-title"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Ölçeklendirme & Sığdırma (Scaling)</label>
+                    
+                    <div class="scale-mode-selector">
+                        <label class="mode-radio-label">
+                            <input type="radio" name="obsScaleMode" id="obsScaleAuto" value="auto" checked>
+                            <span class="mode-radio-custom"><i class="fa-solid fa-wand-magic-sparkles"></i> <strong>Akıllı Otomatik (Auto-Fit)</strong> <small>Pencere boyutuna göre otomatik sığdırır</small></span>
+                        </label>
+                        <label class="mode-radio-label">
+                            <input type="radio" name="obsScaleMode" id="obsScaleManual" value="manual">
+                            <span class="mode-radio-custom"><i class="fa-solid fa-sliders"></i> <strong>Manuel Ayar</strong> <small>Ölçeği kaydırıcı ile canlı yönet</small></span>
+                        </label>
+                    </div>
+
+                    <div id="obsManualScaleContainer" class="manual-scale-wrap" style="display:none; margin-top: 15px;">
+                        <div class="slider-row">
+                            <span>Manuel Ölçek:</span>
+                            <input type="range" id="obsScaleSlider" min="40" max="200" value="100" step="5" class="volume-slider">
+                            <span id="obsScaleValue" class="volume-badge">100%</span>
+                        </div>
+                        <div class="scale-presets">
+                            <button class="btn-preset" data-scale="60">%60</button>
+                            <button class="btn-preset" data-scale="75">%75</button>
+                            <button class="btn-preset" data-scale="90">%90</button>
+                            <button class="btn-preset" data-scale="100">%100</button>
+                            <button class="btn-preset" data-scale="125">%125</button>
+                            <button class="btn-preset" data-scale="150">%150</button>
+                            <button class="btn-preset btn-preset-reset" id="resetObsScaleBtn"><i class="fa-solid fa-rotate-left"></i> Sıfırla</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Canlı Oynanan Maç Vurgusu (Live Match Pulse) -->
+                <div class="obs-setting-section">
+                    <label class="section-title"><i class="fa-solid fa-satellite-dish" style="color: #ff3344;"></i> Canlı Oynanan Maç Vurgusu (Kırmızı Nabız)</label>
+                    <p class="section-desc">OBS yayınında izleyicilerin o an hangi turun/maçın oynandığını takip edebilmesi için seçilen maçı kırmızı neon nabız efektiyle vurgular:</p>
+                    <div class="obs-live-match-selector-wrap">
+                        <select id="obsLiveMatchSelect" class="obs-select obs-live-select">
+                            <option value="">🚫 Canlı Vurgu Yok (Kapalı)</option>
+                            <optgroup label="1. Tur (Çeyrek Final)">
+                                <option value="m_r8_1">🔴 1. Tur: Maç 1</option>
+                                <option value="m_r8_2">🔴 1. Tur: Maç 2</option>
+                                <option value="m_r8_3">🔴 1. Tur: Maç 3</option>
+                                <option value="m_r8_4">🔴 1. Tur: Maç 4</option>
+                            </optgroup>
+                            <optgroup label="Yarı Finaller">
+                                <option value="m_sf_1">🔴 Yarı Final: YF 1</option>
+                                <option value="m_sf_2">🔴 Yarı Final: YF 2</option>
+                            </optgroup>
+                            <optgroup label="Final">
+                                <option value="m_final">🏆 BÜYÜK FİNAL</option>
+                            </optgroup>
+                        </select>
+                        <button id="clearLiveMatchBtn" class="btn danger-btn-outline" title="Canlı maç vurgusunu kaldır"><i class="fa-solid fa-xmark"></i> Vurguyu Kapat</button>
+                    </div>
+                    <div class="live-match-quick-buttons">
+                        <button class="btn-live-quick" data-match="m_r8_1">Maç 1</button>
+                        <button class="btn-live-quick" data-match="m_r8_2">Maç 2</button>
+                        <button class="btn-live-quick" data-match="m_r8_3">Maç 3</button>
+                        <button class="btn-live-quick" data-match="m_r8_4">Maç 4</button>
+                        <button class="btn-live-quick" data-match="m_sf_1">YF 1</button>
+                        <button class="btn-live-quick" data-match="m_sf_2">YF 2</button>
+                        <button class="btn-live-quick gold-pulse" data-match="m_final">🏆 Final</button>
+                    </div>
+                </div>
+
+                <!-- Bilgi Çubuğu ve Hizalama Ayarları -->
+                <div class="obs-setting-section">
+                    <div class="obs-two-col-grid">
+                        <div class="grid-col">
+                            <label class="col-title"><i class="fa-solid fa-bullhorn"></i> Bilgi Çubuğu Konumu</label>
+                            <select id="obsInfoBarPosSelect" class="obs-select">
+                                <option value="top">Üstte Sabit (Varsayılan)</option>
+                                <option value="bottom">Altta Sabit</option>
+                                <option value="compact">Kompakt Rozet (Sağ Üst)</option>
+                                <option value="hidden">Gizli (Gösterme)</option>
+                            </select>
+                        </div>
+                        <div class="grid-col">
+                            <label class="col-title"><i class="fa-solid fa-arrows-up-down"></i> Dikey Hizalama</label>
+                            <select id="obsAlignSelect" class="obs-select">
+                                <option value="center">Merkezde Ortala</option>
+                                <option value="top">Üste Hizala</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="obs-live-hint">
+                    <i class="fa-solid fa-bolt"></i> Yapılan tüm değişiklikler açık olan OBS Browser Source yayınına <strong>anında canlı</strong> olarak uygulanır.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="closeObsLinkModalFooterBtn" class="btn primary-btn">Kaydet ve Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- Veri Merkezi (Data Hub) Modalı                                           -->
+    <!-- ========================================================================= -->
+    <div id="hubModal" class="modal-overlay hidden">
+        <div class="modal-card hub-modal-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-network-wired" style="color:#00ffcc;"></i> Ortak Veri Merkezi (Hub)</h2>
+                <button id="closeHubModalBtn" class="close-btn" title="Kapat">&times;</button>
+            </div>
+            
+            <div class="modal-body hub-modal-body">
+                <!-- Hub Mode Switcher (Host vs Client) -->
+                <div class="hub-tabs">
+                    <button id="hubTabHostBtn" class="hub-tab-btn active"><i class="fa-solid fa-server"></i> Bu Bilgisayar (Veri Merkezi / Host)</button>
+                    <button id="hubTabClientBtn" class="hub-tab-btn"><i class="fa-solid fa-satellite-dish"></i> İstemci Bağlantısı (Diğer Yayıncılar)</button>
+                </div>
+
+                <!-- HOST PANEL (Bu Bilgisayar Veri Merkezi) -->
+                <div id="hubHostPanel" class="hub-panel active">
+                    <div class="hub-status-hero">
+                        <div class="hero-left">
+                            <div class="hero-label">SUNUCU DURUMU</div>
+                            <div class="hero-status"><span class="pulse-dot green" id="hubServerPulseDot"></span> <strong id="hubHostServerStatusText">Aktif (Port 18888)</strong></div>
+                        </div>
+                        <div class="hero-stats-row">
+                            <div class="hero-stat-box">
+                                <span class="stat-num" id="hubRegisteredPlayersCount">0</span>
+                                <span class="stat-label">Kayıtlı Oyuncu</span>
+                            </div>
+                            <div class="hero-stat-box">
+                                <span class="stat-num" id="hubActiveClientsCount">1</span>
+                                <span class="stat-label">Aktif İstemci</span>
+                            </div>
+                            <div class="hero-stat-box">
+                                <span class="stat-num" id="hubTotalEventsCount">0</span>
+                                <span class="stat-label">İşlenen Maç</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cloudflare Quick Tunnel Bölümü -->
+                    <div class="hub-section tunnel-box">
+                        <div class="section-badge-header">
+                            <span class="sec-title"><i class="fa-solid fa-shield-halved" style="color: #00ffcc;"></i> Cloudflare Güvenli Tünel (İnternet Erişimi)</span>
+                            <span id="hubTunnelBadge" class="tunnel-status-badge inactive">Tünel Kapalı</span>
+                        </div>
+                        <p class="sec-hint">
+                            Diğer yayıncıların uzaktan bağlanabilmesi için modemde port açmanıza gerek yoktur.
+                            Tüneli başlattığınızda Cloudflare tarafından size özel güvenli bir <code>https://*.trycloudflare.com</code> adresi üretilir.
+                        </p>
+
+                        <div class="tunnel-controls-row">
+                            <button id="startTunnelBtn" class="btn primary-btn"><i class="fa-solid fa-play"></i> Tüneli Başlat (Cloudflare)</button>
+                            <button id="stopTunnelBtn" class="btn danger-btn-outline hidden"><i class="fa-solid fa-stop"></i> Tüneli Durdur</button>
+                            <button id="refreshHubStatusBtn" class="btn secondary-btn" title="Durumu Yenile"><i class="fa-solid fa-rotate"></i> Yenile</button>
+                        </div>
+
+                        <div id="tunnelUrlContainer" class="tunnel-url-wrap hidden">
+                            <label><i class="fa-solid fa-link"></i> Yayıncılarla Paylaşılacak Bağlantı Linki:</label>
+                            <div class="input-with-copy">
+                                <input type="text" id="tunnelUrlInput" readonly placeholder="https://xxxx.trycloudflare.com" />
+                                <button id="copyTunnelUrlBtn" class="btn action-btn" title="Panoya Kopyala"><i class="fa-solid fa-copy"></i> Kopyala</button>
+                            </div>
+                            <div class="tunnel-share-note">
+                                <i class="fa-solid fa-circle-info"></i> Bu linki diğer yayıncılara gönderin. Yayıncılar kendi uygulamalarında "İstemci Bağlantısı" sekmesine bu linki yapıştırıp "Bağlan" dediklerinde ortak havuza bağlanacaklardır.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Veritabanı & Sıfırlama Araçları -->
+                    <div class="hub-section">
+                        <span class="sec-title"><i class="fa-solid fa-database"></i> Veritabanı Yönetimi</span>
+                        <div class="hub-btn-row">
+                            <button id="exportHubDbBtn" class="btn secondary-btn"><i class="fa-solid fa-download"></i> Havuz Veritabanını İndir (.json)</button>
+                            <button id="resetHubDbBtn" class="btn danger-btn"><i class="fa-solid fa-trash"></i> Merkezi Havuzu Sıfırla</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CLIENT PANEL (Diğer Yayıncıların Bağlantı Ekranı) -->
+                <div id="hubClientPanel" class="hub-panel">
+                    <div class="hub-client-intro">
+                        <p>
+                            Başka bir ana bilgisayarın (Veri Merkezi) ortak oyuncu havuzuna bağlanmak için, ana yayıncıdan aldığınız bağlantı linkini aşağıdaki kutuya yapıştırın.
+                        </p>
+                    </div>
+
+                    <div class="hub-form-group">
+                        <label for="hubRemoteUrlInput"><i class="fa-solid fa-globe"></i> Merkezi Sunucu URL Adresi:</label>
+                        <div class="input-with-action">
+                            <input type="text" id="hubRemoteUrlInput" placeholder="örn: https://xxxx.trycloudflare.com" />
+                            <button id="connectHubBtn" class="btn primary-btn"><i class="fa-solid fa-link"></i> Bağlan</button>
+                            <button id="disconnectHubBtn" class="btn danger-btn hidden"><i class="fa-solid fa-link-slash"></i> Bağlantıyı Kes</button>
+                        </div>
+                    </div>
+
+                    <div class="hub-client-status-card" id="hubClientStatusCard">
+                        <div class="client-card-status">
+                            <span class="status-indicator-dot offline" id="clientStatusDot"></span>
+                            <span id="clientStatusText">Bağlantı Bekleniyor (Yerel Mod)</span>
+                        </div>
+                        <div class="client-card-details" id="clientCardDetails" style="display: none;">
+                            <div><strong>Sunucu:</strong> <span id="clientConnectedUrl">-</span></div>
+                            <div><strong>Ping / Tepki:</strong> <span id="clientPingText">0 ms</span></div>
+                            <div><strong>Senkronize Oyuncu:</strong> <span id="clientSyncedPlayersText">0</span></div>
+                        </div>
+                    </div>
+
+                    <div class="hub-feature-list">
+                        <div class="feature-item"><i class="fa-solid fa-check"></i> Maç tamamlandığında gol, pas ve kurtarışlar anında merkeze yazılır.</div>
+                        <div class="feature-item"><i class="fa-solid fa-check"></i> Başka bir yayında maç bittiğinde ekranınızda canlı bildirim çıkar.</div>
+                        <div class="feature-item"><i class="fa-solid fa-check"></i> Sıralama Paneli tüm yayıncıların ortak liderlik tablosunu yansıtır.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="closeHubModalFooterBtn" class="btn secondary-btn">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- Sağdan Kayan Kontrol & Ayarlar Çekmecesi (Offcanvas Settings Drawer)       -->
+    <!-- ========================================================================= -->
+    <div id="drawerOverlay" class="drawer-overlay hidden"></div>
+    <aside id="settingsDrawer" class="settings-drawer hidden">
+        <div class="drawer-header">
+            <div class="drawer-title">
+                <i class="fa-solid fa-sliders" style="color: var(--primary-color);"></i>
+                <h3>Kontrol & Ayarlar Merkezi</h3>
+            </div>
+            <button id="closeDrawerBtn" class="drawer-close-btn" title="Kapat (Esc)"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- Hızlı Modal Kısayolları (Geriye Dönük Uyumluluk ve Tam Görünüm) -->
+        <div class="drawer-modal-shortcuts">
+            <button id="audioSettingsBtn" class="btn drawer-shortcut-btn" title="Ses Penceresi"><i class="fa-solid fa-volume-high"></i> <span>Ses Paneli</span></button>
+            <button id="obsOverlayBtn" class="btn drawer-shortcut-btn" title="OBS Penceresi"><i class="fa-solid fa-display"></i> <span>OBS Linki</span></button>
+            <button id="dataHubBtn" class="btn drawer-shortcut-btn" title="Veri Merkezi"><i class="fa-solid fa-server"></i> <span>Veri Merkezi</span></button>
+            <button id="kickHelpBtn" class="btn drawer-shortcut-btn" title="Kick Yardımı"><i class="fa-solid fa-wrench"></i> <span>Kick Ayar</span></button>
+        </div>
+
+        <!-- Drawer Tabs Navigation -->
+        <nav class="drawer-tabs">
+            <button class="drawer-tab-btn active" data-drawer-tab="music"><i class="fa-solid fa-music"></i> Müzik & Ses</button>
+            <button class="drawer-tab-btn" data-drawer-tab="obs"><i class="fa-solid fa-display"></i> OBS Overlay</button>
+            <button class="drawer-tab-btn" data-drawer-tab="hub"><i class="fa-solid fa-server"></i> Veri Merkezi</button>
+            <button class="drawer-tab-btn" data-drawer-tab="kick"><i class="fa-brands fa-kickstarter"></i> Kick & API</button>
+        </nav>
+
+        <div class="drawer-body">
+            <!-- TAB 1: Müzik & Ses -->
+            <div class="drawer-tab-pane active" id="drawerTabMusic">
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-headphones"></i> Müzik Teması Seçimi</h4>
+                    <p class="drawer-subtext">Gerçek zamanlı Web Audio sentezleyicisi ile çalışan yüksek kaliteli polifonik müzik tarzınızı seçin:</p>
+                    <div class="theme-selector-grid">
+                        <label class="theme-card active" data-theme="stadium">
+                            <input type="radio" name="musicThemeChoice" value="stadium" checked>
+                            <div class="theme-card-content">
+                                <span class="theme-icon">🏆</span>
+                                <div class="theme-text">
+                                    <strong>Stadyum Marşı</strong>
+                                    <small>Epik synth akorları, bas yürüyüşü & tezahürat</small>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="theme-card" data-theme="cyber">
+                            <input type="radio" name="musicThemeChoice" value="cyber">
+                            <div class="theme-card-content">
+                                <span class="theme-icon">⚡</span>
+                                <div class="theme-text">
+                                    <strong>Cyber Match EDM</strong>
+                                    <small>128 BPM dinamik synthwave bas & perküsyon</small>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="theme-card" data-theme="chill">
+                            <input type="radio" name="musicThemeChoice" value="chill">
+                            <div class="theme-card-content">
+                                <span class="theme-icon">☕</span>
+                                <div class="theme-text">
+                                    <strong>Chill Lo-Fi</strong>
+                                    <small>85 BPM sıcak elektrik piyano & kadife bas</small>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="theme-card" data-theme="arcade">
+                            <input type="radio" name="musicThemeChoice" value="arcade">
+                            <div class="theme-card-content">
+                                <span class="theme-icon">🕹️</span>
+                                <div class="theme-text">
+                                    <strong>8-Bit Retro Arcade</strong>
+                                    <small>Nostaljik kare dalga chiptune oyun melodisi</small>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <i class="fa-solid fa-music setting-icon"></i>
+                            <div>
+                                <strong>Arka Plan Müziği</strong>
+                                <p>Uygulama açıkken seçilen temayı çalar</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="drawerMusicToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="slider-row">
+                        <span>Müzik Düzeyi:</span>
+                        <input type="range" id="drawerMusicVolumeSlider" min="0" max="100" value="40" class="volume-slider">
+                        <span id="drawerMusicVolumeValue" class="volume-badge">40%</span>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <i class="fa-solid fa-bullhorn setting-icon"></i>
+                            <div>
+                                <strong>Arayüz Ses Efektleri (SFX)</strong>
+                                <p>Buton tıklama, düdük, gol ve zafer sesleri</p>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="drawerSfxToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="slider-row">
+                        <span>Efekt Düzeyi:</span>
+                        <input type="range" id="drawerSfxVolumeSlider" min="0" max="100" value="70" class="volume-slider">
+                        <span id="drawerSfxVolumeValue" class="volume-badge">70%</span>
+                    </div>
+                    
+                    <div class="sfx-test-buttons-grid">
+                        <button id="testWhistleBtn" class="btn btn-sm secondary-btn"><i class="fa-solid fa-bullhorn"></i> Hakem Düdüğü</button>
+                        <button id="testGoalHornBtn" class="btn btn-sm secondary-btn"><i class="fa-solid fa-volume-high"></i> Gol Kornası</button>
+                        <button id="testVictoryBtn" class="btn btn-sm secondary-btn"><i class="fa-solid fa-trophy"></i> Zafer Vuruşu</button>
+                        <button id="testClickBtn" class="btn btn-sm secondary-btn"><i class="fa-solid fa-fingerprint"></i> Tıklama SFX</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: OBS Overlay -->
+            <div class="drawer-tab-pane" id="drawerTabObs">
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-link"></i> OBS Browser Source Bağlantısı (Tek & Sabit Link)</h4>
+                    <div style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.4);border-radius:10px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                        <i class="fa-solid fa-bolt" style="color:#00f0ff;font-size:16px;"></i>
+                        <span style="font-size:12px;color:#d8f8ff;font-weight:600;">Bu linki OBS'e <strong>1 kez</strong> ekleyin. Tüm ayarlar canlı senkronize olur.</span>
+                    </div>
+                    <p class="drawer-subtext">OBS'e yeni bir Tarayıcı kaynağı ekleyip aşağıdaki linki yapıştırın:</p>
+                    <div class="obs-link-bar">
+                        <input type="text" id="drawerObsLinkInput" readonly />
+                        <button id="drawerCopyObsLinkBtn" class="btn primary-btn"><i class="fa-solid fa-copy"></i> Kopyala</button>
+                        <a id="drawerOpenObsPreviewBtn" href="?overlay=1" target="_blank" class="btn secondary-btn"><i class="fa-solid fa-arrow-up-right-from-square"></i> Önizle</a>
+                    </div>
+                    <div class="obs-resolution-callout">
+                        <div class="callout-header">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <strong>Netlik & Çözünürlük Tavsiyesi (Full HD)</strong>
+                        </div>
+                        <p>OBS varsayılan olarak <code>800x600</code> açar. Yayında bulanıklığı önlemek için kaynak özelliklerinde <strong>1920x1080</strong> ayarlayın.</p>
+                        <div class="res-chips">
+                            <span class="chip-item"><i class="fa-solid fa-expand"></i> <strong>1920 x 1080</strong></span>
+                            <span class="chip-item"><i class="fa-solid fa-gauge-high"></i> <strong>60 FPS</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-up-right-and-down-left-from-center"></i> OBS Canlı Ölçekleme</h4>
+                    <div class="scale-mode-selector">
+                        <label class="mode-radio-label">
+                            <input type="radio" name="drawerObsScaleMode" id="drawerObsScaleAuto" value="auto" checked>
+                            <span class="mode-radio-custom"><i class="fa-solid fa-wand-magic-sparkles"></i> <strong>Akıllı Otomatik (Auto-Fit)</strong></span>
+                        </label>
+                        <label class="mode-radio-label">
+                            <input type="radio" name="drawerObsScaleMode" id="drawerObsScaleManual" value="manual">
+                            <span class="mode-radio-custom"><i class="fa-solid fa-sliders"></i> <strong>Manuel Ayar</strong></span>
+                        </label>
+                    </div>
+                    <div id="drawerObsManualScaleContainer" class="manual-scale-wrap" style="display:none; margin-top: 15px;">
+                        <div class="slider-row">
+                            <span>Manuel Ölçek:</span>
+                            <input type="range" id="drawerObsScaleSlider" min="40" max="200" value="100" step="5" class="volume-slider">
+                            <span id="drawerObsScaleValue" class="volume-badge">100%</span>
+                        </div>
+                        <div class="scale-presets">
+                            <button class="btn-preset drawer-preset-btn" data-scale="60">%60</button>
+                            <button class="btn-preset drawer-preset-btn" data-scale="75">%75</button>
+                            <button class="btn-preset drawer-preset-btn" data-scale="90">%90</button>
+                            <button class="btn-preset drawer-preset-btn" data-scale="100">%100</button>
+                            <button class="btn-preset drawer-preset-btn" data-scale="125">%125</button>
+                            <button class="btn-preset drawer-preset-btn" data-scale="150">%150</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-satellite-dish" style="color: #ff3344;"></i> Canlı Maç Vurgusu</h4>
+                    <p class="drawer-subtext">OBS ekranında aktif maçı kırmızı neon nabızla işaretleyin:</p>
+                    <div class="live-match-quick-buttons">
+                        <button class="btn-live-quick drawer-live-btn" data-match="m_r8_1">Maç 1</button>
+                        <button class="btn-live-quick drawer-live-btn" data-match="m_r8_2">Maç 2</button>
+                        <button class="btn-live-quick drawer-live-btn" data-match="m_r8_3">Maç 3</button>
+                        <button class="btn-live-quick drawer-live-btn" data-match="m_r8_4">Maç 4</button>
+                        <button class="btn-live-quick drawer-live-btn" data-match="m_sf_1">YF 1</button>
+                        <button class="btn-live-quick drawer-live-btn" data-match="m_sf_2">YF 2</button>
+                        <button class="btn-live-quick drawer-live-btn gold-pulse" data-match="m_final">🏆 Final</button>
+                        <button class="btn-live-quick drawer-live-btn danger-text" data-match=""><i class="fa-solid fa-xmark"></i> Kapat</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Veri Merkezi (Hub) -->
+            <div class="drawer-tab-pane" id="drawerTabHub">
+                <div class="drawer-card">
+                    <div class="hub-hero-compact">
+                        <div class="hero-left">
+                            <span class="hero-label">MERKEZİ SUNUCU</span>
+                            <div class="hero-status"><span class="pulse-dot green" id="drawerHubPulseDot"></span> <strong id="drawerHubServerStatusText">Aktif (Port 18888)</strong></div>
+                        </div>
+                        <div class="hub-mini-stats">
+                            <div class="mini-stat"><span id="drawerHubPlayersCount">0</span> <small>Oyuncu</small></div>
+                            <div class="mini-stat"><span id="drawerHubClientsCount">1</span> <small>İstemci</small></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-shield-halved" style="color: #00ffcc;"></i> Cloudflare Güvenli Tünel</h4>
+                    <p class="drawer-subtext">Diğer yayıncıların uzaktan ortak havuza bağlanmasını sağlar:</p>
+                    <div class="tunnel-controls-row">
+                        <button id="drawerStartTunnelBtn" class="btn primary-btn btn-sm"><i class="fa-solid fa-play"></i> Tüneli Başlat</button>
+                        <button id="drawerStopTunnelBtn" class="btn danger-btn-outline btn-sm hidden"><i class="fa-solid fa-stop"></i> Tüneli Durdur</button>
+                    </div>
+                    <div id="drawerTunnelUrlContainer" class="tunnel-url-wrap hidden" style="margin-top: 10px;">
+                        <input type="text" id="drawerTunnelUrlInput" readonly placeholder="https://xxxx.trycloudflare.com" />
+                        <button id="drawerCopyTunnelUrlBtn" class="btn action-btn btn-sm"><i class="fa-solid fa-copy"></i> Kopyala</button>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-satellite-dish"></i> İstemci Olarak Başka Havuza Bağlan</h4>
+                    <div class="input-with-action" style="margin-top: 8px;">
+                        <input type="text" id="drawerHubRemoteUrlInput" placeholder="https://xxxx.trycloudflare.com" />
+                        <button id="drawerConnectHubBtn" class="btn primary-btn btn-sm"><i class="fa-solid fa-link"></i> Bağlan</button>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-database"></i> Veritabanı Yedekleme</h4>
+                    <div class="hub-btn-row">
+                        <button id="drawerExportHubDbBtn" class="btn secondary-btn btn-sm"><i class="fa-solid fa-download"></i> JSON İndir</button>
+                        <button id="drawerResetHubDbBtn" class="btn danger-btn-outline btn-sm"><i class="fa-solid fa-trash"></i> Havuzu Sıfırla</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Kick & API -->
+            <div class="drawer-tab-pane" id="drawerTabKick">
+                <div class="drawer-card">
+                    <h4><i class="fa-brands fa-kickstarter" style="color: #00ff00;"></i> Manuel Kick Chatroom ID</h4>
+                    <p class="drawer-subtext">Kanal adından otomatik bulunamazsa doğrudan sohbet ID numaranızı girin:</p>
+                    <div class="kick-id-input-wrap">
+                        <input type="number" id="drawerManualChatroomIdInput" placeholder="Örn: 1000890" />
+                        <button id="drawerSaveChatroomIdBtn" class="btn primary-btn btn-sm"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-circle-check" style="color: #00e6e6;"></i> Yerel Masaüstü Köprüsü</h4>
+                    <p class="drawer-subtext">Klasördeki <strong>StrickersKingCreator.exe</strong> dosyası çalıştığında Kick API istekleri hiçbir güvenlik/CORS engeline takılmadan %100 kesinlikle bağlanır.</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ========================================================================= -->
+    <!-- Kapsamlı Rehber & Kılavuz Merkezi (Comprehensive Guide Modal)              -->
+    <!-- ========================================================================= -->
+    <div id="comprehensiveGuideModal" class="modal-overlay hidden">
+        <div class="modal-card comprehensive-guide-card">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <h2><i class="fa-solid fa-book-open" style="color: var(--primary-color);"></i> Strikers King Kılavuz & Yardım Merkezi</h2>
+                    <span class="guide-version-badge">v5.0 Pro</span>
+                </div>
+                <button id="closeComprehensiveGuideBtn" class="modal-close-btn" title="Kapat (Esc)"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="guide-modal-tabs">
+                <button class="guide-tab-btn active" data-guide-tab="tour"><i class="fa-solid fa-compass"></i> İnteraktif Tur</button>
+                <button class="guide-tab-btn" data-guide-tab="tournament"><i class="fa-solid fa-sitemap"></i> Turnuva & Maç</button>
+                <button class="guide-tab-btn" data-guide-tab="obs"><i class="fa-solid fa-display"></i> OBS Canlı Yayın</button>
+                <button class="guide-tab-btn" data-guide-tab="kick"><i class="fa-brands fa-kickstarter"></i> Kick & Veri Merkezi</button>
+                <button class="guide-tab-btn" data-guide-tab="shortcuts"><i class="fa-solid fa-keyboard"></i> Kısayol Tuşları</button>
+            </div>
+
+            <div class="guide-modal-body">
+                <!-- TAB 1: İnteraktif Tur -->
+                <div class="guide-tab-pane active" id="guideTabTour">
+                    <div class="guide-hero-box">
+                        <div class="hero-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> REHBERLİ BAŞLANGIÇ</div>
+                        <h3>Arayüzü ve Özellikleri 10 Adımda Keşfedin</h3>
+                        <p>Uygulamadaki tüm yenilikleri, katlanabilir panelleri, ses temalarını, OBS canlı yayın araçlarını ve turnuva yönetimini canlı olarak ekran üzerinde adım adım keşfetmek için aşağıdaki butona tıklayın.</p>
+                        <button id="startInteractiveTourBtn" class="btn primary-btn btn-lg">
+                            <i class="fa-solid fa-play"></i> <span>İnteraktif Turu Başlat</span>
+                        </button>
+                    </div>
+                    <div class="guide-grid-features">
+                        <div class="feature-card">
+                            <div class="feature-icon"><i class="fa-solid fa-sliders"></i></div>
+                            <h4>Kontrol & Ayarlar Çekmecesi</h4>
+                            <p>Sağ üstteki <b>Ayarlar</b> butonuna veya klavyeden <b>S</b> tuşuna basarak müzik temaları, OBS ve veri merkezini tek panelden yönetin.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon"><i class="fa-solid fa-layer-group"></i></div>
+                            <h4>Katlanabilir Gelişmiş Panel</h4>
+                            <p><b>Gelişmiş Araçlar</b> butonu veya <b>T</b> tuşu ile test izleyici ve OBS hızlı ölçek çubuğunu anında açıp kapatın.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon"><i class="fa-solid fa-arrows-split-up-and-left"></i></div>
+                            <h4>İzleyici Havuzu Daraltma</h4>
+                            <p>Havuz başlığındaki oka tıklayarak sol paneli tek tıkla gizleyin; stadyum maç sahasına ve turnuva ağacına tam ekran yer açın.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon"><i class="fa-solid fa-music"></i></div>
+                            <h4>4 Zengin Müzik Teması</h4>
+                            <p>Stadyum Marşı, Cyber EDM, Chill Lo-Fi ve 8-Bit Arcade temaları arasından dilediğinizi seçin.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: Turnuva & Maç Kılavuzu -->
+                <div class="guide-tab-pane" id="guideTabTournament">
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-solid fa-gamepad"></i> 1. Oyun Formatları ve Takım Boyutları</h4>
+                        <p>Uygulama iki temel oyun formatı sunar:</p>
+                        <ul>
+                            <li><strong>Tek Maç (2 Takım):</strong> Hızlı gösteri maçları için Takım 1 ve Takım 2 arasında tek karşılaşma. 5v5, 8v8 veya 11v11 seçilebilir.</li>
+                            <li><strong>Turnuva (8 Takım - Turnuva Ağacı):</strong> Profesyonel çeyrek final, yarı final ve büyük final aşamalarından oluşan eleme ağacı.</li>
+                        </ul>
+                    </div>
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-solid fa-shuffle"></i> 2. Oyuncu Dağıtımı & Dengeleme</h4>
+                        <p><strong>Rastgele Dağıt</strong> butonuna bastığınızda, havuzdaki tüm oyuncular eşit ve adil biçimde takımlara paylaştırılır. Oyuncuları dilediğiniz gibi sürükleyip bırakarak takımlar arasında yer değiştirebilirsiniz.</p>
+                    </div>
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-solid fa-trophy"></i> 3. Maç Sonuçları ve İstatistik Girişi</h4>
+                        <p>Her takım kartındaki <strong>🏆 Kazandı</strong> butonuna bastığınızda sonuç onay penceresi açılır. Burada kaybeden rakip takım seçilir ve isteğe bağlı olarak oyuncuların <b>Gol, Pas ve Kurtarış</b> sayıları işlenir. Galip oyunculara +1 Galibiyet (W), mağlup oyunculara +1 Mağlubiyet (L) yazılarak Win Rate oranları canlı hesaplanır.</p>
+                    </div>
+                </div>
+
+                <!-- TAB 3: OBS Canlı Yayın -->
+                <div class="guide-tab-pane" id="guideTabObs">
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-solid fa-display"></i> 1. OBS Browser Source Kurulumu</h4>
+                        <p>OBS Studio veya Streamlabs uygulamanızda yeni bir <strong>Tarayıcı (Browser Source)</strong> kaynağı ekleyin ve Ayarlar çekmecesindeki linki yapıştırın (örn: <code>http://localhost:18888?overlay=1</code>).</p>
+                        <div class="guide-tip-box">
+                            <i class="fa-solid fa-lightbulb"></i>
+                            <div><strong>Tavsiye Edilen OBS Çözünürlüğü:</strong> 1920x1080. Arayüz şeffaf arka planla yayın sahnenizin üzerine pürüzsüz oturur.</div>
+                        </div>
+                    </div>
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-solid fa-wand-magic-sparkles"></i> 2. Akıllı Otomatik Sığdırma (Auto-Fit)</h4>
+                        <p>OBS kaynağınızın boyutu ne olursa olsun, arayüz tüm takımları ve turnuva ağacını ekrana orantılı olarak otomatik sığdırır. Dilerseniz <b>[</b> ve <b>]</b> tuşlarıyla ölçeği manuel olarak büyütebilir veya küçültebilirsiniz.</p>
+                    </div>
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-solid fa-satellite-dish" style="color: #ff3344;"></i> 3. Canlı Maç Kırmızı Nabız Vurgusu</h4>
+                        <p>Gelişmiş Panel veya Ayarlar Çekmecesinden o an yayında oynanmakta olan maçı seçtiğinizde, turnuva ağacındaki ilgili maç kutusu kırmızı neon nabız efektiyle parıldayarak izleyicilerin maçı takip etmesini kolaylaştırır.</p>
+                    </div>
+                </div>
+
+                <!-- TAB 4: Kick & Veri Merkezi -->
+                <div class="guide-tab-pane" id="guideTabKick">
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-brands fa-kickstarter"></i> 1. Kick Chat Katılımı</h4>
+                        <p>Kanal adınızı yazıp <b>Chat'e Bağlan</b> dediğinizde doğrudan Kick sohbetine bağlanılır. İzleyiciler sohbete <code>!kingsc</code> (veya belirlediğiniz komut) yazdığında havuza anında katılırlar.</p>
+                    </div>
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-solid fa-server"></i> 2. Ortak Veri Merkezi (Hub) & Çoklu Yayıncı</h4>
+                        <p>Birden fazla yayıncı ortak bir turnuva düzenlerken, bir bilgisayar <b>Host (Sunucu)</b> olur ve Cloudflare Güvenli Tüneli başlatır. Diğer yayıncılar bu tünel linkini alarak <b>İstemci (Client)</b> olarak bağlanır. Tüm oyuncu verileri ve maç skorları eş zamanlı senkronize olur.</p>
+                    </div>
+                </div>
+
+                <!-- TAB 5: Klavye Kısayolları -->
+                <div class="guide-tab-pane" id="guideTabShortcuts">
+                    <div class="guide-doc-section">
+                        <h4><i class="fa-solid fa-keyboard"></i> Klavye Kısayolları Tablosu</h4>
+                        <table class="shortcuts-table">
+                            <thead><tr><th>Tuş</th><th>İşlev</th><th>Açıklama</th></tr></thead>
+                            <tbody>
+                                <tr><td><kbd>H</kbd></td><td>Rehber & Kılavuz</td><td>Bu kılavuz merkezini açar ve kapatır.</td></tr>
+                                <tr><td><kbd>S</kbd></td><td>Ayarlar Çekmecesi</td><td>Sağdan kayan ayarlar çekmecesini açar/kapatır.</td></tr>
+                                <tr><td><kbd>T</kbd></td><td>Gelişmiş Araçlar</td><td>OBS ve test butonlarını içeren paneli açar/kapatır.</td></tr>
+                                <tr><td><kbd>[</kbd></td><td>OBS Küçült</td><td>OBS yayın ölçeğini kademeli küçültür.</td></tr>
+                                <tr><td><kbd>]</kbd></td><td>OBS Büyüt</td><td>OBS yayın ölçeğini kademeli büyütür.</td></tr>
+                                <tr><td><kbd>\</kbd></td><td>Auto-Fit Aç/Kapat</td><td>OBS akıllı otomatik sığdırmayı açar veya kapatır.</td></tr>
+                                <tr><td><kbd>Esc</kbd></td><td>Kapat / Çıkış</td><td>Açık olan tüm modal ve çekmeceleri kapatır.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="closeComprehensiveGuideFooterBtn" class="btn primary-btn">Kılavuzu Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OBS Info Bar (Hidden by default, shown in overlay) -->
+    <div id="obsInfoBar" class="obs-info-bar">
+        <div id="obsLiveMatchBanner" class="obs-live-match-banner hidden">
+            <span class="obs-live-pill"><span class="live-dot pulse"></span> CANLI MAÇ</span>
+            <span id="obsLiveMatchTitle" class="obs-live-title">1. Tur: Takım 1 vs Takım 2</span>
+        </div>
+        <div class="obs-bar-item obs-bar-cmd"><i class="fa-solid fa-gamepad"></i> <span id="obsInfoBarText">Oyuna katılmak için sohbete <strong>!kingsc</strong> yazın!</span></div>
+        <div class="obs-bar-item obs-bar-pool"><i class="fa-solid fa-users"></i> Havuz: <strong id="obsPoolCountDisplay">0</strong></div>
+    </div>
+
+    <!-- OBS Toast Container -->
+    <div id="obsToastContainer" class="obs-toast-container"></div>
+
+    <script src="app.js?v=5.0"></script>
+</body>
+</html>

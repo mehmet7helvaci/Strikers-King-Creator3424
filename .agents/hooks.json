@@ -13,7 +13,7 @@
       {
         "name": "lint-and-validate",
         "action": "verify-integrity",
-        "description": "Dosya düzenlendikten sonra sözdizimi ve kod bütünlüğünü denetler."
+        "description": "Dosya düzenlendikten sonra dotnet test doğrulaması planlar."
       }
     ]
   }

@@ -1,6 +1,9 @@
-﻿# Testing & Verification Directives
+﻿# Testing & Verification Mandates for TAKIM SEÇME UYGULAMASI
 
-## Testing Mandates
-- **TDD Approach**: Yeni bir özellik eklenmeden veya kritik bir hata düzeltilmeden önce ilgili test senaryosu kurgulanmalıdır.
-- **Zero Regressions**: Yeni kod yazıldıktan sonra projedeki tüm mevcut testler çalıştırılmalı ve kırılma olmadığından emin olunmalıdır.
-- **Edge Cases**: Sadece pozitif senaryolar (happy path) değil, boş değerler, null/undefined durumları ve ağ hataları da test edilmelidir.
+## Designated Test Framework: MSTest / xUnit (.NET)
+## Mandatory Verification Command: `dotnet test`
+
+### Test Directives
+- **Test-Driven Verification**: Yeni bir mantık parçası eklendiğinde veya bir hata düzeltildiğinde doğrulaması test senaryosu ile yapılmalıdır.
+- **Mandatory Command Execution**: Değişiklik sonrası terminalde `dotnet test` çalıştırılmalı ve testlerin yeşil yandığı doğrulanmalıdır.
+- **Edge Case Coverage**: Yalnızca pozitif senaryo değil; null/boş girdiler, zaman aşımı (timeout) ve ağ hataları da test edilmelidir.
