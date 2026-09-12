@@ -66,10 +66,11 @@
             <div class="connection-panel">
                 <div class="kick-input-group">
                     <i class="fa-brands fa-kickstarter kick-logo-icon"></i>
-                    <input type="text" id="channelName" placeholder="Kick Kanal Adı veya Sohbet ID (örn: wtcn)" autocomplete="off" />
+                    <input type="text" id="channelName" placeholder="Kick Kanal(lar)ı (örn: wtcn, elraenn)" autocomplete="off" />
                 </div>
-                <button id="connectBtn" class="btn primary-btn"><i class="fa-solid fa-plug"></i> <span>Chat'e Bağlan</span></button>
+                <button id="connectBtn" class="btn primary-btn" title="Yayıncı chatine bağlan veya yeni yayıncı ekle"><i class="fa-solid fa-plug"></i> <span>Chat'e Bağlan</span></button>
                 <span id="connectionStatus" class="status disconnected"><i class="fa-solid fa-circle"></i> <span>Bağlı Değil</span></span>
+                <div id="activeChannelsContainer" class="active-channels-container hidden"></div>
             </div>
 
             <div class="header-nav-actions">
@@ -135,7 +136,22 @@
                     </div>
                 </div>
 
+                <div class="control-group captain-codes-group" title="Kaptanlık ve oyuncu seçme komutları">
+                    <label><i class="fa-solid fa-crown"></i> Kaptan Kodları:</label>
+                    <div class="captain-codes-wrap">
+                        <span class="toolbar-cmd-tag tag-captain-join" title="İzleyiciler sohbete bu komutu yazarak Takım Kaptanı olur">
+                            <i class="fa-solid fa-crown"></i> <code>!kingkaptan</code>
+                        </span>
+                        <span class="toolbar-cmd-tag tag-captain-pick" title="Kaptanların oyuncu ve rol seçme komutu (örn: !sec @oyuncu GK veya CB, RM, LM)">
+                            <i class="fa-solid fa-user-check"></i> <code>!sec @oyuncu GK</code>
+                        </span>
+                    </div>
+                </div>
+
                 <div class="action-buttons">
+                    <button id="draftDiceBtn" class="btn dice-btn" title="Kaptanlar arasında zar atarak ilk oyuncuyu seçecek kaptanı belirle ve sıra sıra seçimi başlat">
+                        <i class="fa-solid fa-dice"></i> <span>Zar At (Kaptan Sırası)</span>
+                    </button>
                     <button id="randomizeBtn" class="btn action-btn" title="Oyuncuları dengeli ve rastgele dağıtır">
                         <i class="fa-solid fa-shuffle"></i> <span>Rastgele Dağıt</span>
                     </button>
@@ -243,8 +259,14 @@
                             <button id="captainLimitPlusBtn" class="captain-limit-btn" title="Kaptan Limitini Arttır"><i class="fa-solid fa-plus"></i></button>
                             <span id="captainCountBadge" class="captain-count-badge" title="Mevcut Kaptan Sayısı / Limit">0/2</span>
                         </div>
-                        <div class="pool-command-tag" id="poolCommandTag" title="İzleyiciler sohbete bu komutu yazarak otomatik eklenir (Kaptan için: !kingkaptan)">
+                        <div class="pool-command-tag" id="poolCommandTag" title="İzleyiciler sohbete bu komutu yazarak otomatik havuza eklenir">
                             <i class="fa-solid fa-bolt"></i> <span id="poolCommandDisplay">!kingsc</span>
+                        </div>
+                        <div class="pool-command-tag tag-captain-join" id="poolCaptainCommandTag" title="İzleyiciler sohbete bu komutu yazarak Takım Kaptanı olur">
+                            <i class="fa-solid fa-crown"></i> <span id="poolCaptainCommandDisplay">!kingkaptan</span>
+                        </div>
+                        <div class="pool-command-tag tag-captain-pick" id="poolPickCommandTag" title="Kaptanların oyuncu ve rol seçme komutu (örn: !sec @oyuncu GK veya CB, RM, LM)">
+                            <i class="fa-solid fa-user-check"></i> <span id="poolPickCommandDisplay">!sec @oyuncu GK</span>
                         </div>
                         <button id="togglePoolCollapseBtn" class="pool-toggle-btn" title="İzleyici Havuzunu Daralt / Genişlet">
                             <i class="fa-solid fa-chevron-left" id="poolToggleIcon"></i>
@@ -280,20 +302,45 @@
             </div>
 
             <!-- Teams (Right Panel) -->
-            <div class="teams-container mode-single" id="teamsContainer">
-                <div class="team-box" id="team1Box">
-                    <div class="team-header">
-                        <input type="text" class="team-name-input" value="Takım 1" />
-                        <span class="team-count badge">0/5</span>
+            <div class="teams-workspace-wrap" id="teamsWorkspaceWrap">
+                <!-- Kaptan Sıralı Seçim (Draft) Canlı Takip Çubuğu -->
+                <div class="draft-turn-banner hidden" id="draftTurnBanner">
+                    <div class="draft-turn-content">
+                        <div class="turn-dice-badge"><i class="fa-solid fa-dice"></i> <span>KAPTAN SEÇİM SIRASI</span></div>
+                        <div class="turn-captain-info">
+                            <span class="turn-label">Sıradaki Seçim:</span>
+                            <strong class="turn-captain-name" id="activeCaptainDisplay">Kaptan ...</strong>
+                            <span class="turn-team-badge" id="activeTeamDisplay">Takım 1</span>
+                        </div>
+                        <div class="turn-code-hint">
+                            <i class="fa-solid fa-terminal"></i> Komut: <code>!sec @oyuncu GK</code> <small>(veya CB, RM, LM, ST)</small>
+                        </div>
+                        <div class="turn-next-hint">
+                            <span>Sonraki:</span> <strong id="nextCaptainDisplay">-</strong>
+                        </div>
+                        <div class="turn-actions">
+                            <button type="button" id="draftSkipTurnBtn" class="btn btn-xs secondary-btn" title="Bu kaptanın sırasını geç"><i class="fa-solid fa-forward-step"></i> Pas Geç</button>
+                            <button type="button" id="draftReDiceBtn" class="btn btn-xs secondary-btn" title="Kaptanlar arası zarı tekrar at"><i class="fa-solid fa-dice"></i> Tekrar Zar</button>
+                            <button type="button" id="draftEndBtn" class="btn btn-xs danger-btn" title="Seçim sırası modunu bitir"><i class="fa-solid fa-stop"></i> Bitir</button>
+                        </div>
                     </div>
-                    <ul class="team-list sortable-list" id="team-1"></ul>
                 </div>
-                <div class="team-box" id="team2Box">
-                    <div class="team-header">
-                        <input type="text" class="team-name-input" value="Takım 2" />
-                        <span class="team-count badge">0/5</span>
+
+                <div class="teams-container mode-single" id="teamsContainer">
+                    <div class="team-box" id="team1Box">
+                        <div class="team-header">
+                            <input type="text" class="team-name-input" value="Takım 1" />
+                            <span class="team-count badge">0/5</span>
+                        </div>
+                        <ul class="team-list sortable-list" id="team-1"></ul>
                     </div>
-                    <ul class="team-list sortable-list" id="team-2"></ul>
+                    <div class="team-box" id="team2Box">
+                        <div class="team-header">
+                            <input type="text" class="team-name-input" value="Takım 2" />
+                            <span class="team-count badge">0/5</span>
+                        </div>
+                        <ul class="team-list sortable-list" id="team-2"></ul>
+                    </div>
                 </div>
             </div>
 
@@ -566,6 +613,44 @@
             </div>
             <div class="modal-footer">
                 <button id="closeKickModalFooterBtn" class="btn primary-btn"><i class="fa-solid fa-xmark"></i> Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kaptan Zar Kurası Modalı (Dice Roll & Turn Order Modal) -->
+    <div id="diceRollModal" class="modal-overlay hidden">
+        <div class="modal-card dice-modal-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-dice"></i> Kaptan Seçim Sırası Kurası (Zar Atımı)</h2>
+                <button id="closeDiceModalBtn" class="modal-close-btn" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="dice-modal-body">
+                <div class="dice-animation-stage" id="diceAnimationStage">
+                    <div class="dice-cube-wrap" id="diceCubeWrap">
+                        <i class="fa-solid fa-dice-d20 animated-dice-icon" id="diceIcon"></i>
+                    </div>
+                    <div class="dice-rolling-text" id="diceRollingText">Zarlar Atılıyor...</div>
+                </div>
+
+                <div class="dice-result-container hidden" id="diceResultContainer">
+                    <div class="dice-winner-card" id="diceWinnerCard">
+                        <div class="winner-crown"><i class="fa-solid fa-crown"></i></div>
+                        <div class="winner-sub">İLK OYUNCUYU SEÇECEK KAPTAN</div>
+                        <div class="winner-name" id="diceWinnerName">Kaptan ...</div>
+                        <div class="winner-score-badge" id="diceWinnerScoreBadge">Zar: 99</div>
+                    </div>
+
+                    <div class="dice-order-list-wrap">
+                        <h4><i class="fa-solid fa-list-ol"></i> Kaptanların Seçim Sırası:</h4>
+                        <ul class="dice-order-list" id="diceOrderList">
+                            <!-- Sıralanan kaptanlar buraya eklenecek -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer dice-modal-footer">
+                <button type="button" id="reRollDiceBtn" class="btn secondary-btn"><i class="fa-solid fa-rotate"></i> Tekrar Zar At</button>
+                <button type="button" id="startDraftTurnBtn" class="btn primary-btn"><i class="fa-solid fa-play"></i> Seçim Turunu Başlat</button>
             </div>
         </div>
     </div>
@@ -1294,7 +1379,7 @@
             <span class="obs-live-pill"><span class="live-dot pulse"></span> CANLI MAÇ</span>
             <span id="obsLiveMatchTitle" class="obs-live-title">1. Tur: Takım 1 vs Takım 2</span>
         </div>
-        <div class="obs-bar-item obs-bar-cmd"><i class="fa-solid fa-gamepad"></i> <span id="obsInfoBarText">Oyuna katılmak için sohbete <strong>!kingsc</strong> yazın!</span></div>
+        <div class="obs-bar-item obs-bar-cmd"><i class="fa-solid fa-gamepad"></i> <span id="obsInfoBarText">Katıl: <strong>!kingsc</strong> | Kaptan: <strong>!kingkaptan</strong> | Seç: <strong>!sec @oyuncu GK</strong></span></div>
         <div class="obs-bar-item obs-bar-pool"><i class="fa-solid fa-users"></i> Havuz: <strong id="obsPoolCountDisplay">0</strong></div>
     </div>
 

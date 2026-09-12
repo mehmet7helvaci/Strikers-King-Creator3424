@@ -662,6 +662,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const channelNameInput = document.getElementById('channelName');
     const connectBtn = document.getElementById('connectBtn');
     const connectionStatus = document.getElementById('connectionStatus');
+    const activeChannelsContainer = document.getElementById('activeChannelsContainer');
+    const draftDiceBtn = document.getElementById('draftDiceBtn');
+    const draftTurnBanner = document.getElementById('draftTurnBanner');
+    const activeCaptainDisplay = document.getElementById('activeCaptainDisplay');
+    const activeTeamDisplay = document.getElementById('activeTeamDisplay');
+    const nextCaptainDisplay = document.getElementById('nextCaptainDisplay');
+    const draftSkipTurnBtn = document.getElementById('draftSkipTurnBtn');
+    const draftReDiceBtn = document.getElementById('draftReDiceBtn');
+    const draftEndBtn = document.getElementById('draftEndBtn');
+    const diceRollModal = document.getElementById('diceRollModal');
+    const closeDiceModalBtn = document.getElementById('closeDiceModalBtn');
+    const reRollDiceBtn = document.getElementById('reRollDiceBtn');
+    const startDraftTurnBtn = document.getElementById('startDraftTurnBtn');
+    const diceAnimationStage = document.getElementById('diceAnimationStage');
+    const diceResultContainer = document.getElementById('diceResultContainer');
+    const diceWinnerName = document.getElementById('diceWinnerName');
+    const diceWinnerScoreBadge = document.getElementById('diceWinnerScoreBadge');
+    const diceOrderList = document.getElementById('diceOrderList');
 
     // 👑 Kaptan Sistemi DOM Elemanları
     const captainLimitMinusBtn = document.getElementById('captainLimitMinusBtn');
@@ -740,6 +758,19 @@ document.addEventListener('DOMContentLoaded', () => {
     let pusher = null;
     let chatChannel = null;
     let currentChannel = 'genel';
+    const activeChannels = new Map(); // channelSlug -> { id, channel, subChannelName, subscription }
+    const playerRoles = new Map(); // usernameLower -> roleString (e.g. 'GK', 'CB', 'RM')
+    try {
+        const savedRoles = JSON.parse(localStorage.getItem('kick_player_roles') || '{}');
+        if (savedRoles && typeof savedRoles === 'object') {
+            Object.entries(savedRoles).forEach(([u, r]) => {
+                if (u && r) playerRoles.set(u.toString().trim().toLowerCase(), r.toString().toUpperCase());
+            });
+        }
+    } catch (e) {}
+    let draftModeActive = false;
+    let currentDraftOrder = []; // [ { name, teamList, teamName, score, element } ]
+    let currentDraftIndex = 0;
     let channelStats = {};
     let pendingMatch = null;
     let tournamentMatches = null;
@@ -1699,8 +1730,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         badge.appendChild(obsBtn);
 
-        // Karşılaşma Taşıma Tutamağı (Aynı turdaki maçlarla yer değiştirmek için)
-        if (match.teamA && match.teamA.teamNum !== undefined) {
+        // Karşılaşma Taşıma Tutamağı (Yalnızca ilk tur maçlarında aynı turdaki maçlarla yer değiştirmek için)
+        const isInitialMatch = !match.sourceA;
+        if (isInitialMatch && match.teamA && match.teamA.teamNum !== undefined) {
             const matchDrag = document.createElement('div');
             matchDrag.className = 'match-drag-handle';
             matchDrag.draggable = true;
@@ -1780,7 +1812,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         card.appendChild(badge);
 
-        if (match.teamA && match.teamA.teamNum !== undefined) {
+        if (isInitialMatch) {
             card.appendChild(buildInitialTeamSlot(match, 'teamA'));
             
             const divider = document.createElement('div');
@@ -2286,7 +2318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let loserTeamName = '';
         let loserPlayers = [];
 
-        const isInitialRound = match[winnerSlotKey] && match[winnerSlotKey].teamNum !== undefined && document.getElementById(`team-${match[winnerSlotKey].teamNum}`);
+        const isInitialRound = !match.sourceA;
         if (isInitialRound) {
             const cardEl = document.querySelector(`.bracket-match-card[data-match-id="${matchId}"]`);
             const winInput = cardEl ? cardEl.querySelector(`.bracket-team-slot[data-slot="${winnerSlotKey}"] .slot-name-input`) : null;
@@ -2404,7 +2436,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let winnerPlayers = [];
         let loserPlayers = [];
 
-        const isInitialRound = match[prevWinnerSlot] && match[prevWinnerSlot].teamNum !== undefined && document.getElementById(`team-${match[prevWinnerSlot].teamNum}`);
+        const isInitialRound = !match.sourceA;
         if (isInitialRound) {
             const winNum = match[prevWinnerSlot].teamNum;
             const loseNum = match[prevLoserSlot].teamNum;
@@ -2681,6 +2713,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     setCachedAvatar(key, data.avatar);
                     updateAvatarsInDom(name, data.avatar);
                     return data.avatar;
+                } else if (data && data.pending && !data.retried) {
+                    // Sunucu arka planda çekiyor, 2.5 saniye sonra önbellekten sessizce al
+                    setTimeout(() => {
+                        avatarFetchingSet.delete(key);
+                        fetch(`${getApiBase()}/api/kick/avatar?username=${encodeURIComponent(name.trim())}`)
+                            .then(r => r.json())
+                            .then(d => {
+                                if (d && d.success && d.avatar) {
+                                    setCachedAvatar(key, d.avatar);
+                                    updateAvatarsInDom(name, d.avatar);
+                                }
+                            }).catch(() => {});
+                    }, 2500);
                 }
             }
         } catch (e) {
@@ -3295,59 +3340,239 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!captainName) return null;
         const clean = captainName.trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
         const teamPlayers = document.querySelectorAll('.team-list .player-item');
+        
+        // 1. Aşama: Tam Eşleşme
         for (const playerEl of teamPlayers) {
             const elName = (playerEl.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
             if (elName === clean) {
                 return playerEl.closest('.team-list');
             }
         }
+
+        // 2. Aşama: Başlangıç veya Kısmi Eşleşme Toleransı
+        for (const playerEl of teamPlayers) {
+            const elName = (playerEl.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+            if (elName.startsWith(clean) || clean.startsWith(elName)) {
+                return playerEl.closest('.team-list');
+            }
+        }
         return null;
+    }
+
+    // =========================================================================
+    // 🛡️ OYUNCU ROLLERİ & POZİSYON SİSTEMİ (GK, CB, RM, LM, ST vb.)
+    // =========================================================================
+    const ROLE_MAP = {
+        'gk': 'GK',
+        'kaleci': 'GK',
+        'keeper': 'GK',
+        'goalkeeper': 'GK',
+        'gkk': 'GK',
+        'eldiven': 'GK',
+        'cb': 'CB',
+        'stoper': 'CB',
+        'centerback': 'CB',
+        'centreback': 'CB',
+        'def': 'CB',
+        'defans': 'CB',
+        'lb': 'LB',
+        'solbek': 'LB',
+        'leftback': 'LB',
+        'rb': 'RB',
+        'sagbek': 'RB',
+        'sağbek': 'RB',
+        'rightback': 'RB',
+        'rm': 'RM',
+        'sagkanat': 'RM',
+        'sağkanat': 'RM',
+        'sahkanat': 'RM',
+        'rightmid': 'RM',
+        'lm': 'LM',
+        'solkanat': 'LM',
+        'leftmid': 'LM',
+        'cm': 'CM',
+        'ortasaha': 'CM',
+        'centralmid': 'CM',
+        'cdm': 'CDM',
+        'onlibero': 'CDM',
+        'önlibero': 'CDM',
+        'cam': 'CAM',
+        'onnumara': 'CAM',
+        '10numara': 'CAM',
+        'st': 'ST',
+        'forvet': 'ST',
+        'santrfor': 'ST',
+        'striker': 'ST',
+        'rw': 'RW',
+        'saghucum': 'RW',
+        'lw': 'LW',
+        'solhucum': 'LW',
+        'cf': 'CF'
+    };
+
+    function savePlayerRolesState() {
+        try {
+            const rolesObj = Object.fromEntries(playerRoles.entries());
+            localStorage.setItem('kick_player_roles', JSON.stringify(rolesObj));
+        } catch (e) {}
+    }
+
+    function normalizeRole(roleInput) {
+        if (!roleInput) return null;
+        let str = roleInput.toString().trim().toLowerCase();
+        // Boşlukları, parantezleri, tire ve alt çizgileri temizle ve Türkçe harfleri standartlaştır
+        let clean = str
+            .replace(/[\(\)\[\]\s_-]/g, '')
+            .replace(/ı/g, 'i')
+            .replace(/İ/g, 'i')
+            .replace(/ğ/g, 'g')
+            .replace(/ş/g, 's')
+            .replace(/ç/g, 'c')
+            .replace(/ö/g, 'o')
+            .replace(/ü/g, 'u');
+
+        if (!clean) return null;
+        if (ROLE_MAP[clean]) return ROLE_MAP[clean];
+        if (clean.includes('gk') || clean.includes('kaleci') || clean.includes('keeper')) return 'GK';
+        if (clean.includes('stoper') || clean.includes('defans') || clean === 'cb' || clean === 'def') return 'CB';
+        if (clean.includes('solbek') || clean === 'lb' || clean === 'leftback') return 'LB';
+        if (clean.includes('sagbek') || clean === 'rb' || clean === 'rightback') return 'RB';
+        if (clean.includes('sagkanat') || clean.includes('sahkanat') || clean === 'rm' || clean === 'rightmid') return 'RM';
+        if (clean.includes('solkanat') || clean === 'lm' || clean === 'leftmid') return 'LM';
+        if (clean.includes('onlibero') || clean === 'cdm') return 'CDM';
+        if (clean.includes('onnumara') || clean.includes('10numara') || clean === 'cam') return 'CAM';
+        if (clean.includes('ortasaha') || clean === 'cm') return 'CM';
+        if (clean.includes('forvet') || clean.includes('santrfor') || clean.includes('striker') || clean === 'st') return 'ST';
+        if (clean.includes('saghucum') || clean === 'rw') return 'RW';
+        if (clean.includes('solhucum') || clean === 'lw') return 'LW';
+        if (/^[a-zA-Z]{2,4}$/.test(clean)) {
+            return clean.toUpperCase();
+        }
+        return null;
+    }
+
+    function setPlayerRole(playerLi, role) {
+        if (!playerLi) return;
+        const pName = playerLi.dataset.name;
+        if (!pName) return;
+        const cleanRole = normalizeRole(role);
+        if (cleanRole) {
+            playerRoles.set(pName.toLowerCase(), cleanRole);
+            savePlayerRolesState();
+            playerLi.dataset.role = cleanRole;
+            let roleBadge = playerLi.querySelector('.player-role-badge');
+            if (!roleBadge) {
+                roleBadge = document.createElement('span');
+                roleBadge.className = 'player-role-badge';
+                const infoWrap = playerLi.querySelector('.player-info-wrap');
+                if (infoWrap) {
+                    const nameSpan = infoWrap.querySelector('.player-name-text');
+                    if (nameSpan && nameSpan.nextSibling) {
+                        infoWrap.insertBefore(roleBadge, nameSpan.nextSibling);
+                    } else if (nameSpan) {
+                        infoWrap.appendChild(roleBadge);
+                    }
+                }
+            }
+            if (roleBadge) {
+                roleBadge.className = `player-role-badge role-${cleanRole.toLowerCase()}`;
+                if (cleanRole === 'GK') {
+                    roleBadge.innerHTML = '<i class="fa-solid fa-mitten"></i> GK (Kaleci)';
+                    roleBadge.title = 'Kaleci (Goalkeeper)';
+                } else {
+                    roleBadge.textContent = cleanRole;
+                    roleBadge.title = `Rol: ${cleanRole}`;
+                }
+            }
+        } else {
+            playerRoles.delete(pName.toLowerCase());
+            savePlayerRolesState();
+            delete playerLi.dataset.role;
+            const roleBadge = playerLi.querySelector('.player-role-badge');
+            if (roleBadge) roleBadge.remove();
+        }
     }
 
     function extractDraftTarget(message) {
         if (!message) return null;
-        const trimmed = message.trim();
+        let trimmed = message.trim();
 
-        // 1. Doğrudan etiketleme (@kullanici)
-        const mentionMatch = trimmed.match(/@([a-zA-Z0-9_\u00C0-\u017F-]+)/);
-        if (mentionMatch && mentionMatch[1]) {
-            return mentionMatch[1].trim();
+        // Türkçe ve mobil klavye toleransı: 'isec', 'ısec', 'iseç', 'ıseç' durumunda baştaki i/ı harfini '!' yap
+        trimmed = trimmed.replace(/^[iı](?=(?:sec|seç|al|pick|draft)\b)/i, '!');
+
+        // 1. Seçim komutu ile etiketleme: !sec @oyuncu [rol] VEYA !sec @oyuncu GK
+        // Örnekler: !sec @Ahmet GK, !sec Ahmet CB, !sec @Burak GK(kaleci), !sec @Ali rm
+        const cmdMatch = trimmed.match(/^!(?:sec|seç|al|pick|draft)\s+@?([a-zA-Z0-9_\u00C0-\u017F-]+)(?:\s+(.+))?$/i);
+        if (cmdMatch && cmdMatch[1]) {
+            const rawTarget = cmdMatch[1].trim();
+            const rawRole = cmdMatch[2] ? cmdMatch[2].trim() : null;
+            return {
+                target: rawTarget,
+                role: normalizeRole(rawRole)
+            };
         }
 
-        // 2. Seçim komutu ile etiketleme (!sec @oyuncu, !al oyuncu, !pick oyuncu)
-        const cmdMatch = trimmed.match(/^!(?:sec|al|pick|draft)\s+@?([a-zA-Z0-9_\u00C0-\u017F-]+)/i);
-        if (cmdMatch && cmdMatch[1]) {
-            return cmdMatch[1].trim();
+        // 2. Ters kalıp: @oyuncu al [rol] / @oyuncu sec [rol]
+        const reverseMatch = trimmed.match(/^@?([a-zA-Z0-9_\u00C0-\u017F-]+)\s+(?:al|sec|seç)(?:\s+(.+))?$/i);
+        if (reverseMatch && reverseMatch[1]) {
+            return {
+                target: reverseMatch[1].trim(),
+                role: normalizeRole(reverseMatch[2] ? reverseMatch[2].trim() : null)
+            };
+        }
+
+        // 2b. Ters kalıp 2: @oyuncu [rol] sec / @oyuncu GK al
+        const reverseRoleMatch = trimmed.match(/^@?([a-zA-Z0-9_\u00C0-\u017F-]+)\s+([a-zA-Z()]{2,12})\s+(?:al|sec|seç)$/i);
+        if (reverseRoleMatch && reverseRoleMatch[1]) {
+            return {
+                target: reverseRoleMatch[1].trim(),
+                role: normalizeRole(reverseRoleMatch[2].trim())
+            };
+        }
+
+        // 3. Doğrudan etiketleme: @kullanici [rol]
+        const directMentionMatch = trimmed.match(/^@([a-zA-Z0-9_\u00C0-\u017F-]+)(?:\s+([a-zA-Z()]{2,12}))?$/i);
+        if (directMentionMatch && directMentionMatch[1]) {
+            return {
+                target: directMentionMatch[1].trim(),
+                role: normalizeRole(directMentionMatch[2] ? directMentionMatch[2].trim() : null)
+            };
         }
 
         return null;
     }
 
-    function executeCaptainPick(captainName, targetName, captainTeamList) {
-        if (!captainTeamList) return;
+    function executeCaptainPick(captainName, targetInfo, captainTeamList) {
+        if (!captainTeamList) return false;
+
+        const targetName = typeof targetInfo === 'object' && targetInfo !== null ? targetInfo.target : targetInfo;
+        const role = typeof targetInfo === 'object' && targetInfo !== null ? targetInfo.role : null;
+
+        if (!targetName) return false;
 
         const cleanTarget = targetName.trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
         const cleanCaptain = captainName.trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
 
         if (cleanTarget === cleanCaptain) {
             showToast(`ℹ️ Kaptan ${captainName} zaten bu takımda!`);
-            return;
+            return false;
         }
 
         const maxSize = parseInt(teamSizeSelect ? teamSizeSelect.value : '5', 10);
         if (captainTeamList.children.length >= maxSize) {
             showToast(`⚠️ Kaptan ${captainName}'in takımı dolu (${maxSize}/${maxSize})! Daha fazla oyuncu alamaz.`, true);
             playUiSfx('click');
-            return;
+            return false;
         }
 
         // Kendi takımında zaten var mı?
         const existingInSameTeam = Array.from(captainTeamList.querySelectorAll('.player-item')).some(el => {
-            return (el.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i') === cleanTarget;
+            const curName = (el.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+            return curName === cleanTarget || curName.startsWith(cleanTarget);
         });
         if (existingInSameTeam) {
             showToast(`ℹ️ ${targetName} zaten Kaptan ${captainName}'in takımında.`);
-            return;
+            return false;
         }
 
         // Başka bir takımda mı?
@@ -3355,30 +3580,67 @@ document.addEventListener('DOMContentLoaded', () => {
             return el.closest('.team-list') !== captainTeamList;
         });
         const inOtherTeam = otherTeamsPlayers.some(el => {
-            return (el.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i') === cleanTarget;
+            const curName = (el.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+            return curName === cleanTarget;
         });
         if (inOtherTeam) {
             showToast(`⚠️ ${targetName} zaten başka bir takımda yer alıyor!`, true);
             playUiSfx('click');
-            return;
+            return false;
         }
 
-        // İzleyici havuzunda ara
-        const poolPlayers = Array.from(playerPool.querySelectorAll('.player-item'));
-        const targetPlayerEl = poolPlayers.find(el => {
+        // İzleyici havuzunda ara (Akıllı Çok Kademeli Eşleştirme)
+        const poolPlayers = Array.from(playerPool ? playerPool.querySelectorAll('.player-item') : []);
+        
+        // 1. Kademe: Tam Eşleşme
+        let targetPlayerEl = poolPlayers.find(el => {
             const pName = (el.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
             return pName === cleanTarget;
         });
 
+        // 2. Kademe: Başlangıç Eşleşmesi (örn: 'king' -> 'King_Pro')
+        if (!targetPlayerEl) {
+            targetPlayerEl = poolPlayers.find(el => {
+                const pName = (el.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+                return pName.startsWith(cleanTarget);
+            });
+        }
+
+        // 3. Kademe: İçerme Eşleşmesi (en az 3 karakter ise)
+        if (!targetPlayerEl && cleanTarget.length >= 3) {
+            targetPlayerEl = poolPlayers.find(el => {
+                const pName = (el.dataset.name || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+                return pName.includes(cleanTarget);
+            });
+        }
+
         if (!targetPlayerEl) {
             showToast(`⚠️ "${targetName}" izleyici havuzunda bulunamadı!`, true);
             playUiSfx('click');
-            return;
+            return false;
+        }
+
+        if (isCaptain(targetPlayerEl.dataset.name)) {
+            showToast(`⚠️ "${targetPlayerEl.dataset.name}" bir Takım Kaptanıdır! Başka takım tarafından seçilemez.`, true);
+            playUiSfx('click');
+            return false;
         }
 
         // Kaptanın takımına aktar
         captainTeamList.appendChild(targetPlayerEl);
         updatePoolCount();
+
+        // Rolü uygula (varsa)
+        if (role) {
+            setPlayerRole(targetPlayerEl, role);
+        }
+
+        // Buton durumunu güncelle
+        const assignBtn = targetPlayerEl.querySelector('.quick-assign-btn');
+        if (assignBtn) {
+            assignBtn.title = 'Havuza Geri Al';
+            assignBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
+        }
 
         // Takım kutusu sayacını güncelle
         const teamBox = captainTeamList.closest('.team-box') || captainTeamList.closest('.bracket-team-slot');
@@ -3398,10 +3660,276 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         playUiSfx('join');
-        showToast(`🎯 Kaptan ${captainName}, @${targetPlayerEl.dataset.name} oyuncusunu takımına seçti! (${captainTeamList.children.length}/${maxSize})`);
+        const roleDisplay = role ? (role === 'GK' ? ' [GK (Kaleci)]' : ` [${role}]`) : '';
+        showToast(`🎯 Kaptan ${captainName}, @${targetPlayerEl.dataset.name} oyuncusunu${roleDisplay} takımına seçti! (${captainTeamList.children.length}/${maxSize})`);
 
         if (typeof obsSyncChannel !== 'undefined') {
-            obsSyncChannel.postMessage({ type: 'request_state' });
+            const tc = document.getElementById('teamsContainer');
+            if (tc) {
+                obsSyncChannel.postMessage({ type: 'sync_html', html: tc.innerHTML, modeClass: tc.className });
+            }
+            obsSyncChannel.postMessage({ type: 'update_pool_count', count: document.querySelectorAll('#playerPool .player-item').length });
+        }
+
+        return true;
+    }
+
+    // =========================================================================
+    // 🎲 KAPTAN ZAR KURASI VE SIRALI OYUNCU SEÇİMİ (TURN-BY-TURN DRAFT)
+    // =========================================================================
+
+    function getEligibleCaptainsForDraft() {
+        const list = [];
+        const seen = new Set();
+
+        // 1. Takımlarda yer alan kaptanları topla
+        const teamLists = Array.from(document.querySelectorAll('.team-list'));
+        teamLists.forEach((tList, idx) => {
+            const capEl = tList.querySelector('.player-item.is-captain');
+            if (capEl) {
+                const name = capEl.dataset.name;
+                const teamBox = tList.closest('.team-box') || tList.closest('.bracket-team-slot');
+                const teamNameInput = teamBox ? (teamBox.querySelector('.team-name-input') || teamBox.querySelector('.slot-name-input') || teamBox.querySelector('.slot-name-text')) : null;
+                const teamName = teamNameInput ? (teamNameInput.value || teamNameInput.textContent).trim() : `Takım ${idx + 1}`;
+                if (!seen.has(name.toLowerCase())) {
+                    seen.add(name.toLowerCase());
+                    list.push({ name, teamList: tList, teamName, element: capEl });
+                }
+            }
+        });
+
+        // 2. Havuzdaki kaptanları henüz kaptansız olan takımlara dağıt
+        const poolCaps = Array.from(playerPool ? playerPool.querySelectorAll('.player-item.is-captain') : []);
+        poolCaps.forEach(capEl => {
+            const name = capEl.dataset.name;
+            if (!seen.has(name.toLowerCase())) {
+                const emptyTeamList = teamLists.find(tl => !tl.querySelector('.player-item.is-captain'));
+                if (emptyTeamList) {
+                    emptyTeamList.appendChild(capEl);
+                    updatePoolCount();
+                    const teamBox = emptyTeamList.closest('.team-box') || emptyTeamList.closest('.bracket-team-slot');
+                    const teamNameInput = teamBox ? (teamBox.querySelector('.team-name-input') || teamBox.querySelector('.slot-name-input') || teamBox.querySelector('.slot-name-text')) : null;
+                    const teamName = teamNameInput ? (teamNameInput.value || teamNameInput.textContent).trim() : 'Takım';
+                    seen.add(name.toLowerCase());
+                    list.push({ name, teamList: emptyTeamList, teamName, element: capEl });
+                } else {
+                    seen.add(name.toLowerCase());
+                    list.push({ name, teamList: null, teamName: 'Takımsız', element: capEl });
+                }
+            }
+        });
+
+        return list;
+    }
+
+    function startCaptainDiceRoll() {
+        const captains = getEligibleCaptainsForDraft();
+        if (captains.length < 2) {
+            showToast('⚠️ Zar kurası için en az 2 takım kaptanı gereklidir! Chat\'e !kingkaptan yazarak veya oyuncu kartındaki taç (👑) simgesiyle kaptan belirleyin.', true);
+            playUiSfx('click');
+            return;
+        }
+
+        // Modalı aç
+        const diceModal = document.getElementById('diceRollModal');
+        const animStage = document.getElementById('diceAnimationStage');
+        const resContainer = document.getElementById('diceResultContainer');
+        const winnerNameEl = document.getElementById('diceWinnerName');
+        const winnerScoreEl = document.getElementById('diceWinnerScoreBadge');
+        const orderListEl = document.getElementById('diceOrderList');
+
+        if (!diceModal) return;
+
+        diceModal.classList.remove('hidden');
+        if (animStage) animStage.classList.remove('hidden');
+        if (resContainer) resContainer.classList.add('hidden');
+
+        playUiSfx('shuffle');
+
+        // Her kaptana rastgele zar skoru ver (10-99), eşitliği önle
+        const usedScores = new Set();
+        captains.forEach(c => {
+            let score;
+            do {
+                score = Math.floor(Math.random() * 90) + 10;
+            } while (usedScores.has(score));
+            usedScores.add(score);
+            c.score = score;
+        });
+
+        // Skorlara göre azalan sırala (en yüksek zar atan 1. sırada, ilk seçimi yapar)
+        captains.sort((a, b) => b.score - a.score);
+        currentDraftOrder = captains;
+
+        // 1.1 sn sonra zar animasyonunu durdur ve sonucu göster
+        setTimeout(() => {
+            if (animStage) animStage.classList.add('hidden');
+            if (resContainer) resContainer.classList.remove('hidden');
+
+            const winner = currentDraftOrder[0];
+            if (winnerNameEl) winnerNameEl.textContent = `${winner.name} (${winner.teamName})`;
+            if (winnerScoreEl) winnerScoreEl.innerHTML = `<i class="fa-solid fa-dice"></i> Zar: ${winner.score}`;
+
+            if (orderListEl) {
+                orderListEl.innerHTML = '';
+                currentDraftOrder.forEach((c, idx) => {
+                    const li = document.createElement('li');
+                    li.className = `dice-order-item ${idx === 0 ? 'first-pick' : ''}`;
+                    li.innerHTML = `
+                        <span class="order-rank">#${idx + 1}</span>
+                        <span class="order-name"><i class="fa-solid fa-crown" style="color:#fbbf24;"></i> ${c.name}</span>
+                        <span class="order-team">${c.teamName}</span>
+                        <span class="order-score"><i class="fa-solid fa-dice"></i> ${c.score}</span>
+                    `;
+                    orderListEl.appendChild(li);
+                });
+            }
+
+            playUiSfx('win');
+        }, 1100);
+    }
+
+    function startDraftTurnMode() {
+        if (!currentDraftOrder || currentDraftOrder.length === 0) {
+            currentDraftOrder = getEligibleCaptainsForDraft();
+        }
+        if (currentDraftOrder.length < 2) {
+            showToast('⚠️ Seçim sırası için en az 2 kaptan gereklidir!', true);
+            return;
+        }
+
+        const diceModal = document.getElementById('diceRollModal');
+        if (diceModal) diceModal.classList.add('hidden');
+
+        draftModeActive = true;
+        currentDraftIndex = 0;
+
+        const banner = document.getElementById('draftTurnBanner');
+        if (banner) banner.classList.remove('hidden');
+
+        updateDraftTurnUI();
+        playUiSfx('start');
+
+        const activeCap = currentDraftOrder[currentDraftIndex];
+        showToast(`🎲 Kaptan Seçim Sırası Başladı! İlk seçim: ${activeCap.name} (${activeCap.teamName})`);
+    }
+
+    function updateDraftTurnUI() {
+        if (!draftModeActive || currentDraftOrder.length === 0) return;
+
+        const banner = document.getElementById('draftTurnBanner');
+        if (banner) banner.classList.remove('hidden');
+
+        const activeCap = currentDraftOrder[currentDraftIndex];
+        const nextIdx = (currentDraftIndex + 1) % currentDraftOrder.length;
+        const nextCap = currentDraftOrder[nextIdx];
+
+        const capDisplay = document.getElementById('activeCaptainDisplay');
+        const teamDisplay = document.getElementById('activeTeamDisplay');
+        const nextDisplay = document.getElementById('nextCaptainDisplay');
+
+        const liveActiveTeam = activeCap ? (findCaptainTeamList(activeCap.name) || activeCap.teamList) : null;
+        let liveActiveTeamName = activeCap ? activeCap.teamName : '-';
+        if (liveActiveTeam) {
+            const teamBox = liveActiveTeam.closest('.team-box') || liveActiveTeam.closest('.bracket-team-slot');
+            const nameEl = teamBox ? (teamBox.querySelector('.team-name-input') || teamBox.querySelector('.slot-name-input') || teamBox.querySelector('.slot-name-text')) : null;
+            if (nameEl) liveActiveTeamName = (nameEl.value || nameEl.textContent).trim();
+        }
+
+        const liveNextTeam = nextCap ? (findCaptainTeamList(nextCap.name) || nextCap.teamList) : null;
+        let liveNextTeamName = nextCap ? nextCap.teamName : '-';
+        if (liveNextTeam) {
+            const teamBox = liveNextTeam.closest('.team-box') || liveNextTeam.closest('.bracket-team-slot');
+            const nameEl = teamBox ? (teamBox.querySelector('.team-name-input') || teamBox.querySelector('.slot-name-input') || teamBox.querySelector('.slot-name-text')) : null;
+            if (nameEl) liveNextTeamName = (nameEl.value || nameEl.textContent).trim();
+        }
+
+        if (capDisplay) capDisplay.textContent = activeCap ? activeCap.name : '-';
+        if (teamDisplay) teamDisplay.textContent = liveActiveTeamName;
+        if (nextDisplay) nextDisplay.textContent = nextCap ? `${nextCap.name} (${liveNextTeamName})` : '-';
+
+        // Takım kutularındaki seçim sırası vurgusunu güncelle
+        document.querySelectorAll('.team-box.active-draft-turn, .bracket-team-slot.active-draft-turn').forEach(el => {
+            el.classList.remove('active-draft-turn');
+        });
+
+        if (liveActiveTeam) {
+            const teamBox = liveActiveTeam.closest('.team-box') || liveActiveTeam.closest('.bracket-team-slot');
+            if (teamBox) {
+                teamBox.classList.add('active-draft-turn');
+                teamBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    }
+
+    function advanceDraftTurn() {
+        if (!draftModeActive || currentDraftOrder.length === 0) return;
+
+        const maxSize = parseInt(teamSizeSelect ? teamSizeSelect.value : '5', 10);
+
+        // Havuzda hiç oyuncu kaldı mı?
+        const poolCount = playerPool ? playerPool.querySelectorAll('.player-item').length : 0;
+        if (poolCount === 0) {
+            showToast('🎉 İzleyici havuzundaki tüm oyuncular seçildi! Kaptan seçim turu tamamlandı.');
+            endDraftTurnMode(true);
+            return;
+        }
+
+        // Tüm takımlar doldu mu?
+        const allTeamsFull = currentDraftOrder.every(c => {
+            const list = c.teamList || findCaptainTeamList(c.name);
+            return list && list.children.length >= maxSize;
+        });
+
+        if (allTeamsFull) {
+            showToast('🎉 Tüm takımlar kadrolarını doldurdu! Kaptan seçim turu tamamlandı.');
+            endDraftTurnMode(true);
+            return;
+        }
+
+        // Bir sonraki takımı müsait olan kaptanı bul
+        let foundNext = false;
+        let attempts = 0;
+        let nextIndex = currentDraftIndex;
+
+        while (attempts < currentDraftOrder.length) {
+            nextIndex = (nextIndex + 1) % currentDraftOrder.length;
+            attempts++;
+            const candidate = currentDraftOrder[nextIndex];
+            const candidateTeam = candidate.teamList || findCaptainTeamList(candidate.name);
+            if (candidateTeam && candidateTeam.children.length < maxSize) {
+                foundNext = true;
+                break;
+            }
+        }
+
+        if (!foundNext) {
+            showToast('🎉 Müsait takım kalmadı! Seçim turu sona erdi.');
+            endDraftTurnMode(true);
+            return;
+        }
+
+        currentDraftIndex = nextIndex;
+        updateDraftTurnUI();
+        playUiSfx('click');
+
+        const activeCap = currentDraftOrder[currentDraftIndex];
+        showToast(`🎲 Sıradaki seçim: Kaptan ${activeCap.name} (${activeCap.teamName})! Komut: !sec @oyuncu GK`);
+    }
+
+    function endDraftTurnMode(completed = false) {
+        draftModeActive = false;
+        const banner = document.getElementById('draftTurnBanner');
+        if (banner) banner.classList.add('hidden');
+
+        document.querySelectorAll('.team-box.active-draft-turn, .bracket-team-slot.active-draft-turn').forEach(el => {
+            el.classList.remove('active-draft-turn');
+        });
+
+        if (completed) {
+            playUiSfx('win');
+        } else {
+            showToast('ℹ️ Kaptan seçim sırası modu sonlandırıldı.');
         }
     }
 
@@ -3426,33 +3954,58 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // 🎲 Zar & Kaptan Sıralı Seçim Buton Dinleyicileri
+        if (draftDiceBtn) {
+            draftDiceBtn.addEventListener('click', () => {
+                startCaptainDiceRoll();
+            });
+        }
+
+        if (closeDiceModalBtn) {
+            closeDiceModalBtn.addEventListener('click', () => {
+                if (diceRollModal) diceRollModal.classList.add('hidden');
+            });
+        }
+
+        if (reRollDiceBtn) {
+            reRollDiceBtn.addEventListener('click', () => {
+                startCaptainDiceRoll();
+            });
+        }
+
+        if (startDraftTurnBtn) {
+            startDraftTurnBtn.addEventListener('click', () => {
+                startDraftTurnMode();
+            });
+        }
+
+        if (draftSkipTurnBtn) {
+            draftSkipTurnBtn.addEventListener('click', () => {
+                advanceDraftTurn();
+            });
+        }
+
+        if (draftReDiceBtn) {
+            draftReDiceBtn.addEventListener('click', () => {
+                startCaptainDiceRoll();
+            });
+        }
+
+        if (draftEndBtn) {
+            draftEndBtn.addEventListener('click', () => {
+                endDraftTurnMode(false);
+            });
+        }
+
         updateCaptainDisplay();
 
         // Geliştirici & Canlı Test için Kick Chat simülasyon fonksiyonu
         window.simulateKickChat = function(testUser, testMessage) {
             if (!testUser || !testMessage) return;
-            const norm = testMessage.replace(/ı/g, 'i').replace(/İ/g, 'i').toLowerCase();
-            const token = norm.split(/\s+/)[0];
-            if (token === '!kingkaptan' || token === '!kingcaptain') {
-                handleCaptainCommand(testUser, null);
-                return;
-            }
-            if (isCaptain(testUser)) {
-                const target = extractDraftTarget(testMessage);
-                if (target) {
-                    const capTeam = findCaptainTeamList(testUser);
-                    if (!capTeam) {
-                        showToast(`⚠️ Kaptan ${testUser} henüz bir takıma yerleşmedi!`, true);
-                    } else {
-                        executeCaptainPick(testUser, target, capTeam);
-                    }
-                    return;
-                }
-            }
-            const activeCmd = (currentJoinCommand || '!kingsc').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
-            if (token === activeCmd) {
-                addPlayerToPool(testUser, null);
-            }
+            handleKickChatMessage({
+                sender: { username: testUser },
+                content: testMessage
+            });
         };
 
         window.captainSystem = {
@@ -3462,8 +4015,90 @@ document.addEventListener('DOMContentLoaded', () => {
             handleCaptainCommand,
             executeCaptainPick,
             findCaptainTeamList,
-            simulateKickChat: window.simulateKickChat
+            startCaptainDiceRoll,
+            startDraftTurnMode,
+            advanceDraftTurn,
+            endDraftTurnMode,
+            setPlayerRole,
+            normalizeRole,
+            simulateKickChat: window.simulateKickChat,
+            getActiveChannels: () => Array.from(activeChannels.keys()),
+            disconnectKickChannel,
+            subscribeToKickChannel
         };
+    }
+
+    function quickAssignPlayer(playerLi, name) {
+        if (!playerLi) return;
+        const isInPool = playerLi.closest('#playerPool') !== null;
+        const maxSize = parseInt(teamSizeSelect ? teamSizeSelect.value : '5', 10);
+        const isTournament = gameModeSelect && gameModeSelect.value === 'tournament';
+
+        if (isInPool) {
+            // Müsait olan ilk takımı bul
+            const allTeamLists = Array.from(document.querySelectorAll('.team-list'));
+            const availableTeam = allTeamLists.find(list => list.children.length < maxSize);
+
+            if (!availableTeam) {
+                showToast(`⚠️ Tüm takımlar dolu (${maxSize}/${maxSize})! Oyuncu eklenemedi.`, true);
+                playUiSfx('click');
+                return;
+            }
+
+            availableTeam.appendChild(playerLi);
+            updatePoolCount();
+
+            const teamBox = availableTeam.closest('.team-box') || availableTeam.closest('.bracket-team-slot');
+            if (teamBox) {
+                const countBadge = teamBox.querySelector('.team-count');
+                if (countBadge) {
+                    countBadge.textContent = isTournament ? `${availableTeam.children.length}/${maxSize}` : availableTeam.children.length;
+                }
+                if (availableTeam.children.length >= maxSize) teamBox.classList.add('full');
+            }
+
+            const assignBtn = playerLi.querySelector('.quick-assign-btn');
+            if (assignBtn) {
+                assignBtn.title = 'Havuza Geri Gönder';
+                assignBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
+            }
+
+            playUiSfx('join');
+            showToast(`✅ ${name} takıma eklendi! (${availableTeam.children.length}/${maxSize})`);
+        } else {
+            // Zaten takımda -> Havuza geri al
+            const previousTeam = playerLi.closest('.team-list');
+            if (playerPool) {
+                playerPool.appendChild(playerLi);
+            }
+            updatePoolCount();
+
+            if (previousTeam) {
+                const teamBox = previousTeam.closest('.team-box') || previousTeam.closest('.bracket-team-slot');
+                if (teamBox) {
+                    const countBadge = teamBox.querySelector('.team-count');
+                    if (countBadge) {
+                        countBadge.textContent = isTournament ? `${previousTeam.children.length}/${maxSize}` : previousTeam.children.length;
+                    }
+                    teamBox.classList.remove('full');
+                }
+            }
+
+            const assignBtn = playerLi.querySelector('.quick-assign-btn');
+            if (assignBtn) {
+                assignBtn.title = 'Müsait İlk Takıma Ata';
+                assignBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i>';
+            }
+
+            playUiSfx('click');
+            showToast(`↩️ ${name} tekrar havuza alındı.`);
+        }
+
+        const tc = document.getElementById('teamsContainer');
+        if (tc && typeof obsSyncChannel !== 'undefined') {
+            obsSyncChannel.postMessage({ type: 'sync_html', html: tc.innerHTML, modeClass: tc.className });
+            obsSyncChannel.postMessage({ type: 'update_pool_count', count: document.querySelectorAll('#playerPool .player-item').length });
+        }
     }
 
     function createPlayerElement(name, avatarUrl = null) {
@@ -3494,6 +4129,22 @@ document.addEventListener('DOMContentLoaded', () => {
         infoWrap.appendChild(nameSpan);
         infoWrap.appendChild(rankChip);
 
+        const cleanNameLower = name.trim().toLowerCase();
+        if (playerRoles.has(cleanNameLower)) {
+            const savedRole = playerRoles.get(cleanNameLower);
+            li.dataset.role = savedRole;
+            const roleBadge = document.createElement('span');
+            roleBadge.className = `player-role-badge role-${savedRole.toLowerCase()}`;
+            if (savedRole === 'GK') {
+                roleBadge.innerHTML = '<i class="fa-solid fa-mitten"></i> GK (Kaleci)';
+                roleBadge.title = 'Kaleci (Goalkeeper)';
+            } else {
+                roleBadge.textContent = savedRole;
+                roleBadge.title = `Rol: ${savedRole}`;
+            }
+            infoWrap.appendChild(roleBadge);
+        }
+
         if (isPlayerCap) {
             const captainBadge = document.createElement('span');
             captainBadge.className = 'player-captain-badge';
@@ -3504,6 +4155,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Butonlar / Eylemler Kapsayıcısı
         const actionsWrap = document.createElement('div');
         actionsWrap.className = 'player-item-actions';
+
+        // Hızlı Takıma Ekle / Havuza Gönder Butonu (Tek tıkla atama kolaylığı)
+        const assignBtn = document.createElement('button');
+        assignBtn.className = 'quick-assign-btn';
+        assignBtn.type = 'button';
+        assignBtn.title = 'Müsait İlk Takıma Ata';
+        assignBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i>';
+        assignBtn.onclick = function(e) {
+            e.stopPropagation();
+            quickAssignPlayer(li, name);
+        };
+        actionsWrap.appendChild(assignBtn);
 
         // Kaptanlık Aç/Kapat Butonu
         const toggleCapBtn = document.createElement('button');
@@ -3526,6 +4189,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 captainSet.delete(name.trim().toLowerCase());
                 saveCaptainsState();
             }
+            playerRoles.delete(name.trim().toLowerCase());
             li.remove();
             updatePoolCount();
             updateCaptainDisplay();
@@ -4024,6 +4688,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 initTeams();
             }
             captainSet.clear();
+            playerRoles.clear();
+            savePlayerRolesState();
+            endDraftTurnMode(false);
             saveCaptainsState();
             updateCaptainDisplay();
             updatePoolCount();
@@ -4221,66 +4888,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return { id: null, channel: clean };
     }
 
-    async function connectToKick() {
-        const raw = channelNameInput.value.trim();
-        if (!raw) {
-            showToast('Lütfen bir Kick kanal adı veya Sohbet ID girin!', true);
-            return;
-        }
+    // =========================================================================
+    // 📡 KICK ÇOKLU YAYINCI (MULTI-CHANNEL) VE SOHBET DİNLEME SİSTEMİ
+    // =========================================================================
 
-        const clean = sanitizeChannelInput(raw);
-        switchChannel(clean);
-
-        connectBtn.disabled = true;
-        connectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Bağlanıyor...';
-        connectionStatus.textContent = 'Aranıyor...';
-        connectionStatus.className = 'status disconnected';
-
-        try {
-            const resolved = await resolveKickChatroomId(raw);
-
-            if (!resolved || !resolved.id) {
-                // Otomatik bulunamadıysa kullanıcı dostu yardım penceresini aç
-                connectBtn.disabled = false;
-                connectBtn.innerHTML = '<i class="fa-brands fa-kickstarter"></i> Chat\'e Bağlan';
-                connectionStatus.textContent = 'Yardım Gerekli';
-                connectionStatus.className = 'status disconnected';
-                openKickModal(clean);
-                showToast('Kanal ID otomatik alınamadı. Yardım merkezi açıldı.', true);
-                return;
-            }
-
-            setupPusher(resolved.id, resolved.channel);
-
-        } catch (error) {
-            console.error('Kick bağlantı hatası:', error);
-            showToast('Bağlantı hatası: ' + (error.message || 'Bilinmeyen hata'), true);
-            connectionStatus.textContent = 'Hata';
-            connectionStatus.className = 'status disconnected';
-        } finally {
-            connectBtn.disabled = false;
-            connectBtn.innerHTML = '<i class="fa-brands fa-kickstarter"></i> Chat\'e Bağlan';
-        }
-    }
-
-    function setupPusher(chatroomId, channelName = '') {
-        if (pusher) {
-            try {
-                pusher.disconnect();
-            } catch (e) {}
-        }
-
-        connectionStatus.textContent = 'Bağlanıyor...';
-        connectionStatus.className = 'status disconnected';
-
+    function initPusherClient() {
+        if (pusher) return pusher;
         if (typeof Pusher === 'undefined') {
-            connectionStatus.textContent = 'Pusher Yok';
-            connectionStatus.className = 'status disconnected';
+            if (connectionStatus) {
+                connectionStatus.textContent = 'Pusher Yok';
+                connectionStatus.className = 'status disconnected';
+            }
             showToast('Pusher kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edin.', true);
-            return;
+            return null;
         }
 
-        // Kick's Pusher App Key with full transport fallbacks
         try {
             pusher = new Pusher('32cbd69e4b950bf97679', {
                 cluster: 'us2',
@@ -4290,117 +4912,292 @@ document.addEventListener('DOMContentLoaded', () => {
                 wssPort: 443,
                 enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling']
             });
+
+            pusher.connection.bind('connected', () => {
+                updateActiveChannelsUI();
+            });
+
+            pusher.connection.bind('connecting', () => {
+                if (connectionStatus && activeChannels.size === 0) {
+                    connectionStatus.textContent = 'Bağlanıyor...';
+                    connectionStatus.className = 'status disconnected';
+                }
+            });
+
+            pusher.connection.bind('disconnected', () => {
+                if (activeChannels.size === 0 && connectionStatus) {
+                    connectionStatus.textContent = 'Bağlantı Kesildi';
+                    connectionStatus.className = 'status disconnected';
+                }
+            });
+
+            pusher.connection.bind('error', (err) => {
+                console.error('Pusher ağ hatası:', err);
+            });
+
+            return pusher;
         } catch(err) {
-            connectionStatus.textContent = 'Hata';
-            connectionStatus.className = 'status disconnected';
+            console.error('Pusher oluşturulamadı:', err);
+            return null;
+        }
+    }
+
+    function subscribeToKickChannel(chatroomId, channelName = '') {
+        const client = initPusherClient();
+        if (!client) return;
+
+        const clean = sanitizeChannelInput(channelName || chatroomId.toString());
+        if (activeChannels.has(clean)) {
+            showToast(`ℹ️ "${clean}" zaten bağlı.`);
             return;
         }
 
-        pusher.connection.bind('connected', () => {
-            connectionStatus.textContent = 'Bağlandı';
+        const subChannelName = `chatrooms.${chatroomId}.v2`;
+        const channelSub = client.subscribe(subChannelName);
+
+        channelSub.bind('pusher:subscription_succeeded', () => {
+            const displayName = channelName || clean;
+            showToast(`🟢 ${displayName.toUpperCase()} sohbetine bağlandı!`);
+            updateActiveChannelsUI();
+        });
+
+        channelSub.bind('pusher:subscription_error', (status) => {
+            console.error(`${channelName} abonelik hatası:`, status);
+            showToast(`⚠️ ${channelName || clean} odasına (${chatroomId}) bağlanılamadı!`, true);
+        });
+
+        channelSub.bind('App\\Events\\ChatMessageEvent', function(data) {
+            handleKickChatMessage(data, clean);
+        });
+
+        activeChannels.set(clean, {
+            id: chatroomId,
+            channel: channelName || clean,
+            subChannelName: subChannelName,
+            subscription: channelSub
+        });
+
+        localStorage.setItem(`kick_chatroom_${clean}`, chatroomId.toString());
+        updateActiveChannelsUI();
+    }
+
+    function disconnectKickChannel(channelName) {
+        const clean = sanitizeChannelInput(channelName);
+        const entry = activeChannels.get(clean);
+        if (!entry) return;
+
+        if (pusher && entry.subChannelName) {
+            try {
+                pusher.unsubscribe(entry.subChannelName);
+            } catch (e) {}
+        }
+        activeChannels.delete(clean);
+        showToast(`🔴 ${clean.toUpperCase()} sohbet bağlantısı kesildi.`);
+        updateActiveChannelsUI();
+
+        if (activeChannels.size === 0 && pusher) {
+            try {
+                pusher.disconnect();
+                pusher = null;
+            } catch(e) {}
+        }
+    }
+
+    function updateActiveChannelsUI() {
+        const container = document.getElementById('activeChannelsContainer');
+        if (!container) return;
+
+        if (activeChannels.size === 0) {
+            container.innerHTML = '';
+            container.classList.add('hidden');
+            if (connectionStatus) {
+                connectionStatus.innerHTML = '<i class="fa-solid fa-circle"></i> <span>Bağlı Değil</span>';
+                connectionStatus.className = 'status disconnected';
+            }
+            return;
+        }
+
+        container.classList.remove('hidden');
+        container.innerHTML = '';
+
+        activeChannels.forEach((item, chKey) => {
+            const chip = document.createElement('div');
+            chip.className = 'active-channel-chip';
+            chip.innerHTML = `
+                <i class="fa-brands fa-kickstarter"></i>
+                <span>${item.channel}</span>
+                <button type="button" class="remove-channel-btn" title="${item.channel} sohbetini kes">&times;</button>
+            `;
+            const removeBtn = chip.querySelector('.remove-channel-btn');
+            if (removeBtn) {
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    disconnectKickChannel(chKey);
+                };
+            }
+            container.appendChild(chip);
+        });
+
+        if (connectionStatus) {
+            const count = activeChannels.size;
+            if (count === 1) {
+                const first = Array.from(activeChannels.values())[0];
+                connectionStatus.innerHTML = `<i class="fa-solid fa-circle"></i> <span>${first.channel} (Canlı)</span>`;
+            } else {
+                connectionStatus.innerHTML = `<i class="fa-solid fa-circle"></i> <span>${count} Yayıncı Canlı</span>`;
+            }
             connectionStatus.className = 'status connected';
-        });
+        }
+    }
 
-        pusher.connection.bind('connecting', () => {
-            connectionStatus.textContent = 'Bağlanıyor...';
+    function setupPusher(chatroomId, channelName = '') {
+        subscribeToKickChannel(chatroomId, channelName);
+    }
+
+    async function connectToKick() {
+        const raw = channelNameInput ? channelNameInput.value.trim() : '';
+        if (!raw && activeChannels.size === 0) {
+            showToast('Lütfen bir Kick kanal adı veya Sohbet ID girin! (Birden çok kanal için virgülle ayırabilirsiniz: wtcn, elraenn)', true);
+            return;
+        }
+
+        // Çoklu kanal desteği: virgül, noktalı virgül veya boşluk ile ayrılan tüm kanalları topla
+        const rawTokens = raw.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+
+        if (rawTokens.length === 0 && activeChannels.size > 0) {
+            showToast('Mevcut bağlı kanallar aktif olarak dinleniyor.');
+            return;
+        }
+
+        connectBtn.disabled = true;
+        connectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Bağlanıyor...';
+        if (connectionStatus && activeChannels.size === 0) {
+            connectionStatus.textContent = 'Aranıyor...';
             connectionStatus.className = 'status disconnected';
-        });
+        }
 
-        pusher.connection.bind('disconnected', () => {
-            connectionStatus.textContent = 'Bağlantı Kesildi';
-            connectionStatus.className = 'status disconnected';
-        });
+        let connectedCount = 0;
+        let failedChannels = [];
 
-        pusher.connection.bind('error', (err) => {
-            console.error('Pusher ağ hatası:', err);
-            connectionStatus.textContent = 'Ağ Hatası';
-            connectionStatus.className = 'status disconnected';
-        });
+        try {
+            for (const token of rawTokens) {
+                const clean = sanitizeChannelInput(token);
+                if (!clean) continue;
 
-        chatChannel = pusher.subscribe(`chatrooms.${chatroomId}.v2`);
+                if (activeChannels.has(clean)) {
+                    showToast(`ℹ️ "${clean}" zaten bağlı.`);
+                    continue;
+                }
 
-        chatChannel.bind('pusher:subscription_succeeded', () => {
-            connectionStatus.textContent = 'Canlı Bağlandı';
-            connectionStatus.className = 'status connected';
-            const cmd = currentJoinCommand || '!kingsc';
-            showToast(`${channelName ? channelName.toUpperCase() : 'Kick'} sohbetine bağlandı! Chate '${cmd}' yazanlar otomatik ekleniyor.`);
-        });
-
-        chatChannel.bind('pusher:subscription_error', (status) => {
-            console.error('Pusher abonelik hatası:', status);
-            connectionStatus.textContent = 'Oda Hatası';
-            connectionStatus.className = 'status disconnected';
-            showToast(`Odaya (${chatroomId}) bağlanılamadı. ID hatalı olabilir!`, true);
-        });
-
-        chatChannel.bind('App\\Events\\ChatMessageEvent', function(data) {
-            let msgData = data;
-            if (typeof msgData === 'string') {
-                try {
-                    msgData = JSON.parse(msgData);
-                } catch (e) {
-                    console.error('Pusher veri ayrıştırma hatası:', e);
+                const resolved = await resolveKickChatroomId(token);
+                if (resolved && resolved.id) {
+                    subscribeToKickChannel(resolved.id, resolved.channel);
+                    connectedCount++;
+                } else {
+                    failedChannels.push(clean);
                 }
             }
-            if (!msgData) return;
 
-            const sender = msgData.sender || msgData.user || {};
-            const username = sender.username || sender.slug;
-            if (!username) return;
-
-            // Kick Pusher profil fotoğrafı kontrolü
-            const pusherAvatar = sender.profile_picture || sender.profilepic || sender.profile_thumb || (sender.identity && sender.identity.profile_picture) || null;
-            if (pusherAvatar) {
-                setCachedAvatar(username, pusherAvatar);
+            if (connectedCount > 0) {
+                if (channelNameInput) channelNameInput.value = '';
+                showToast(`🟢 ${connectedCount} yayıncı sohbetine başarıyla bağlanıldı!`);
             }
 
-            // Mesaj içeriğini tespit et (Kick Pusher content veya message alanı)
-            const rawContent = (msgData.content || msgData.message || msgData.text || '').trim();
-            if (!rawContent) return;
+            if (failedChannels.length > 0) {
+                showToast(`⚠️ Bazı kanalların Sohbet ID'si otomatik bulunamadı: ${failedChannels.join(', ')}`, true);
+                if (activeChannels.size === 0) {
+                    openKickModal(failedChannels[0]);
+                }
+            }
 
-            // Türkçe i/ı normalizasyonu ve küçük harfe çevirme
-            const turkishNormContent = rawContent.replace(/ı/g, 'i').replace(/İ/g, 'i').toLowerCase();
-            const firstToken = turkishNormContent.split(/\s+/)[0];
+        } catch (error) {
+            console.error('Kick bağlantı hatası:', error);
+            showToast('Bağlantı hatası: ' + (error.message || 'Bilinmeyen hata'), true);
+        } finally {
+            connectBtn.disabled = false;
+            connectBtn.innerHTML = '<i class="fa-solid fa-plug"></i> <span>Chat\'e Bağlan</span>';
+            updateActiveChannelsUI();
+        }
+    }
 
-            // 👑 1. Kaptanlık Komutu Kontrolü (!kingkaptan / !KİngKAPTAN / !kingcaptain)
-            if (firstToken === '!kingkaptan' || firstToken === '!kingcaptain') {
-                handleCaptainCommand(username, pusherAvatar);
-                if (!pusherAvatar) {
-                    fetchUserAvatar(username);
+    function handleKickChatMessage(data, sourceChannel = '') {
+        let msgData = data;
+        if (typeof msgData === 'string') {
+            try {
+                msgData = JSON.parse(msgData);
+            } catch (e) {
+                console.error('Pusher veri ayrıştırma hatası:', e);
+            }
+        }
+        if (!msgData) return;
+
+        const sender = msgData.sender || msgData.user || {};
+        const username = sender.username || sender.slug;
+        if (!username) return;
+
+        // Kick Pusher profil fotoğrafı kontrolü
+        const pusherAvatar = sender.profile_picture || sender.profilepic || sender.profile_thumb || (sender.identity && sender.identity.profile_picture) || null;
+        if (pusherAvatar) {
+            setCachedAvatar(username, pusherAvatar);
+        }
+
+        // Mesaj içeriğini tespit et (Kick Pusher content veya message alanı)
+        const rawContent = (msgData.content || msgData.message || msgData.text || '').trim();
+        if (!rawContent) return;
+
+        // Türkçe i/ı normalizasyonu ve küçük harfe çevirme
+        const turkishNormContent = rawContent.replace(/ı/g, 'i').replace(/İ/g, 'i').toLowerCase();
+        const firstToken = turkishNormContent.split(/\s+/)[0];
+
+        // 👑 1. Kaptanlık Komutu Kontrolü (!kingkaptan / !KİngKAPTAN / !kingcaptain)
+        if (firstToken === '!kingkaptan' || firstToken === '!kingcaptain') {
+            handleCaptainCommand(username, pusherAvatar);
+            if (!pusherAvatar) {
+                fetchUserAvatar(username);
+            }
+            return;
+        }
+
+        // 👑 2. Kaptan Oyuncu ve Rol Seçme (Draft / Pick) Sistemi (!sec @oyuncu GK / CB / RM / LM vb.)
+        if (isCaptain(username)) {
+            const draftInfo = extractDraftTarget(rawContent);
+            if (draftInfo && draftInfo.target) {
+                // Eğer sıralı seçim modu aktifse: Sadece sırası gelen kaptan seçim yapabilir
+                if (draftModeActive && currentDraftOrder && currentDraftOrder.length > 0) {
+                    const activeCap = currentDraftOrder[currentDraftIndex];
+                    const cleanSender = username.trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+                    const cleanActive = activeCap ? activeCap.name.trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i') : '';
+                    if (cleanSender !== cleanActive) {
+                        showToast(`⏳ Sıra Kaptan ${activeCap ? activeCap.name : '...'}'de! Lütfen sıranızı bekleyin.`, true);
+                        return;
+                    }
+                }
+
+                const captainTeamList = findCaptainTeamList(username);
+                if (!captainTeamList) {
+                    showToast(`⚠️ Kaptan ${username} henüz bir takıma yerleşmediği için oyuncu seçemez!`, true);
+                } else {
+                    const picked = executeCaptainPick(username, draftInfo, captainTeamList);
+                    if (picked && draftModeActive) {
+                        advanceDraftTurn();
+                    }
                 }
                 return;
             }
+        }
 
-            // 👑 2. Kaptan Oyuncu Seçme (Draft / Pick) Sistemi
-            // Eğer mesajı yazan izleyici bir Kaptansa ve turnuva/tek maçta bir takıma atanmışsa:
-            // Chat'te @oyuncu veya !sec @oyuncu etiketlemesi yaptığında o oyuncuyu kendi takımına otomatik transfer eder
-            if (isCaptain(username)) {
-                const draftTarget = extractDraftTarget(rawContent);
-                if (draftTarget) {
-                    const captainTeamList = findCaptainTeamList(username);
-                    if (!captainTeamList) {
-                        showToast(`⚠️ Kaptan ${username} henüz bir takıma yerleşmediği için oyuncu seçemez!`, true);
-                    } else {
-                        executeCaptainPick(username, draftTarget, captainTeamList);
-                    }
-                    return;
+        // 🎮 3. Aktif normal katılım komutu kontrolü (örn: !kingsc)
+        const activeCmd = (currentJoinCommand || '!kingsc').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+
+        if (firstToken === activeCmd) {
+            const added = addPlayerToPool(username, pusherAvatar);
+            if (added) {
+                showToast(`🎮 ${username} havuza eklendi! (${activeCmd})`);
+                if (!pusherAvatar) {
+                    fetchUserAvatar(username);
                 }
             }
-
-            // 🎮 3. Aktif normal katılım komutu kontrolü (örn: !kingsc, büyük/küçük harf ve Türkçe i/ı duyarsız)
-            const activeCmd = (currentJoinCommand || '!kingsc').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
-
-            if (firstToken === activeCmd) {
-                const added = addPlayerToPool(username, pusherAvatar);
-                if (added) {
-                    showToast(`🎮 ${username} havuza eklendi! (${activeCmd})`);
-                    // Eğer Pusher'da avatar gelmediyse yerel köprü üzerinden çek
-                    if (!pusherAvatar) {
-                        fetchUserAvatar(username);
-                    }
-                }
-            }
-        });
+        }
     }
 
     function openKickModal(channel) {
@@ -5139,17 +5936,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 }));
             } catch(e) {}
 
-            // Layer 3: HTTP Server POST (Yalnızca ana uygulama gönderir)
+            // Layer 3: HTTP Server POST (180ms Debounce buffer ile istek birleştirme)
             if (!isCurrentlyOverlay) {
-                fetch(`${getApiBase()}/api/state`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(localObsState)
-                }).catch(e => {});
+                if (_obsPostDebounceTimer) {
+                    clearTimeout(_obsPostDebounceTimer);
+                }
+                _obsPostDebounceTimer = setTimeout(() => {
+                    _obsPostDebounceTimer = null;
+                    fetch(`${getApiBase()}/api/state`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(localObsState)
+                    }).catch(e => {});
+                }, 180);
             }
         },
         onmessage: null
     };
+
+    var _obsPostDebounceTimer = null;
 
     // Layer 1 Dinleyici: BroadcastChannel
     if (nativeBroadcast) {
@@ -5175,10 +5980,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Layer 3 Dinleyici: HTTP Server Polling (400ms aralıkla ultra hızlı)
+    // Layer 3 Dinleyici: HTTP Server Polling (Yedek senkronizasyon, in-flight korumalı)
     let _lastObsStateStr = "";
     let _lastObsNewPlayerTs = 0;
+    let _isObsPollingActive = false;
+
     setInterval(() => {
+        if (_isObsPollingActive) return; // Önceki istek henüz tamamlanmadıysa kuyruk oluşturma
+        _isObsPollingActive = true;
+
         fetch(`${getApiBase()}/api/state`)
             .then(r => r.text())
             .then(txt => {
@@ -5206,8 +6016,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         obsSyncChannel.onmessage({ data: { type: 'new_player', name: state.newPlayer.name } });
                     }
                 }
-            }).catch(e => {});
-    }, 400);
+            })
+            .catch(e => {})
+            .finally(() => {
+                _isObsPollingActive = false;
+            });
+    }, 1200);
 
     function showObsToast(name) {
         const container = document.getElementById('obsToastContainer');
@@ -5972,6 +6786,17 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (e.key === 'o' || e.key === 'O') {
                 e.preventDefault();
                 openObsModalHandler();
+            } else if (e.key === 'Escape') {
+                const focused = document.querySelectorAll('.obs-focused');
+                if (focused.length > 0) {
+                    e.preventDefault();
+                    focused.forEach(el => el.classList.remove('obs-focused'));
+                    const tc = document.getElementById('teamsContainer');
+                    if (tc && typeof obsSyncChannel !== 'undefined') {
+                        obsSyncChannel.postMessage({ type: 'sync_html', html: tc.innerHTML, modeClass: tc.className });
+                    }
+                    showToast('🔍 OBS Odaklaması sıfırlandı (Genel görünüm).');
+                }
             }
         });
 

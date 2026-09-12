@@ -1177,6 +1177,33 @@ body {
     text-shadow: 0 0 8px rgba(251, 191, 36, 0.85);
 }
 
+.quick-assign-btn {
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    color: #00f0ff;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quick-assign-btn:hover {
+    background: rgba(0, 240, 255, 0.25);
+    border-color: #00f0ff;
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+    transform: scale(1.1);
+}
+
+.player-item.is-captain .quick-assign-btn {
+    border-color: rgba(251, 191, 36, 0.4);
+    color: #fbbf24;
+}
+
 /* Teams Container */
 .teams-container {
     flex: 1;
@@ -2301,6 +2328,47 @@ body {
     border-radius: 4px;
     border: 1px solid rgba(0, 230, 230, 0.3);
     text-transform: uppercase;
+}
+.captain-codes-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.captain-codes-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.toolbar-cmd-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+}
+.toolbar-cmd-tag code {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 11px;
+}
+.toolbar-cmd-tag.tag-captain-join {
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    color: #fbbf24;
+}
+.toolbar-cmd-tag.tag-captain-join code {
+    color: #fef08a;
+}
+.toolbar-cmd-tag.tag-captain-pick {
+    background: rgba(168, 85, 247, 0.15);
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    color: #c084fc;
+}
+.toolbar-cmd-tag.tag-captain-pick code {
+    color: #f3e8ff;
 }
 .pool-header .pool-title-wrap {
     display: flex;
@@ -4175,6 +4243,10 @@ html.obs-overlay-mode .match-winner-btn,
 body.obs-overlay-mode .match-winner-btn,
 html.obs-overlay-mode .remove-player,
 body.obs-overlay-mode .remove-player,
+html.obs-overlay-mode .quick-assign-btn,
+body.obs-overlay-mode .quick-assign-btn,
+html.obs-overlay-mode .toggle-captain-btn,
+body.obs-overlay-mode .toggle-captain-btn,
 html.obs-overlay-mode .team-header button,
 body.obs-overlay-mode .team-header button,
 html.obs-overlay-mode .obs-focus-btn,
@@ -4186,6 +4258,27 @@ body.obs-overlay-mode .match-undo-btn,
 html.obs-overlay-mode .bracket-topbar,
 body.obs-overlay-mode .bracket-topbar {
     display: none !important;
+}
+
+/* OBS Modunda Boş Takım & Slot Espor Koruyucusu (Tek Kart Kalmasını Önler) */
+html.obs-overlay-mode .team-list:empty::before,
+body.obs-overlay-mode .team-list:empty::before,
+html.obs-overlay-mode .bracket-team-slot .team-list:empty::before,
+body.obs-overlay-mode .bracket-team-slot .team-list:empty::before {
+    content: "⚔️ Oyuncu Bekleniyor...";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 11px;
+    font-weight: 600;
+    font-style: italic;
+    letter-spacing: 0.5px;
+    height: 38px;
+    border: 1px dashed rgba(0, 240, 255, 0.25);
+    border-radius: 8px;
+    background: rgba(0, 240, 255, 0.03);
+    margin: 4px 0;
 }
 
 /* =========================================================================
@@ -6287,5 +6380,378 @@ kbd {
     transform: scale(1.03) !important;
     transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
+
+/* ==========================================================================
+   🎲 KAPTAN ZAR KURASI & SIRALI SEÇİM (DRAFT TURN) STİLLERİ
+   ========================================================================== */
+
+/* Zar At (Kaptan Sırası) Butonu */
+.dice-btn {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff;
+    border: 1px solid rgba(168, 85, 247, 0.5);
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+    transition: all 0.25s ease;
+    font-weight: 700;
+}
+.dice-btn:hover {
+    background: linear-gradient(135deg, #6d28d9, #9333ea);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.7);
+    transform: translateY(-1px);
+}
+
+/* Kaptan Komut Etiketleri */
+.pool-command-tag.tag-captain-join {
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.4);
+    color: #fbbf24;
+}
+.pool-command-tag.tag-captain-join span {
+    color: #fef08a;
+}
+.pool-command-tag.tag-captain-pick {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: rgba(168, 85, 247, 0.4);
+    color: #c084fc;
+}
+.pool-command-tag.tag-captain-pick span {
+    color: #f3e8ff;
+}
+
+/* Çoklu Yayıncı (Multi-Channel) Sohbet Çipleri */
+.active-channels-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    width: 100%;
+}
+.active-channel-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 255, 0, 0.12);
+    border: 1px solid rgba(0, 255, 0, 0.35);
+    color: #00ff66;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+.active-channel-chip:hover {
+    background: rgba(0, 255, 0, 0.2);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.25);
+}
+.active-channel-chip .remove-channel-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 13px;
+    line-height: 1;
+    transition: color 0.15s ease;
+}
+.active-channel-chip .remove-channel-btn:hover {
+    color: #ef4444;
+}
+
+/* Oyuncu Pozisyon & Rol Rozetleri (GK, CB, RM, LM vb.) */
+.player-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 4px;
+    vertical-align: middle;
+    line-height: 1.2;
+}
+.player-role-badge.role-gk {
+    background: rgba(251, 191, 36, 0.22);
+    border: 1px solid #fbbf24;
+    color: #fef08a;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.35);
+}
+.player-role-badge.role-cb,
+.player-role-badge.role-lb,
+.player-role-badge.role-rb {
+    background: rgba(59, 130, 246, 0.22);
+    border: 1px solid #60a5fa;
+    color: #bfdbfe;
+}
+.player-role-badge.role-rm,
+.player-role-badge.role-lm,
+.player-role-badge.role-cm,
+.player-role-badge.role-cdm,
+.player-role-badge.role-cam {
+    background: rgba(16, 185, 129, 0.22);
+    border: 1px solid #34d399;
+    color: #a7f3d0;
+}
+.player-role-badge.role-st,
+.player-role-badge.role-cf,
+.player-role-badge.role-rw,
+.player-role-badge.role-lw {
+    background: rgba(239, 68, 68, 0.22);
+    border: 1px solid #f87171;
+    color: #fecaca;
+}
+
+/* Kaptan Sıralı Seçim (Draft) Çubuğu */
+.draft-turn-banner {
+    background: linear-gradient(90deg, rgba(26, 16, 60, 0.95), rgba(15, 23, 42, 0.95));
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(168, 85, 247, 0.25);
+    animation: draftBannerSlideIn 0.3s ease-out;
+}
+@keyframes draftBannerSlideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.draft-turn-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.turn-dice-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    letter-spacing: 0.5px;
+}
+.turn-captain-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.turn-label {
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+}
+.turn-captain-name {
+    color: #fbbf24;
+    font-size: 16px;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+.turn-team-badge {
+    background: rgba(0, 240, 255, 0.15);
+    color: #00f0ff;
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.turn-code-hint {
+    color: #cbd5e1;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.turn-code-hint code {
+    background: rgba(0, 0, 0, 0.5);
+    color: #38bdf8;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-weight: 700;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.turn-next-hint {
+    font-size: 12px;
+    color: #64748b;
+}
+.turn-next-hint strong {
+    color: #cbd5e1;
+}
+.turn-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Seçim Sırası Gelen Takım Çerçeve Vurgusu */
+.team-box.active-draft-turn,
+.bracket-team-slot.active-draft-turn {
+    border-color: #fbbf24 !important;
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), inset 0 0 10px rgba(251, 191, 36, 0.2) !important;
+    animation: draftTurnPulse 1.6s infinite ease-in-out;
+}
+@keyframes draftTurnPulse {
+    0%, 100% {
+        box-shadow: 0 0 12px rgba(251, 191, 36, 0.4), inset 0 0 6px rgba(251, 191, 36, 0.1);
+    }
+    50% {
+        box-shadow: 0 0 26px rgba(251, 191, 36, 0.85), inset 0 0 14px rgba(251, 191, 36, 0.3);
+    }
+}
+
+/* Zar Kurası Modalı */
+.dice-modal-card {
+    max-width: 540px;
+    width: 90%;
+    background: linear-gradient(145deg, #0d121f, #182035);
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    box-shadow: 0 0 35px rgba(168, 85, 247, 0.35);
+}
+.dice-modal-body {
+    padding: 20px 24px;
+    text-align: center;
+}
+.dice-animation-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 10px;
+}
+.dice-cube-wrap {
+    font-size: 72px;
+    color: #c084fc;
+    filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.8));
+    animation: diceSpin3D 0.8s infinite linear;
+}
+@keyframes diceSpin3D {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.15); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+.dice-rolling-text {
+    margin-top: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #e2e8f0;
+    letter-spacing: 1px;
+}
+.dice-result-container {
+    animation: fadeIn 0.4s ease-out;
+}
+.dice-winner-card {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.25));
+    border: 1px solid #fbbf24;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 25px rgba(251, 191, 36, 0.35);
+}
+.winner-crown {
+    font-size: 32px;
+    color: #fbbf24;
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));
+    margin-bottom: 4px;
+}
+.winner-sub {
+    font-size: 11px;
+    font-weight: 800;
+    color: #fef08a;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+}
+.winner-name {
+    font-size: 22px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 6px;
+}
+.winner-score-badge {
+    display: inline-block;
+    background: #fbbf24;
+    color: #0f172a;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 12px;
+}
+.dice-order-list-wrap {
+    text-align: left;
+}
+.dice-order-list-wrap h4 {
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+.dice-order-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+.dice-order-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+.dice-order-item.first-pick {
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.4);
+}
+.order-rank {
+    font-weight: 900;
+    color: #94a3b8;
+    width: 24px;
+}
+.dice-order-item.first-pick .order-rank {
+    color: #fbbf24;
+}
+.order-name {
+    font-weight: 700;
+    color: #fff;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.order-team {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-right: 12px;
+}
+.order-score {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 12px;
+}
+.dice-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
 
 

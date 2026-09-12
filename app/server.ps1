@@ -71,7 +71,8 @@ $global:HubEvents = [System.Collections.ArrayList]::new()
 $global:EventCounter = 0
 $global:ActiveClients = @{}
 $global:TunnelUrl = ""
-$global:AvatarCache = @{}
+$global:AvatarCache = [System.Collections.Hashtable]::Synchronized(@{})
+$global:AvatarPending = [System.Collections.Hashtable]::Synchronized(@{})
 
 
 function Get-HubStatsContent {
@@ -162,6 +163,25 @@ while ($listener.IsListening) {
             continue
         }
 
+        if ($rawUrl.StartsWith("/api/test-result")) {
+            if ($request.HttpMethod -eq "POST") {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $global:TestResultState = $reader.ReadToEnd()
+                $reader.Close()
+                $response.StatusCode = 200
+                $response.Close()
+            } else {
+                $content = if ($global:TestResultState) { $global:TestResultState } else { '{"ready":false}' }
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($content)
+                $response.ContentType = "application/json; charset=utf-8"
+                $response.ContentLength64 = $buffer.Length
+                $response.StatusCode = 200
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.Close()
+            }
+            continue
+        }
+
         # -------------------------------------------------------------
         # KICK PROFIL FOTOĞRAFI (AVATAR) PROXY API
         # -------------------------------------------------------------
@@ -183,26 +203,64 @@ while ($listener.IsListening) {
 
             $userKey = $username.ToLower()
             $avatarUrl = $null
+            $isPending = $false
 
             if ($global:AvatarCache.ContainsKey($userKey)) {
-                $avatarUrl = $global:AvatarCache[$userKey]
+                $cachedVal = $global:AvatarCache[$userKey]
+                if (-not [string]::IsNullOrEmpty($cachedVal)) {
+                    $avatarUrl = $cachedVal
+                }
             } else {
-                try {
-                    $apiUrl = "https://kick.com/api/v1/users/$([System.Uri]::EscapeDataString($username))"
-                    $kickUserData = Invoke-RestMethod -Uri $apiUrl -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -TimeoutSec 3
-                    if ($kickUserData -and $kickUserData.profilepic) {
-                        $avatarUrl = [string]$kickUserData.profilepic
-                    }
-                } catch {}
+                if ($global:AvatarPending.ContainsKey($userKey)) {
+                    $isPending = $true
+                } else {
+                    $global:AvatarPending[$userKey] = $true
+                    $isPending = $true
 
-                # Önbelleğe al (bulunamadıysa null olarak kaydet ki Kick API'yi sürekli yormasın)
-                $global:AvatarCache[$userKey] = $avatarUrl
+                    # Sunucuyu asla kilitlemeyen arka plan asenkron avatar çekimi
+                    $bgWorker = [powershell]::Create()
+                    [void]$bgWorker.AddScript({
+                        param($uName, $uKey, $cache, $pend)
+                        $foundPic = ""
+                        try {
+                            $escaped = [System.Uri]::EscapeDataString($uName)
+                            $apiUrl = "https://kick.com/api/v1/users/$escaped"
+                            $req = [System.Net.HttpWebRequest]::Create($apiUrl)
+                            $req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                            $req.Timeout = 2500
+                            $req.ReadWriteTimeout = 2500
+                            $resp = $req.GetResponse()
+                            if ($resp) {
+                                $stream = $resp.GetResponseStream()
+                                $sr = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::UTF8)
+                                $rawBody = $sr.ReadToEnd()
+                                $sr.Close()
+                                $stream.Close()
+                                $resp.Close()
+
+                                if ($rawBody -match '"profilepic"\s*:\s*"([^"]+)"') {
+                                    $foundPic = $matches[1].Replace('\/', '/')
+                                }
+                            }
+                        } catch {
+                            $foundPic = ""
+                        } finally {
+                            $cache[$uKey] = $foundPic
+                            if ($pend.ContainsKey($uKey)) {
+                                $pend.Remove($uKey)
+                            }
+                        }
+                    }).AddArgument($username).AddArgument($userKey).AddArgument($global:AvatarCache).AddArgument($global:AvatarPending)
+                    
+                    [void]$bgWorker.BeginInvoke()
+                }
             }
 
             $respData = @{
                 success = (-not [string]::IsNullOrEmpty($avatarUrl))
                 username = $username
                 avatar = $avatarUrl
+                pending = $isPending
             }
             $jsonResp = $respData | ConvertTo-Json -Compress
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
@@ -439,8 +497,8 @@ while ($listener.IsListening) {
                     $startScript = Join-Path $scriptDir "start_tunnel.ps1"
                     Start-Process "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$startScript`" -Port $Port -AutoExit" -WindowStyle Hidden
                     
-                    for ($i = 0; $i -lt 20; $i++) {
-                        Start-Sleep -Milliseconds 500
+                    for ($i = 0; $i -lt 4; $i++) {
+                        Start-Sleep -Milliseconds 150
                         $tUrl = Refresh-TunnelUrl
                         if (-not [string]::IsNullOrWhiteSpace($tUrl)) { break }
                     }
@@ -448,7 +506,7 @@ while ($listener.IsListening) {
                     if (-not [string]::IsNullOrWhiteSpace($tUrl)) {
                         $jsonResp = "{""success"":true,""url"":""$tUrl""}"
                     } else {
-                        $jsonResp = '{"success":false,"error":"Tünel başlatıldı ancak bağlantı adresi henüz hazır değil. Lütfen birkaç saniye sonra tekrar deneyin."}'
+                        $jsonResp = '{"success":true,"url":"","starting":true,"message":"Tünel arka planda başlatılıyor. Birkaç saniye içinde aktifleşecektir."}'
                     }
                 }
                 $response.StatusCode = 200
@@ -572,15 +630,20 @@ while ($listener.IsListening) {
                 $sealedFiles = @()
                 foreach ($folder in $searchFolders) {
                     if (Test-Path $folder) {
-                        $jsonFiles = Get-ChildItem -Path $folder -Filter "*.json" -ErrorAction SilentlyContinue | Select-Object -First 30
+                        $jsonFiles = Get-ChildItem -Path $folder -Filter "*strikers*.json" -File -ErrorAction SilentlyContinue | Select-Object -First 10
+                        if (-not $jsonFiles -or $jsonFiles.Count -eq 0) {
+                            $jsonFiles = Get-ChildItem -Path $folder -Filter "*.json" -File -ErrorAction SilentlyContinue | Select-Object -First 10
+                        }
                         foreach ($file in $jsonFiles) {
                             try {
-                                $text = [System.IO.File]::ReadAllText($file.FullName)
-                                if ($text -like "*STRICKERS_KING_OFFICIAL_SEAL*" -or $text -like "*Strickers King Creator*") {
-                                    $sealedFiles += @{
-                                        filename = $file.Name
-                                        path = $file.FullName
-                                        content = $text
+                                if ($file.Length -gt 0 -and $file.Length -lt 250000) {
+                                    $text = [System.IO.File]::ReadAllText($file.FullName, [System.Text.Encoding]::UTF8)
+                                    if ($text -like "*STRICKERS_KING_OFFICIAL_SEAL*" -or $text -like "*Strickers King Creator*") {
+                                        $sealedFiles += @{
+                                            filename = $file.Name
+                                            path = $file.FullName
+                                            content = $text
+                                        }
                                     }
                                 }
                             } catch {}
