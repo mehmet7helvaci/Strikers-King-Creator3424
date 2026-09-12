@@ -1656,6 +1656,33 @@ document.addEventListener('DOMContentLoaded', () => {
         if (zoomOutBtn) zoomOutBtn.onclick = () => changeBracketZoom(-0.1);
         if (zoomInBtn) zoomInBtn.onclick = () => changeBracketZoom(0.1);
         if (autoFitBtn) autoFitBtn.onclick = () => autoFitBracket();
+
+        // 🎯 Fare Tekerleği & Ctrl+Zoom Entegrasyonu
+        // 1. Normal fare tekerleği ağaç görünümünde (bracket-viewport) bağımsız dikey kaydırma yapar;
+        //    Sol paneldeki İzleyici Havuzu bu kaydırmadan asla etkilenmez ve sabit kalır.
+        // 2. Ctrl + Fare Tekerleği çevrildiğinde ise ağaç dinamik olarak yakınlaştırılır / uzaklaştırılır (%5 adımlarla).
+        // 3. Yatay modda dikey taşma yokken fare tekerleği yatay kaydırma sağlar.
+        wrapper.addEventListener('wheel', (e) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                const zoomDelta = e.deltaY < 0 ? 0.05 : -0.05;
+                changeBracketZoom(zoomDelta, true);
+            }
+        }, { passive: false });
+
+        viewport.addEventListener('wheel', (e) => {
+            if (!e.ctrlKey && bracketOrientation !== 'upward' && !e.shiftKey && viewport.scrollWidth > viewport.clientWidth && viewport.scrollHeight <= viewport.clientHeight + 20) {
+                viewport.scrollLeft += e.deltaY;
+            }
+        }, { passive: true });
+
+        if (topbar) {
+            topbar.addEventListener('wheel', (e) => {
+                if (!e.ctrlKey && viewport) {
+                    viewport.scrollTop += e.deltaY;
+                }
+            }, { passive: true });
+        }
     }
 
     function buildRoundColumn(title, countText, matchIds) {
@@ -2119,11 +2146,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (badge) badge.textContent = `${Math.round(bracketZoom * 100)}%`;
     }
 
-    function changeBracketZoom(delta) {
-        bracketZoom = Math.min(1.5, Math.max(0.35, Math.round((bracketZoom + delta) * 10) / 10));
-        localStorage.setItem('kick_bracket_zoom', bracketZoom.toString());
-        applyZoomToTree();
-        playUiSfx('click');
+    function changeBracketZoom(delta, silent = false) {
+        const prevZoom = bracketZoom;
+        bracketZoom = Math.min(1.5, Math.max(0.35, Math.round((bracketZoom + delta) * 100) / 100));
+        if (bracketZoom !== prevZoom) {
+            localStorage.setItem('kick_bracket_zoom', bracketZoom.toString());
+            applyZoomToTree();
+            if (!silent) playUiSfx('click');
+        }
     }
 
     function autoFitBracket() {
