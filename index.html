@@ -3,205 +3,628 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strikers King Creator - Yapan Kişi: Mehmet Helvacı</title>
+    <title>Strikers King Creator - Espor Turnuva & Takım Seçme Uygulaması | Mehmet Helvacı</title>
     <link rel="icon" type="image/x-icon" href="app/app.ico">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <meta http-equiv="refresh" content="0; url=app/">
-    <script>
-        // Sayfa parametrelerini ve hash'i koruyarak uygulamayı anında aç
-        try {
-            var target = 'app/' + window.location.search + window.location.hash;
-            window.location.replace(target);
-        } catch(e) {
-            window.location.href = 'app/';
-        }
-    </script>
     <style>
+        :root {
+            --primary: #00f0ff;
+            --primary-glow: rgba(0, 240, 255, 0.4);
+            --gold: #ffd700;
+            --accent: #ff0055;
+            --bg-dark: #0b0f19;
+            --card-bg: rgba(16, 24, 40, 0.85);
+            --card-border: rgba(0, 240, 255, 0.25);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            scroll-behavior: smooth;
         }
+
         body {
-            background-color: #0b0f19;
-            color: #ffffff;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
             min-height: 100vh;
+            line-height: 1.6;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 80% 60%, rgba(255, 0, 85, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 20% 90%, rgba(255, 215, 0, 0.08) 0%, transparent 40%);
+        }
+
+        /* Navigasyon */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            background: rgba(11, 15, 25, 0.85);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
             display: flex;
             align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background-image: 
-                radial-gradient(circle at 50% 20%, rgba(0, 240, 255, 0.15) 0%, transparent 60%),
-                radial-gradient(circle at 50% 80%, rgba(255, 215, 0, 0.08) 0%, transparent 60%);
+            gap: 12px;
+            text-decoration: none;
+            color: #fff;
         }
-        .portal-card {
-            background: rgba(16, 24, 40, 0.95);
-            border: 1px solid rgba(0, 240, 255, 0.35);
-            border-radius: 24px;
-            padding: 40px 32px;
-            max-width: 520px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 240, 255, 0.2);
-            position: relative;
-            overflow: hidden;
+
+        .nav-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px var(--primary-glow);
         }
-        .portal-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #00f0ff, #ffd700, #ff0055);
-        }
-        .logo-wrap {
-            margin-bottom: 20px;
-            display: inline-block;
-            position: relative;
-        }
-        .portal-logo {
-            width: 90px;
-            height: 90px;
-            border-radius: 20px;
-            box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
-        }
-        .app-title {
-            font-size: 26px;
+
+        .nav-title {
+            font-size: 18px;
             font-weight: 800;
-            margin-bottom: 8px;
             letter-spacing: 0.5px;
         }
-        .app-title span {
-            color: #00f0ff;
-            text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+
+        .nav-title span {
+            color: var(--primary);
         }
-        .app-desc {
-            font-size: 14px;
-            color: #94a3b8;
-            margin-bottom: 25px;
-            line-height: 1.5;
+
+        .nav-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
         }
-        .author-box {
+
+        /* Hero Alanı */
+        .hero {
+            padding: 70px 20px 40px;
+            max-width: 1080px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid var(--card-border);
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 24px;
+        }
+
+        .hero-title {
+            font-size: clamp(32px, 5vw, 54px);
+            font-weight: 900;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            letter-spacing: -0.5px;
+        }
+
+        .hero-title span {
+            background: linear-gradient(135deg, #00f0ff, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-desc {
+            font-size: 18px;
+            color: var(--text-muted);
+            max-width: 740px;
+            margin: 0 auto 30px;
+        }
+
+        .author-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(0, 240, 255, 0.1));
             border: 1px solid rgba(255, 215, 0, 0.4);
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 28px;
+            padding: 10px 22px;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 30px;
             box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);
         }
-        .author-label {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: #00f0ff;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
+
+        .author-tag i {
+            color: var(--gold);
         }
-        .author-name {
-            font-size: 20px;
-            font-weight: 900;
-            color: #ffffff;
+
+        .hero-cta {
             display: flex;
-            align-items: center;
             justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 50px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
             gap: 10px;
-            text-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
-        }
-        .btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .action-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 14px 24px;
+            padding: 14px 28px;
             border-radius: 12px;
             font-size: 15px;
             font-weight: 700;
             text-decoration: none;
+            cursor: pointer;
             transition: all 0.25s ease;
+            border: none;
         }
-        .primary-action {
+
+        .btn-primary {
             background: linear-gradient(135deg, #00f0ff, #0077ff);
             color: #050b14;
             box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4);
         }
-        .primary-action:hover {
+
+        .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 240, 255, 0.6);
+            box-shadow: 0 10px 25px rgba(0, 240, 255, 0.6);
         }
-        .secondary-action {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            color: #e2e8f0;
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            color: #fff;
         }
-        .secondary-action:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: #ffffff;
-            border-color: rgba(255, 255, 255, 0.35);
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
         }
-        .redirect-notice {
-            margin-top: 20px;
+
+        /* Bölümler */
+        .section {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .section-tag {
             font-size: 12px;
-            color: #64748b;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        .section-desc {
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+            font-size: 15px;
+        }
+
+        /* Kart Izgarası */
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 32px 26px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: 0 12px 30px rgba(0, 240, 255, 0.18);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            font-size: 24px;
+            margin-bottom: 20px;
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(0, 240, 255, 0.2);
         }
-        .spinner {
-            width: 14px;
-            height: 14px;
-            border: 2px solid rgba(0, 240, 255, 0.3);
-            border-top-color: #00f0ff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+
+        .feature-card:nth-child(2) .feature-icon {
+            background: rgba(255, 215, 0, 0.1);
+            color: var(--gold);
+            border-color: rgba(255, 215, 0, 0.2);
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+
+        .feature-card:nth-child(3) .feature-icon {
+            background: rgba(255, 0, 85, 0.1);
+            color: var(--accent);
+            border-color: rgba(255, 0, 85, 0.2);
+        }
+
+        .feature-title {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        .feature-text {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Bilgi Şeridi */
+        .info-strip {
+            background: linear-gradient(135deg, rgba(16, 24, 40, 0.95), rgba(20, 30, 50, 0.95));
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px;
+            margin: 40px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 30px;
+            text-align: center;
+        }
+
+        .stat-item h3 {
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--primary);
+            margin-bottom: 6px;
+        }
+
+        .stat-item p {
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* EN ALTTA YER ALAN İNDİRME BÖLÜMÜ */
+        .download-section {
+            background: linear-gradient(180deg, rgba(16, 24, 40, 0.95) 0%, rgba(8, 12, 22, 1) 100%);
+            border-top: 2px solid rgba(0, 240, 255, 0.3);
+            padding: 80px 20px 60px;
+            text-align: center;
+            margin-top: 60px;
+            position: relative;
+        }
+
+        .download-card {
+            max-width: 820px;
+            margin: 0 auto;
+            background: rgba(20, 30, 50, 0.7);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 24px;
+            padding: 48px 32px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 240, 255, 0.15);
+        }
+
+        .download-title {
+            font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 14px;
+        }
+
+        .download-desc {
+            color: var(--text-muted);
+            font-size: 16px;
+            margin-bottom: 36px;
+            max-width: 620px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .download-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .btn-download-exe {
+            background: linear-gradient(135deg, #ffd700, #ffaa00);
+            color: #0b0f19;
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+            font-size: 16px;
+            padding: 16px 32px;
+        }
+
+        .btn-download-exe:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.6);
+        }
+
+        .btn-download-zip {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            padding: 16px 28px;
+            font-size: 15px;
+        }
+
+        .btn-download-zip:hover {
+            background: rgba(255, 255, 255, 0.18);
+            border-color: #fff;
+        }
+
+        .download-notes {
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .download-notes span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 30px 20px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            background: #070a12;
+        }
+
+        footer strong {
+            color: #fff;
         }
     </style>
 </head>
 <body>
-    <div class="portal-card">
-        <div class="logo-wrap">
-            <img src="app/app.png" alt="Strikers King Creator" class="portal-logo">
-        </div>
-        <h1 class="app-title">Strikers King <span>Creator</span></h1>
-        <p class="app-desc">Kick Canlı Yayın & Espor Takım Seçme, Turnuva Ağacı ve Oyuncu İstatistik Platformu</p>
 
-        <div class="author-box">
-            <div class="author-label"><i class="fa-solid fa-code"></i> Proje Mimarı & Geliştirici</div>
-            <div class="author-name">
-                <i class="fa-solid fa-crown" style="color: #ffd700;"></i> Yapan Kişi: Mehmet Helvacı
+    <!-- Üst Gezinme Çubuğu -->
+    <nav>
+        <a href="#" class="nav-brand">
+            <img src="app/app.png" alt="Strikers King Creator" class="nav-logo">
+            <div class="nav-title">Strikers King <span>Creator</span></div>
+        </a>
+        <div class="nav-actions">
+            <a href="app/" class="btn btn-primary" style="padding: 8px 18px; font-size: 13px;">
+                <i class="fa-solid fa-play"></i> Web'de Aç
+            </a>
+            <a href="#indir" class="btn btn-secondary" style="padding: 8px 18px; font-size: 13px;">
+                <i class="fa-solid fa-download"></i> İndir
+            </a>
+        </div>
+    </nav>
+
+    <!-- Giriş / Hero Tanıtımı -->
+    <header class="hero">
+        <div class="hero-badge">
+            <i class="fa-solid fa-bolt"></i> Yeni Nesil Canlı Yayın & Espor Yönetim Sistemi
+        </div>
+        <h1 class="hero-title">
+            Canlı Yayında Turnuvaları <span>Kusursuz Yönetin</span>
+        </h1>
+        <p class="hero-desc">
+            Kick ve Twitch yayıncıları için izleyici etkileşimli takım oluşturma, kaptan kura çekimi, turnuva ağacı ve OBS canlı yayın overlay motoru.
+        </p>
+
+        <div class="author-tag">
+            <i class="fa-solid fa-crown"></i>
+            <span>Proje Mimarı & Geliştirici: Mehmet Helvacı</span>
+        </div>
+
+        <div class="hero-cta">
+            <a href="app/" class="btn btn-primary">
+                <i class="fa-solid fa-arrow-right"></i> Uygulamayı Hemen Başlat (Tarayıcı)
+            </a>
+            <a href="app/?overlay=1" class="btn btn-secondary">
+                <i class="fa-solid fa-display"></i> OBS Canlı Yayın HUD Modu
+            </a>
+            <a href="#indir" class="btn btn-secondary">
+                <i class="fa-solid fa-download"></i> Dosyaları İndir (En Altta)
+            </a>
+        </div>
+    </header>
+
+    <!-- 1. BÖLÜM: Uygulamanın Amacı Nedir? -->
+    <section class="section">
+        <div class="section-header">
+            <div class="section-tag">Misyon & Çözüm</div>
+            <h2 class="section-title">🎯 Bu Uygulamanın Amacı Nedir?</h2>
+            <p class="section-desc">
+                Canlı yayınlarda izleyicilerle turnuva yaparken yaşanan tüm kargaşayı tek merkezden çözer.
+            </p>
+        </div>
+
+        <div class="grid-3">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-comments"></i></div>
+                <h3 class="feature-title">Chat Karmaşasına Son</h3>
+                <p class="feature-text">
+                    Yayın esnasında chate kimin katıldığını not defterine yazmakla uğraşmayın. İzleyiciler sohbete <code>!katıl</code> yazdığında otomatik olarak oyuncu havuzuna dahil edilir.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-bolt-lightning"></i></div>
+                <h3 class="feature-title">Sıfır Donma, Sıfır Gecikme</h3>
+                <p class="feature-text">
+                    Kick API ile asenkron çalışan arka plan işleyicisi sayesinde oyuncu fotoğrafları ve verileri çekilirken yayında veya arayüzde en ufak kasma veya takılma yaşanmaz.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-tv"></i></div>
+                <h3 class="feature-title">Yayın İçin Hazır Espor HUD</h3>
+                <p class="feature-text">
+                    OBS Studio Browser Source için tasarlanmış şeffaf, neon espor podyumu ile izleyicilerinize televizyon kalitesinde dinamik bir turnuva izleme keyfi sunar.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. BÖLÜM: Neler Yapabilir? (Özellikler) -->
+    <section class="section" style="padding-top: 10px;">
+        <div class="section-header">
+            <div class="section-tag">Yetenekler</div>
+            <h2 class="section-title">⚡ Uygulamanın Öne Çıkan Özellikleri</h2>
+            <p class="section-desc">
+                Kaptan draftından büyük final konfetilerine kadar her detay düşünülerek geliştirildi.
+            </p>
+        </div>
+
+        <div class="grid-3">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-user-check"></i></div>
+                <h3 class="feature-title">Akıllı Kaptan Draftı</h3>
+                <p class="feature-text">
+                    Kaptanlar chate <code>!seç [oyuncu]</code> veya <code>isec [isim]</code> yazdığında yazım hatalarını otomatik algılayarak oyuncuyu ilgili takıma anında transfer eder.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-trophy"></i></div>
+                <h3 class="feature-title">Dinamik Turnuva Ağacı</h3>
+                <p class="feature-text">
+                    Çeyrek Final, Yarı Final ve Büyük Final podyumu. Kazanan takımı tek tıkla üst tura geçirin, turnuva podyumu otomatik dengelensin.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-network-wired"></i></div>
+                <h3 class="feature-title">Çoklu Yayıncı Senkronu</h3>
+                <p class="feature-text">
+                    Cloudflare tüneli entegrasyonuyla port açmaya gerek kalmadan birden çok yayıncı aynı havuza bağlanabilir; maç sonuçları tüm yayınlarda ortak güncellenir.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-chart-line"></i></div>
+                <h3 class="feature-title">Gol & Asist İstatistikleri</h3>
+                <p class="feature-text">
+                    Her oyuncunun attığı goller, yaptığı asistler ve kurtarışlar kümülatif olarak kaydedilir. Sezonluk en değerli oyuncu (MVP) tablosu tutulur.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                <h3 class="feature-title">Otomatik Düzelt (Auto-Fit)</h3>
+                <p class="feature-text">
+                    OBS ekranındaki bracket boyutunu tek tıkla altın oranda ortalar; %60'tan %120'ye kadar özel ekran ölçeklendirme sunar.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fa-solid fa-keyboard"></i></div>
+                <h3 class="feature-title">Hızlı Klavye Kısayolları</h3>
+                <p class="feature-text">
+                    <code>Esc</code> tuşuyla odağı sıfırlama, <code>O</code> tuşuyla anında OBS modu geçişi gibi yayıncı dostu pratik kısayollar mevcuttur.
+                </p>
             </div>
         </div>
 
-        <div class="btn-group">
-            <a href="app/" class="action-btn primary-action">
-                <i class="fa-solid fa-play"></i> <span>Uygulamaya Giriş Yap</span>
-            </a>
-            <a href="app/?overlay=1" class="action-btn secondary-action">
-                <i class="fa-solid fa-display"></i> <span>OBS Canlı Yayın Overlay Modu</span>
-            </a>
-            <a href="https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator" target="_blank" class="action-btn secondary-action">
-                <i class="fa-brands fa-github"></i> <span>GitHub Kaynak Kodu</span>
-            </a>
+        <!-- Sayaç / İstatistik Şeridi -->
+        <div class="info-strip">
+            <div class="stat-item">
+                <h3>0 ms</h3>
+                <p>Yerel Senkronizasyon Gecikmesi</p>
+            </div>
+            <div class="stat-item">
+                <h3>1080p</h3>
+                <p>OBS Canlı Yayın Çözünürlüğü</p>
+            </div>
+            <div class="stat-item">
+                <h3>1 Tık</h3>
+                <p>Kadroya ve Tura Aktarma</p>
+            </div>
+            <div class="stat-item">
+                <h3>%100</h3>
+                <p>Yayıncı & Espor Odaklı</p>
+            </div>
         </div>
+    </section>
 
-        <div class="redirect-notice">
-            <div class="spinner"></div>
-            <span>Uygulama otomatik olarak yükleniyor...</span>
+    <!-- 3. BÖLÜM (EN ALTTADIR): Dosya İndirme & Kurulum Seçenekleri -->
+    <section class="download-section" id="indir">
+        <div class="download-card">
+            <div class="hero-badge" style="background: rgba(255, 215, 0, 0.1); border-color: rgba(255, 215, 0, 0.3); color: var(--gold); margin-bottom: 16px;">
+                <i class="fa-solid fa-cloud-arrow-down"></i> İndirme ve Dosya Seçenekleri
+            </div>
+            <h2 class="download-title">Uygulamayı Bilgisayarınıza İndirin</h2>
+            <p class="download-desc">
+                Tüm özellikleri öğrendiniz! Artık uygulamayı ister doğrudan tarayıcınızda çalıştırabilir, isterseniz Windows masaüstü sürümünü bilgisayarınıza indirip canlı yayınlarınızda kullanabilirsiniz.
+            </p>
+
+            <div class="download-buttons">
+                <!-- Windows Çalıştırılabilir Dosyayı İndir -->
+                <a href="StrickersKingCreator.exe" download="StrickersKingCreator.exe" class="btn btn-download-exe">
+                    <i class="fa-brands fa-windows"></i>
+                    <span>Windows Uygulamasını İndir (.exe)</span>
+                </a>
+
+                <!-- GitHub'dan Tüm Projeyi ZIP Olarak İndir -->
+                <a href="https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/archive/refs/heads/main.zip" class="btn btn-download-zip">
+                    <i class="fa-solid fa-file-zipper"></i>
+                    <span>Tüm Paketi İndir (.zip)</span>
+                </a>
+
+                <!-- GitHub Deposu -->
+                <a href="https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator" target="_blank" class="btn btn-secondary">
+                    <i class="fa-brands fa-github"></i>
+                    <span>GitHub Deposu</span>
+                </a>
+            </div>
+
+            <div class="download-notes">
+                <span><i class="fa-solid fa-shield-halved" style="color: #00f0ff;"></i> Güvenli & Reklamsız</span>
+                <span><i class="fa-solid fa-check" style="color: #ffd700;"></i> Kurulum Gerektirmez (Portable)</span>
+                <span><i class="fa-solid fa-crown" style="color: #ff0055;"></i> Geliştirici: Mehmet Helvacı</span>
+            </div>
         </div>
-    </div>
+    </section>
+
+    <!-- Alt Bilgi (Footer) -->
+    <footer>
+        <p>
+            <strong>Strikers King Creator</strong> • Tasarım ve Geliştirme: <strong>Mehmet Helvacı</strong>
+        </p>
+        <p style="margin-top: 8px; font-size: 12px; color: #64748b;">
+            Tüm hakları saklıdır. Canlı yayıncılar ve espor toplulukları için sevgiyle üretildi.
+        </p>
+    </footer>
+
 </body>
 </html>
