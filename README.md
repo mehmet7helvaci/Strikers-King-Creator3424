@@ -28,7 +28,7 @@
     <a href="#-obs-studio-canlı-yayın-ayarları">📺 OBS Overlay</a> •
     <a href="#-merkezi-veri-havuzu-data-hub">🌐 Veri Havuzu</a> •
     <a href="#-teknoloji-yığını">🛠️ Teknolojiler</a> •
-    <a href="#-dosya-indirme-ve-kurulum-seçenekleri">📥 İndirme & Kurulum</a>
+    <a href="#-hızlı-başlangıç-ve-indirme">🚀 İndir & Kur</a>
   </p>
 
 </div>
@@ -119,32 +119,31 @@ Birden çok yayıncı ortak turnuva düzenleyeceğinde:
 
 ---
 
-## 📥 Dosya İndirme ve Kurulum Seçenekleri
-
-Uygulamanın tüm özelliklerini ve çalışma prensibini öğrendikten sonra dilediğiniz şekilde kullanabilirsiniz:
-
-### 1. Doğrudan Tarayıcıdan Başlat (Kurulumsuz)
-Herhangi bir dosya indirmeden hemen kullanmak için:
-👉 **[Web Sürümünü Başlat (GitHub Pages)](https://mehmet7helvaci.github.io/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/)**
-
-### 2. Windows Masaüstü Sürümünü İndir (.exe)
-Yerel sunucu, tam Kick API köprüsü ve yerel veri tabanı özellikleri için:
-* Depo içerisindeki **`StrickersKingCreator.exe`** dosyasını çalıştırabilirsiniz.
-* Veya tüm paketi ZIP olarak indirin:
-  👉 **[Projeyi ZIP Olarak İndir (.zip)](https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/archive/refs/heads/main.zip)**
-
-### 3. Git ile Klonlama
-```bash
-git clone https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator.git
-```
-
----
-
 ## 👤 Geliştirici
 
 **Mehmet Helvacı**
 * Proje: *Strikers King Creator - Espor Turnuva & Takım Seçme Uygulaması*
 * GitHub: [@mehmet7helvaci](https://github.com/mehmet7helvaci)
+
+---
+
+## 🚀 Hızlı Başlangıç ve İndirme
+
+Uygulamayı 2 farklı şekilde kullanabilirsiniz:
+
+### Seçenek A: Doğrudan Web'den (Kurulumsuz)
+Herhangi bir dosya indirmeden doğrudan tarayıcınızdan açıp kullanabilirsiniz:
+
+👉 **[Canlı Yayını Başlat (Web Sürümü)](https://mehmet7helvaci.github.io/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/)**
+
+### Seçenek B: Yerel Masaüstü Sürümü (Windows)
+Chat entegrasyonu ve yerel sunucu avantajlarından tam yararlanmak için:
+1. Bu projeyi bilgisayarınıza indirin (ZIP veya Git ile):
+   ```bash
+   git clone https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator.git
+   ```
+2. Klasör içerisindeki **`StrickersKingCreator.exe`** veya **`app/Baslat.bat`** dosyasına çift tıklayın.
+3. Uygulama otomatik olarak yerel sunucuyu (`http://localhost:8080`) başlatır ve tarayıcınızda açar.
 
 ---
 
