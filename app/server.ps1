@@ -60,6 +60,10 @@ $dataPath = Join-Path $scriptDir "data"
 if (-not (Test-Path $dataPath)) {
     New-Item -ItemType Directory -Path $dataPath -Force | Out-Null
 }
+$channelsPath = Join-Path $dataPath "channels"
+if (-not (Test-Path $channelsPath)) {
+    New-Item -ItemType Directory -Path $channelsPath -Force | Out-Null
+}
 $statsFile = Join-Path $dataPath "hub_stats.json"
 if (-not (Test-Path $statsFile)) {
     [System.IO.File]::WriteAllText($statsFile, "{}", [System.Text.Encoding]::UTF8)
@@ -73,20 +77,40 @@ $global:ActiveClients = @{}
 $global:TunnelUrl = ""
 $global:AvatarCache = [System.Collections.Hashtable]::Synchronized(@{})
 $global:AvatarPending = [System.Collections.Hashtable]::Synchronized(@{})
+$global:WatcherState = @{ enabled = $false; activeMatch = ""; lastDetected = $null; events = [System.Collections.ArrayList]::new() }
 
+function Get-ChannelFilePath([string]$channel) {
+    if ([string]::IsNullOrWhiteSpace($channel) -or $channel.Trim().ToLower() -eq "global") {
+        return $statsFile
+    }
+    $safeName = ($channel.Trim().ToLower() -replace '[^a-z0-9_-]', '')
+    if ([string]::IsNullOrWhiteSpace($safeName)) {
+        $safeName = "genel"
+    }
+    $cFile = Join-Path $channelsPath "$safeName.json"
+    if (-not (Test-Path $cFile)) {
+        [System.IO.File]::WriteAllText($cFile, "{}", [System.Text.Encoding]::UTF8)
+    }
+    return $cFile
+}
 
-function Get-HubStatsContent {
+function Get-HubStatsContent([string]$channel = "") {
     try {
-        if (Test-Path $statsFile) {
-            return [System.IO.File]::ReadAllText($statsFile, [System.Text.Encoding]::UTF8)
+        $targetFile = Get-ChannelFilePath $channel
+        if (Test-Path $targetFile) {
+            $content = [System.IO.File]::ReadAllText($targetFile, [System.Text.Encoding]::UTF8)
+            if (-not [string]::IsNullOrWhiteSpace($content)) {
+                return $content
+            }
         }
     } catch {}
     return "{}"
 }
 
-function Save-HubStatsContent([string]$content) {
+function Save-HubStatsContent([string]$content, [string]$channel = "") {
     try {
-        [System.IO.File]::WriteAllText($statsFile, $content, [System.Text.Encoding]::UTF8)
+        $targetFile = Get-ChannelFilePath $channel
+        [System.IO.File]::WriteAllText($targetFile, $content, [System.Text.Encoding]::UTF8)
         return $true
     } catch {
         return $false
@@ -273,13 +297,145 @@ while ($listener.IsListening) {
         }
 
         # -------------------------------------------------------------
+        # KICK KANAL BILGISI (BANNER / ARKA PLAN) PROXY API
+        # -------------------------------------------------------------
+        if ($rawUrl.StartsWith("/api/kick/channel")) {
+            $channelName = ""
+            if ($request.QueryString["name"]) {
+                $channelName = $request.QueryString["name"].Trim()
+            }
+            if ([string]::IsNullOrWhiteSpace($channelName)) {
+                $channelName = "theonlyk1ng"
+            }
+            $cKey = $channelName.ToLower()
+            $bannerUrl = ""
+            try {
+                $escaped = [System.Uri]::EscapeDataString($cKey)
+                $apiUrl = "https://kick.com/api/v2/channels/$escaped"
+                $req = [System.Net.HttpWebRequest]::Create($apiUrl)
+                $req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                $req.Timeout = 2500
+                $resp = $req.GetResponse()
+                if ($resp) {
+                    $stream = $resp.GetResponseStream()
+                    $sr = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::UTF8)
+                    $rawBody = $sr.ReadToEnd()
+                    $sr.Close()
+                    $stream.Close()
+                    $resp.Close()
+                    if ($rawBody -match '"banner_image"\s*:\s*\{[^}]*"url"\s*:\s*"([^"]+)"') {
+                        $bannerUrl = $matches[1].Replace('\/', '/')
+                    } elseif ($rawBody -match '"banner"\s*:\s*"([^"]+)"') {
+                        $bannerUrl = $matches[1].Replace('\/', '/')
+                    }
+                }
+            } catch {}
+
+            $respData = @{
+                success = (-not [string]::IsNullOrEmpty($bannerUrl))
+                channel = $channelName
+                banner = $bannerUrl
+            }
+            $jsonResp = $respData | ConvertTo-Json -Compress
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        # -------------------------------------------------------------
+        # C# SESSİZ EKRAN & TAB SKOR ALGILEYICI API
+        # -------------------------------------------------------------
+        if ($rawUrl.StartsWith("/api/watcher/state")) {
+            if ($request.HttpMethod -eq "POST") {
+                try {
+                    $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                    $wBody = $reader.ReadToEnd()
+                    $reader.Close()
+                    $wData = ConvertFrom-Json $wBody
+                    if ($null -ne $wData.enabled) {
+                        $global:WatcherState.enabled = [bool]$wData.enabled
+                    }
+                    if ($null -ne $wData.activeMatch) {
+                        $global:WatcherState.activeMatch = $wData.activeMatch.ToString()
+                    }
+                } catch {}
+            }
+            $wResp = @{
+                success = $true
+                enabled = $global:WatcherState.enabled
+                activeMatch = $global:WatcherState.activeMatch
+                eventCount = $global:WatcherState.events.Count
+            } | ConvertTo-Json -Compress
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($wResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($rawUrl.StartsWith("/api/watcher/score")) {
+            if ($request.HttpMethod -eq "POST") {
+                try {
+                    $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                    $scBody = $reader.ReadToEnd()
+                    $reader.Close()
+                    $scData = ConvertFrom-Json $scBody
+                    $scoreEv = @{
+                        id = [Guid]::NewGuid().ToString()
+                        timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                        player = if ($scData.player) { $scData.player.ToString() } else { "Bilinmeyen" }
+                        type = if ($scData.type) { $scData.type.ToString() } else { "goal" }
+                        team = if ($scData.team) { $scData.team.ToString() } else { "" }
+                        count = if ($scData.count) { [int]$scData.count } else { 1 }
+                        image = if ($scData.image) { $scData.image.ToString() } else { "" }
+                    }
+                    $global:WatcherState.events.Add($scoreEv) | Out-Null
+                    if ($global:WatcherState.events.Count -gt 100) {
+                        $global:WatcherState.events.RemoveAt(0)
+                    }
+                } catch {}
+                $jsonResp = '{"success":true,"recorded":true}'
+            } else {
+                $sinceTs = 0
+                if ($request.QueryString["since"]) {
+                    [long]::TryParse($request.QueryString["since"], [ref]$sinceTs) | Out-Null
+                }
+                $unprocessed = @()
+                foreach ($sev in $global:WatcherState.events) {
+                    if ($sev.timestamp -gt $sinceTs) {
+                        $unprocessed += $sev
+                    }
+                }
+                $jsonResp = @{
+                    success = $true
+                    enabled = $global:WatcherState.enabled
+                    events = $unprocessed
+                } | ConvertTo-Json -Compress
+            }
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        # -------------------------------------------------------------
         # VERI MERKEZI (DATA HUB) REST & SYNC API
         # -------------------------------------------------------------
 
         # 1. Hub Status
         if ($rawUrl.StartsWith("/api/hub/status")) {
             $tUrl = Refresh-TunnelUrl
-            $stContent = Get-HubStatsContent
+            $reqChannel = if ($request.QueryString["channel"]) { $request.QueryString["channel"].Trim() } else { "" }
+            $stContent = Get-HubStatsContent $reqChannel
             $pCount = 0
             try {
                 $parsedSt = ConvertFrom-Json $stContent
@@ -293,6 +449,7 @@ while ($listener.IsListening) {
                 hub = $true
                 isHost = $true
                 port = $Port
+                channel = $reqChannel
                 tunnelUrl = $tUrl
                 playerCount = $pCount
                 eventCount = $global:HubEvents.Count
@@ -309,27 +466,29 @@ while ($listener.IsListening) {
             continue
         }
 
-        # 2. Hub Stats (GET: fetch all stats, POST: bulk set/reset)
+        # 2. Hub Stats (GET: fetch channel/all stats, POST: bulk set/reset for channel)
         if ($rawUrl.StartsWith("/api/hub/stats")) {
+            $reqChannel = if ($request.QueryString["channel"]) { $request.QueryString["channel"].Trim() } else { "" }
             if ($request.HttpMethod -eq "POST") {
                 $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
                 $body = $reader.ReadToEnd()
                 $reader.Close()
-                Save-HubStatsContent $body
+                Save-HubStatsContent $body $reqChannel
                 
                 $global:EventCounter++
                 $resetEvent = @{
                     id = $global:EventCounter
                     type = "STATS_RESET"
                     timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-                    streamer = "SYSTEM"
+                    streamer = if ($reqChannel) { $reqChannel } else { "SYSTEM" }
+                    channel = $reqChannel
                     summary = "🔄 İstatistikler güncellendi/içe aktarıldı."
                 }
                 $global:HubEvents.Add($resetEvent) | Out-Null
 
                 $jsonResp = '{"success":true,"message":"İstatistikler güncellendi"}'
             } else {
-                $jsonResp = Get-HubStatsContent
+                $jsonResp = Get-HubStatsContent $reqChannel
             }
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
             $response.ContentType = "application/json; charset=utf-8"
@@ -340,7 +499,7 @@ while ($listener.IsListening) {
             continue
         }
 
-        # 3. Match Result Submission (Any streamer submits completed match)
+        # 3. Match Result Submission (Streamer submits completed match with channel isolation)
         if ($rawUrl.StartsWith("/api/hub/match-result") -and $request.HttpMethod -eq "POST") {
             try {
                 $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
@@ -349,9 +508,10 @@ while ($listener.IsListening) {
 
                 $matchData = ConvertFrom-Json $bodyText
                 $streamerName = if ($matchData.streamer) { $matchData.streamer.ToString().Trim() } else { "Bilinmeyen Yayıncı" }
+                $targetChannel = if ($matchData.channel) { $matchData.channel.ToString().Trim() } elseif ($request.QueryString["channel"]) { $request.QueryString["channel"].Trim() } else { $streamerName }
 
-                # Load existing stats hashtable
-                $stJson = Get-HubStatsContent
+                # Load existing stats hashtable for target channel
+                $stJson = Get-HubStatsContent $targetChannel
                 $statsObj = @{}
                 try {
                     $rawObj = ConvertFrom-Json $stJson
@@ -374,6 +534,7 @@ while ($listener.IsListening) {
                         $assists = if ($p.assists) { [int]$p.assists } else { 0 }
                         $saves = if ($p.saves) { [int]$p.saves } else { 0 }
                         $isWin = if ($null -ne $p.win) { [bool]$p.win } else { $false }
+                        $isMvp = if ($null -ne $p.isMvp) { [bool]$p.isMvp } else { $false }
 
                         if (-not $statsObj.ContainsKey($key)) {
                             $statsObj[$key] = [PSCustomObject]@{
@@ -382,6 +543,8 @@ while ($listener.IsListening) {
                                 goals = 0
                                 assists = 0
                                 saves = 0
+                                streak = 0
+                                mvpCount = 0
                                 displayName = $pName
                             }
                         }
@@ -392,8 +555,25 @@ while ($listener.IsListening) {
                         $curr.saves += $saves
                         if ($isWin) {
                             $curr.wins += 1
+                            if ($curr.PSObject.Properties['streak']) {
+                                $curr.streak = [int]$curr.streak + 1
+                            } else {
+                                $curr | Add-Member -NotePropertyName streak -NotePropertyValue 1 -Force
+                            }
                         } else {
                             $curr.losses += 1
+                            if ($curr.PSObject.Properties['streak']) {
+                                $curr.streak = 0
+                            } else {
+                                $curr | Add-Member -NotePropertyName streak -NotePropertyValue 0 -Force
+                            }
+                        }
+                        if ($isMvp) {
+                            if ($curr.PSObject.Properties['mvpCount']) {
+                                $curr.mvpCount = [int]$curr.mvpCount + 1
+                            } else {
+                                $curr | Add-Member -NotePropertyName mvpCount -NotePropertyValue 1 -Force
+                            }
                         }
                         $curr.displayName = $pName
 
@@ -403,9 +583,9 @@ while ($listener.IsListening) {
                     }
                 }
 
-                # Save updated stats
+                # Save updated channel stats
                 $newStatsJson = $statsObj | ConvertTo-Json -Depth 5 -Compress
-                Save-HubStatsContent $newStatsJson
+                Save-HubStatsContent $newStatsJson $targetChannel
 
                 # Generate broadcast event
                 $global:EventCounter++
@@ -415,9 +595,10 @@ while ($listener.IsListening) {
                     type = "MATCH_RECORDED"
                     timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
                     streamer = $streamerName
+                    channel = $targetChannel
                     winnerTitle = $matchData.winnerTitle
                     loserTitle = $matchData.loserTitle
-                    summary = "🏆 ${streamerName}: $hlSummary"
+                    summary = "🏆 ${streamerName} [${targetChannel}]: $hlSummary"
                     playerUpdates = $matchData.playerUpdates
                 }
                 $global:HubEvents.Add($eventObj) | Out-Null
@@ -429,7 +610,8 @@ while ($listener.IsListening) {
                     success = $true
                     eventId = $global:EventCounter
                     streamer = $streamerName
-                    message = "İstatistikler başarıyla merkezi havuza kaydedildi"
+                    channel = $targetChannel
+                    message = "İstatistikler başarıyla ${targetChannel} kanalına kaydedildi"
                 } | ConvertTo-Json -Compress
 
                 $response.StatusCode = 200
@@ -447,7 +629,7 @@ while ($listener.IsListening) {
             continue
         }
 
-        # 4. Hub Real-time Sync & Polling
+        # 4. Hub Real-time Sync & Polling (Channel Isolated)
         if ($rawUrl.StartsWith("/api/hub/sync")) {
             $since = 0
             if ($request.QueryString["since"]) {
@@ -459,22 +641,28 @@ while ($listener.IsListening) {
             }
             $global:ActiveClients[$clientId] = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
+            $reqChannel = if ($request.QueryString["channel"]) { $request.QueryString["channel"].Trim() } else { "" }
+
             $newEvents = @()
             foreach ($ev in $global:HubEvents) {
                 if ($ev.id -gt $since) {
-                    $newEvents += $ev
+                    # If event is channel specific, only deliver if matching or global
+                    if ([string]::IsNullOrWhiteSpace($reqChannel) -or [string]::IsNullOrWhiteSpace($ev.channel) -or ($ev.channel -eq $reqChannel)) {
+                        $newEvents += $ev
+                    }
                 }
             }
 
             $syncResp = @{
                 success = $true
                 lastId = $global:EventCounter
+                channel = $reqChannel
                 events = $newEvents
                 activeClients = (Get-ActiveHubClientsCount)
             }
 
             if ($since -eq 0 -or $request.QueryString["full"] -eq "1") {
-                $syncResp["fullStats"] = Get-HubStatsContent
+                $syncResp["fullStats"] = Get-HubStatsContent $reqChannel
             }
 
             $jsonResp = $syncResp | ConvertTo-Json -Depth 6 -Compress

@@ -48,7 +48,7 @@
                 <span class="teleport-word" style="--delay: 0.62s">Hoşgeldiniz</span>
             </h1>
             <p class="splash-subtitle">
-                <span class="teleport-word" style="--delay: 0.95s">Dev -MeH4n</span>
+                <span class="teleport-word" style="--delay: 0.95s">Geliştirici: Mehmet Helvacı (MeH4n)</span>
             </p>
         </div>
     </div>
@@ -105,9 +105,9 @@
                     </select>
                 </div>
                 
-                <div class="control-group">
+                <div class="control-group watch-slider-control-group">
                     <label for="teamSize"><i class="fa-solid fa-users"></i> Boyut:</label>
-                    <select id="teamSize">
+                    <select id="teamSize" class="hidden-team-size-select" style="display:none;">
                         <option value="1">1v1</option>
                         <option value="2">2v2</option>
                         <option value="3">3v3</option>
@@ -115,6 +115,23 @@
                         <option value="8">8v8</option>
                         <option value="11">11v11</option>
                     </select>
+                    <!-- 3D Akıllı Saat Silindir Kaydırıcısı (Apple Watch / Digital Crown Style) -->
+                    <div class="watch-crown-container" id="watchCrownSlider" title="Apple Watch tarzı 3D silindir kaydırıcı (Tekerlek, tık veya sürükle)">
+                        <button type="button" class="crown-nav-btn crown-prev" id="crownPrevBtn" title="Önceki Boyut"><i class="fa-solid fa-chevron-up"></i></button>
+                        <div class="watch-cylinder-viewport" id="watchCylinderViewport">
+                            <div class="watch-cylinder-barrel" id="watchCylinderBarrel">
+                                <div class="cylinder-item" data-value="1">1v1</div>
+                                <div class="cylinder-item" data-value="2">2v2</div>
+                                <div class="cylinder-item" data-value="3">3v3</div>
+                                <div class="cylinder-item active" data-value="5">5v5</div>
+                                <div class="cylinder-item" data-value="8">8v8</div>
+                                <div class="cylinder-item" data-value="11">11v11</div>
+                            </div>
+                            <div class="watch-glass-reflection"></div>
+                            <div class="watch-center-indicator"></div>
+                        </div>
+                        <button type="button" class="crown-nav-btn crown-next" id="crownNextBtn" title="Sonraki Boyut"><i class="fa-solid fa-chevron-down"></i></button>
+                    </div>
                 </div>
 
                 <div class="control-group tournament-size-group" id="tournamentSizeGroup" title="Turnuva modunda oynayacak toplam kişi sayısı">
@@ -149,6 +166,15 @@
                 </div>
 
                 <div class="action-buttons">
+                    <button id="luckyWheelBtn" class="btn wheel-btn" title="İzleyicileri interaktif 3D çarkıfelek / kura ile takımlara dağıt">
+                        <i class="fa-solid fa-dharmachakra"></i> <span>Çarkıfelek / Kura</span>
+                    </button>
+                    <button id="watcherToggleBtn" class="btn watcher-btn" title="C# Sessiz Ekran & TAB Skor Algılayıcı (Otomatik Gol/Asist Takibi)">
+                        <i class="fa-solid fa-camera"></i> <span>TAB Algılayıcı: <b id="watcherBtnState">KAPALI</b></span>
+                    </button>
+                    <button id="quickScorePanelToggleBtn" class="btn score-toggle-btn" title="Canlı Maç Skor & Gol/Asist Düzenleme Panelini Aç/Kapat">
+                        <i class="fa-solid fa-stopwatch-20"></i> <span>Canlı Skor</span>
+                    </button>
                     <button id="draftDiceBtn" class="btn dice-btn" title="Kaptanlar arasında zar atarak ilk oyuncuyu seçecek kaptanı belirle ve sıra sıra seçimi başlat">
                         <i class="fa-solid fa-dice"></i> <span>Zar At (Kaptan Sırası)</span>
                     </button>
@@ -326,6 +352,47 @@
                     </div>
                 </div>
 
+                <!-- Maç Öncesi Takım Güç Dengesi Çubuğu -->
+                <div class="team-power-bar-wrap hidden" id="teamPowerBarWrap" title="Oyuncuların geçmiş istatistiklerine göre tahmini güç dengesi">
+                    <div class="power-bar-header">
+                        <span class="power-team-label team-1-label" id="powerTeam1Label"><i class="fa-solid fa-shield"></i> Takım 1: %50</span>
+                        <span class="power-bar-center-title"><i class="fa-solid fa-scale-balanced"></i> TAKIM GÜÇ DENGESİ</span>
+                        <span class="power-team-label team-2-label" id="powerTeam2Label">%50 :Takım 2 <i class="fa-solid fa-shield"></i></span>
+                    </div>
+                    <div class="power-bar-track">
+                        <div class="power-bar-fill team-1-fill" id="powerBarFill1" style="width: 50%;"></div>
+                        <div class="power-bar-fill team-2-fill" id="powerBarFill2" style="width: 50%;"></div>
+                    </div>
+                </div>
+
+                <!-- Maç Ekranı Canlı Skor & Hızlı Gol/Asist Paneli -->
+                <div class="match-live-score-panel hidden" id="matchLiveScorePanel">
+                    <div class="live-score-header">
+                        <div class="live-score-title"><i class="fa-solid fa-stopwatch-20"></i> CANLI MAÇ SKOR DÜZENLEME PANELİ</div>
+                        <div class="live-score-actions">
+                            <span class="live-score-badge" id="liveScoreTotalDisplay">0 - 0</span>
+                            <button type="button" class="btn btn-xs secondary-btn" id="finishLiveMatchBtn" title="Maçı Bitir ve Sonuç Penceresini Aç"><i class="fa-solid fa-flag-checkered"></i> Maçı Bitir</button>
+                            <button type="button" class="btn btn-xs danger-btn-outline" id="closeLiveScorePanelBtn" title="Paneli Kapat"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                    <!-- C# Sessiz TAB Ekran Yakalama Durumu & Önizleme -->
+                    <div class="live-score-watcher-bar" id="liveScoreWatcherBar">
+                        <span><i class="fa-solid fa-camera"></i> <b>TAB Ekran Skor Algılayıcı:</b> <span id="lastTabCaptureStatus">Bekleniyor (Oyunda TAB'a basarak taratın)</span></span>
+                        <a href="/data/last_tab_capture.jpg" target="_blank" class="btn btn-xs secondary-btn hidden" id="viewTabCaptureBtn" title="Yakalanan TAB ekran karesini tam boyutta gör"><i class="fa-solid fa-image"></i> Yakalanan Kareyi Gör</a>
+                    </div>
+                    <div class="live-score-teams-grid">
+                        <div class="live-score-team-col" id="liveScoreTeam1Col">
+                            <h4 id="liveScoreTeam1Title">Takım 1</h4>
+                            <div class="live-score-player-list" id="liveScoreTeam1Players"></div>
+                        </div>
+                        <div class="live-score-vs-divider">VS</div>
+                        <div class="live-score-team-col" id="liveScoreTeam2Col">
+                            <h4 id="liveScoreTeam2Title">Takım 2</h4>
+                            <div class="live-score-player-list" id="liveScoreTeam2Players"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="teams-container mode-single" id="teamsContainer">
                     <div class="team-box" id="team1Box">
                         <div class="team-header">
@@ -345,6 +412,33 @@
             </div>
 
         </main>
+
+        <!-- Sayfa Alt Bilgisi (Footer) & Geliştirici İmzası -->
+        <footer class="app-footer" id="appFooter">
+            <div class="footer-container">
+                <div class="footer-brand">
+                    <img src="app.png" alt="Strikers King Creator" class="footer-logo">
+                    <div class="footer-info">
+                        <span class="footer-app-name">Strikers King <span class="logo-accent">Creator</span></span>
+                        <span class="footer-desc">Espor Turnuva, Kaptan Draft ve Takım Seçim Platformu</span>
+                    </div>
+                </div>
+
+                <div class="footer-author-box">
+                    <div class="author-badge"><i class="fa-solid fa-code"></i> Proje Mimarı & Geliştirici</div>
+                    <div class="author-name">
+                        <i class="fa-solid fa-crown" style="color: #ffd700;"></i> Yapan Kişi: <strong>Mehmet Helvacı</strong>
+                    </div>
+                </div>
+
+                <div class="footer-links-group">
+                    <a href="https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator" target="_blank" rel="noopener noreferrer" class="footer-link-btn" title="GitHub Deposu">
+                        <i class="fa-brands fa-github"></i> <span>GitHub Deposu</span>
+                    </a>
+                    <span class="footer-pill-version"><i class="fa-solid fa-shield-halved"></i> v5.0 Canlı Sürüm</span>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <!-- Konfeti Canvas (Turnuva Şampiyonu Kutlaması) -->
@@ -974,6 +1068,120 @@
         </div>
     </div>
 
+    <!-- Kick Çarkıfelek & Kura Çekim Modalı -->
+    <div id="wheelModal" class="modal-overlay hidden">
+        <div class="modal-card wheel-modal-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-dharmachakra"></i> Canlı Çarkıfelek & Kura Çekimi</h2>
+                <button id="closeWheelModalBtn" class="modal-close-btn" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="wheel-modal-body">
+                <div class="wheel-container">
+                    <div class="wheel-pointer"><i class="fa-solid fa-caret-down"></i></div>
+                    <canvas id="luckyWheelCanvas" width="380" height="380"></canvas>
+                </div>
+                <div class="wheel-controls">
+                    <button type="button" id="spinWheelBtn" class="btn primary-btn btn-lg"><i class="fa-solid fa-rotate-right"></i> <span>Çarkı Çevir!</span></button>
+                    <div id="wheelResultBox" class="wheel-result-box hidden">
+                        <div class="wheel-result-title">🎯 KAZANAN İZLEYİCİ:</div>
+                        <div class="wheel-winner-name" id="wheelWinnerName">-</div>
+                        <div class="wheel-winner-actions">
+                            <button type="button" class="btn secondary-btn btn-sm" id="wheelAssignTeam1Btn"><i class="fa-solid fa-arrow-left"></i> Takım 1'e Ata</button>
+                            <button type="button" class="btn secondary-btn btn-sm" id="wheelAssignTeam2Btn">Takım 2'ye Ata <i class="fa-solid fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="closeWheelModalFooterBtn" class="btn secondary-btn">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIFA / EAFC Profesyonel Oyuncu Kartı & Karşılaştırma Modalı -->
+    <div id="fifaCardModal" class="modal-overlay hidden">
+        <div class="modal-card fifa-modal-card">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-id-card-clip"></i> FUT / EAFC Profesyonel Oyuncu Kartı</h2>
+                <button id="closeFifaCardModalBtn" class="modal-close-btn" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="fifa-modal-body">
+                <!-- Oyuncu Karşılaştırma Seçici Barı -->
+                <div class="fifa-compare-selector">
+                    <label for="fifaCompareSelect"><i class="fa-solid fa-code-compare"></i> Karşılaştırılacak İkinci Oyuncu:</label>
+                    <select id="fifaCompareSelect">
+                        <option value="">(Karşılaştırma Yapılmıyor - Tek Kart)</option>
+                    </select>
+                </div>
+
+                <div class="fifa-cards-wrapper" id="fifaCardsWrapper">
+                    <!-- Kart 1 (Seçili Oyuncu) -->
+                    <div class="fifa-card gold-rare" id="fifaCard1">
+                        <div class="fifa-card-inner">
+                            <div class="fifa-card-top">
+                                <div class="fifa-rating" id="fifaOvr1">85</div>
+                                <div class="fifa-position" id="fifaPos1">ST</div>
+                                <div class="fifa-flag"><i class="fa-solid fa-flag"></i></div>
+                                <div class="fifa-club"><i class="fa-solid fa-crown"></i></div>
+                                <div class="fifa-avatar-wrap">
+                                    <div class="fifa-avatar" id="fifaAvatar1"></div>
+                                </div>
+                            </div>
+                            <div class="fifa-card-bottom">
+                                <div class="fifa-name" id="fifaName1">Player</div>
+                                <div class="fifa-stats-grid">
+                                    <div class="fifa-stat"><strong id="fifaPac1">82</strong> <span>HIZ</span></div>
+                                    <div class="fifa-stat"><strong id="fifaSho1">86</strong> <span>ŞUT</span></div>
+                                    <div class="fifa-stat"><strong id="fifaPas1">80</strong> <span>PAS</span></div>
+                                    <div class="fifa-stat"><strong id="fifaDri1">84</strong> <span>DRP</span></div>
+                                    <div class="fifa-stat"><strong id="fifaDef1">55</strong> <span>DEF</span></div>
+                                    <div class="fifa-stat"><strong id="fifaPhy1">78</strong> <span>FİZ</span></div>
+                                </div>
+                                <div class="fifa-extra-row">
+                                    <span id="fifaCareer1">0G - 0M | %0 WR</span>
+                                    <span id="fifaStreak1" class="fifa-streak-tag">🔥 0 Seri</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kart 2 (Karşılaştırma Oyuncusu) -->
+                    <div class="fifa-card gold-rare hidden" id="fifaCard2">
+                        <div class="fifa-card-inner">
+                            <div class="fifa-card-top">
+                                <div class="fifa-rating" id="fifaOvr2">82</div>
+                                <div class="fifa-position" id="fifaPos2">GK</div>
+                                <div class="fifa-flag"><i class="fa-solid fa-flag"></i></div>
+                                <div class="fifa-club"><i class="fa-solid fa-shield"></i></div>
+                                <div class="fifa-avatar-wrap">
+                                    <div class="fifa-avatar" id="fifaAvatar2"></div>
+                                </div>
+                            </div>
+                            <div class="fifa-card-bottom">
+                                <div class="fifa-name" id="fifaName2">Player 2</div>
+                                <div class="fifa-stats-grid">
+                                    <div class="fifa-stat"><strong id="fifaPac2">75</strong> <span>HIZ</span></div>
+                                    <div class="fifa-stat"><strong id="fifaSho2">60</strong> <span>ŞUT</span></div>
+                                    <div class="fifa-stat"><strong id="fifaPas2">78</strong> <span>PAS</span></div>
+                                    <div class="fifa-stat"><strong id="fifaDri2">70</strong> <span>DRP</span></div>
+                                    <div class="fifa-stat"><strong id="fifaDef2">85</strong> <span>DEF</span></div>
+                                    <div class="fifa-stat"><strong id="fifaPhy2">82</strong> <span>FİZ</span></div>
+                                </div>
+                                <div class="fifa-extra-row">
+                                    <span id="fifaCareer2">0G - 0M | %0 WR</span>
+                                    <span id="fifaStreak2" class="fifa-streak-tag">🔥 0 Seri</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="closeFifaCardModalFooterBtn" class="btn secondary-btn">Kapat</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ========================================================================= -->
     <!-- Sağdan Kayan Kontrol & Ayarlar Çekmecesi (Offcanvas Settings Drawer)       -->
     <!-- ========================================================================= -->
@@ -1001,6 +1209,8 @@
             <button class="drawer-tab-btn" data-drawer-tab="obs"><i class="fa-solid fa-display"></i> OBS Overlay</button>
             <button class="drawer-tab-btn" data-drawer-tab="hub"><i class="fa-solid fa-server"></i> Veri Merkezi</button>
             <button class="drawer-tab-btn" data-drawer-tab="kick"><i class="fa-brands fa-kickstarter"></i> Kick & API</button>
+            <button class="drawer-tab-btn" data-drawer-tab="watcher"><i class="fa-solid fa-camera"></i> TAB Algılayıcı</button>
+            <button class="drawer-tab-btn" data-drawer-tab="publish"><i class="fa-solid fa-globe"></i> Web & Yayın</button>
         </nav>
 
         <div class="drawer-body">
@@ -1234,6 +1444,60 @@
                 <div class="drawer-card">
                     <h4><i class="fa-solid fa-circle-check" style="color: #00e6e6;"></i> Yerel Masaüstü Köprüsü</h4>
                     <p class="drawer-subtext">Klasördeki <strong>StrickersKingCreator.exe</strong> dosyası çalıştığında Kick API istekleri hiçbir güvenlik/CORS engeline takılmadan %100 kesinlikle bağlanır.</p>
+                </div>
+            </div>
+
+            <!-- TAB 5: TAB Skor Algılayıcı -->
+            <div class="drawer-tab-pane" id="drawerTabWatcher">
+                <div class="drawer-card">
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <i class="fa-solid fa-camera setting-icon" style="color:#00ffcc;"></i>
+                            <div>
+                                <strong>Sessiz TAB Skor & Ekran Algılayıcı</strong>
+                                <small>Oyun oynarken TAB tuşuna basıldığında ekranı tarar ve gol/asistleri otomatik yakalar.</small>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="drawerWatcherToggleCheckbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-shield-halved" style="color: #00e6e6;"></i> C# .NET GDI Motoru</h4>
+                    <p class="drawer-subtext">Tarayıcı güvenlik uyarısı ve ekran paylaşım penceresi sormaz. <code>StrickersKingCreator.exe</code> tarafından yerel Windows GDI ile sessizce çalışır.</p>
+                    <div class="watcher-status-indicator" style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+                        <span>Algılayıcı Durumu:</span>
+                        <strong id="drawerWatcherStatusLabel" style="color:#ff4444;">DEVRE DIŞI</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: Web & Yayın (GitHub Pages) -->
+            <div class="drawer-tab-pane" id="drawerTabPublish">
+                <div class="drawer-card">
+                    <h4><i class="fa-solid fa-globe" style="color: #00f0ff;"></i> Canlı Web Yayını (GitHub Pages)</h4>
+                    <p class="drawer-subtext">Uygulamanız internette 7/24 kesintisiz canlı olarak yayınlanmaktadır. Herhangi bir tarayıcıdan doğrudan açabilirsiniz:</p>
+                    <div style="display:flex; gap:8px; margin-top:12px;">
+                        <input type="text" id="drawerPublishUrlInput" readonly value="https://mehmet7helvaci.github.io/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/" style="flex:1; background:rgba(0,0,0,0.5); border:1px solid rgba(0,240,255,0.4); border-radius:8px; padding:8px 12px; color:#00f0ff; font-size:12px; font-weight:600;" />
+                        <button id="copyPublishUrlBtn" class="btn primary-btn btn-sm" title="Linki Kopyala"><i class="fa-solid fa-copy"></i> <span>Kopyala</span></button>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <div style="padding:14px; text-align:center; background:linear-gradient(135deg, rgba(255,215,0,0.12), rgba(0,240,255,0.08)); border:1px solid rgba(255,215,0,0.3); border-radius:12px;">
+                        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#00f0ff; margin-bottom:4px;"><i class="fa-solid fa-code"></i> Proje Mimarı & Geliştirici</div>
+                        <div style="font-size:16px; font-weight:800; color:#fff; text-shadow:0 0 10px rgba(255,215,0,0.6);"><i class="fa-solid fa-crown" style="color:#ffd700;"></i> Yapan Kişi: <strong>Mehmet Helvacı</strong></div>
+                    </div>
+                </div>
+
+                <div class="drawer-card">
+                    <h4><i class="fa-brands fa-github" style="color: #ffffff;"></i> GitHub Kaynak Kodu</h4>
+                    <p class="drawer-subtext">Projenin tüm kaynak kodlarına, sürüm güncellemelerine ve kurulum dosyalarına GitHub deposu üzerinden erişebilirsiniz.</p>
+                    <a href="https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator" target="_blank" rel="noopener noreferrer" class="btn secondary-btn" style="margin-top:10px; width:100%; text-decoration:none; display:flex; justify-content:center; align-items:center; gap:8px;">
+                        <i class="fa-brands fa-github"></i> <span>GitHub Deposunu Aç</span>
+                    </a>
                 </div>
             </div>
         </div>

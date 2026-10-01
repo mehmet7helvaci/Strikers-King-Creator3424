@@ -500,3 +500,149 @@ PASS: Captain cannot steal another team captain
 TOTAL: PASS=80, FAIL=0
 ```
 Tüm 5 gereksinim, rol normalizasyonu, kalıcılık ve turnuva eşleşme algoritması %100 test edilmiş ve onaylanmıştır.
+
+---
+
+# 👑 Sürüm 5.0: Kraliyet Teması, İzole Kanallar, 3D Apple Watch Kaydırıcı & C# TAB Algılayıcı
+
+Strikers King Creator uygulaması; kanallar arası veri izolasyonu, 3D silindir takım kaydırıcısı, sessiz Windows ekran algılayıcısı, profesyonel FUT oyuncu kartları ve canlı çarkıfelek kura sistemiyle donatılmış tam teşekküllü bir espor ve yayın yönetim merkezine yükseltilmiştir.
+
+---
+
+## 🛠️ Yapılan Yenilikler ve Mimari Detaylar
+
+### 1. Kanala Özel İstatistik İzolasyonu & 0 Maç Hatasının Çözümü
+- **Kök Neden:** Eski sürümde tüm yayıncı kanalları tek bir global `hub_stats.json` dosyasını paylaşıyordu ve içinde geliştirme aşamasından kalan Ali, Ahmet, Emre gibi sahte oyuncu verileri bulunuyordu. Ayrıca `total === 0` olduğunda bazı hesaplamalar `%100 Win Rate` verebiliyordu.
+- **Mühendislik Çözümü:**
+  - `app/data/channels/{channel}.json` dizin yapısı kuruldu. Her kanal kendi istatistik dosyasında izole edildi; hiçbir kanal diğerinin verisine sızamaz.
+  - `hub_stats.json` sıfırlandı ve sahte kayıtlar temizlendi.
+  - `getPlayerStats()` fonksiyonunda `total === 0` kontrolü kesinleştirildi: 0 maçı olan her oyuncu istisnasız **%0 Win Rate** ve **"Derecesiz" (rank-unranked)** rozeti alır.
+
+### 2. Apple Watch / Digital Crown 3D Silindir Kaydırıcı
+- Klasik HTML `<select>` açılır menüsü yerine Apple Watch Digital Crown tarzı 3 boyutlu silindir kaydırıcı (`#watchCrownSlider`) tasarlandı.
+- CSS 3D Perspektif (`perspective: 600px`, `transform-style: preserve-3d`) ve `rotateX` ekseniyle gerçek bir silindir tamburu oluşturuldu.
+- Fare tekerleği (`wheel`), dikey sürükleme (`touchmove`/`mousemove`) ve yukarı/aşağı navigasyon butonlarıyla akıcı ve ataletli (inertia) seçim deneyimi sunuldu.
+- Arka planda gizli bir `<select id="teamSize">` tutularak mevcut turnuva ve tek maç algoritmalarıyla %100 geriye dönük uyumluluk sağlandı.
+
+### 3. 'theonlyk1ng' Özel Kraliyet Teması & Dinamik Arka Plan
+- Kanal adı `theonlyk1ng` olduğunda gövdeye otomatik olarak `.theme-theonlyk1ng` sınıfı uygulanır.
+- Kraliyet altını vurgular (`#fbbf24`), özel taç ışıltıları ve Kick API üzerinden yayıncının güncel banner'ı çekilerek dinamik arka plan olarak atanır.
+- Başka bir kanala geçildiğinde standart `bg.jpg` arka planına yumuşak bir geçişle geri dönülür.
+
+### 4. C# Windows GDI Sessiz Ekran & TAB Skor Algılayıcı Motoru
+- **Sorun:** Web tarayıcıları ekran görüntüsü almak için her seferinde kullanıcıya rahatsız edici "Ekranınızı paylaşın" güvenlik onay penceresi çıkartır.
+- **Çözüm:** `Program.cs` içerisine native Windows Win32 API (`user32.dll GetAsyncKeyState(0x09)`) ve `System.Drawing.Graphics.CopyFromScreen` ile arka plan ekran tarayıcısı entegre edildi.
+- Oyuncu oyundayken `TAB` tuşunu basılı tuttuğunda yerel C# motoru ekranı sessizce tarar ve skorları yerel HTTP sunucusuna iletir.
+- Arayüzde hem ana menüde hem de Ayarlar Çekmecesinde tek tıkla Açılıp/Kapatılabilen anahtar eklendi.
+
+### 5. Canlı Maç Skor & Gol/Asist Düzenleme Paneli
+- Maç oynanırken ekranda beliren kompakt canlı panel (`#matchLiveScorePanel`) ile oyunculara anlık `+` ve `-` butonlarıyla gol ve asist eklenebilir.
+- Paneldeki skorlar maç bitirildiğinde otomatik olarak sonuç onay penceresindeki tablolara aktarılır; yayıncının tekrar sayı girmesine gerek kalmaz.
+
+### 6. Maç MVP'si Hesabı (goals * 2 + assists), Altın Taç ve Kutlama
+- Maç tamamlandığında her oyuncunun MVP puanı formülle hesaplanır: `(Gol * 2) + Asist`.
+- En yüksek skoru elde eden oyuncu Maçın MVP'si (En Değerli Oyuncusu) ilan edilir, konfeti patlatılır ve ekranda özel duyuru rozeti çıkar.
+- Oyuncunun profilinde ve liderlik tablosunda kalıcı olarak `MVP xN` altın taç rozeti sergilenir.
+
+### 7. Canlı Nabız Animasyonlu Win Streak (🔥 Galibiyet Serisi)
+- Üst üste 3 ve üzeri galibiyet alan oyunculara canlı alev nabız animasyonu (`@keyframes flamePulse`) eşliğinde `🔥 NW` serisi rozeti atanır.
+- Mağlubiyet alındığında seri otomatik olarak sıfırlanır.
+
+### 8. FUT / EAFC Profesyonel Gold Rare Oyuncu Kartı & Karşılaştırma Modalı
+- Oyuncunun gol, asist, kurtarış, maç sayısı ve rolüne göre dinamik FIFA kart reytingleri (OVR, PAC, SHO, PAS, DRI, DEF, PHY) üretilir.
+- Altın nadir (Gold Rare) FIFA kart tasarımı, açılır pencerede 2. bir oyuncu seçildiğinde yan yana çift kart karşılaştırma moduna geçer.
+- Oyuncu profilindeki FUT butonu veya listelerden tek tıkla kart modalı açılabilir.
+
+### 9. Kick Canlı Çarkıfelek & Kura Çekim Modalı
+- HTML5 Canvas üzerinde fiziksel yavaşlama eğrisi (`cubic-ease-out`) ile dönen şık bir kura çarkı (`#wheelModal`) geliştirildi.
+- Havuzdaki oyuncuların isimleri dilimlere otomatik yerleştirilir. Çark çevrildiğinde kazanan izleyici belirlenir ve tek tıkla Takım 1 veya Takım 2'ye transfer edilebilir.
+
+### 10. MeH4n Geliştirici Koruması
+- Sistem geliştiricisi `MeH4n` için özel güvenlik kuralları eklendi:
+  - Kaptanlıktan düşürülemez.
+  - Rolü değiştirilemez veya silinemez.
+  - Havuzdan veya takımdan kaldırılamaz.
+  - Altın neon `DEV (Geliştirici)` rozeti ile onurlandırılır.
+
+---
+
+## 🧪 Doğrulama ve Test Sonuçları
+1. **JavaScript Sözdizimi Testi:** `node -c "app/app.js"` -> `EXIT 0` (Sıfır hata).
+2. **PowerShell Sunucu AST Testi:** `[Parser]::ParseFile('app/server.ps1')` -> `PS_PARSE_OK`.
+3. **C# .NET Derleme Testi:** `csc.exe /target:winexe Program.cs /out:StrickersKingCreator.exe` -> `EXIT 0` (Kusursuz derlendi).
+4. **Veri İzolasyonu:** `app/data/channels/` altında kanala özel JSON dosyaları oluşturuldu ve test edildi.
+5. **Kapsamlı Sistem Test Paketi (`test_suite.js`):** 8/8 birim testi (%100 başarıyla tamamlandı).
+
+---
+
+# 🛡️ Mühendislik İncelemesi & Düzeltme Raporu (Review & Remediation)
+
+Uygulamanın ilk uygulamasında titizlikle yapılan bağımsız denetimde tespit edilen gizli mantık ve entegrasyon hataları giderilmiştir:
+
+### 1. Watcher Score Uç Noktası Uyumsuzluğunun Giderilmesi
+* **Hata:** `server.ps1` üzerinde `/api/watcher/score` GET yanıtı `events` nesnesi dönerken, `app.js` tarafında `data.scores` dizisi bekleniyordu. Bu nedenle C# arka plan ekran algılayıcısından veya API'den gelen hiçbir olay arayüzde işlenemiyordu.
+* **Düzeltme:** Hem `server.ps1` hem de `app.js` iki yönlü uyumlu hale getirildi. `lastWatcherTs` damgasıyla sadece yeni olaylar dinlenir; `goal`, `assist` ve `tab_capture` olayları arayüzdeki canlı skor paneline anında yansıtılır.
+
+### 2. Kick Chat `/goal` ve `/boost` Komutlarının Entegrasyonu
+* **Hata:** Görev tanımında istenen Kick chat `/goal`, `!goal`, `/gol`, `!gol` ve `/boost`, `!boost`, `/asist`, `!asist` komutları `handleKickChatMessage` içinde eksikti.
+* **Düzeltme:** Komut ayrıştırıcı eklendi; TAB / Ekran Algılayıcı aktifken (`isWatcherActive = true`) chatten gelen bu komutlar otomatik olarak maça katılmış oyuncunun gol veya asist hanesine eklenir ve sunucuya bildirilir.
+
+### 3. C# TAB Ekran Görüntüsü Kaydı ve Önizleme
+* **Hata:** `Program.cs` GDI ile ekran görüntüsü alıyor fakat bellekteki bitmap'i hiçbir yere kaydetmeden siliyordu.
+* **Düzeltme:** Yakalanan kare doğrudan `app/data/last_tab_capture.jpg` dosyasına kaydedilerek `/api/watcher/score` uç noktasına görsel yoluyla bildirilir. Canlı Skor Panelinde yayıncıya **[📷 Yakalanan Kareyi Gör]** butonu ile anlık teyit imkanı sunuldu.
+
+### 4. 3D Silindir Kaydırıcı Geometri Düzeltmesi
+* **Hata:** `.cylinder-item` elemanlarında `rotateX` ve `translateZ` değerleri olmadığı için 6 boyut seçeneği de tek bir düzlemde üst üste yığılıyordu.
+* **Düzeltme:** Her eleman `rotateX(idx * 40deg) translateZ(48px)` açısıyla silindirin çevresine yerleştirildi; tambur `translateZ(-48px) rotateX(-currentIndex * 40deg)` ile döndürülerek gerçek bir Apple Watch Digital Crown 3D derinliği sağlandı.
+
+### 5. Yedek İçe Aktarma Kanal Sızıntısı & Veri Kaybı Onarımı
+* **Hata:** `importDataFromJsonFile` çoklu kanal yedeklerinde tüm kanalların oyuncularını aktif kanala döküyordu ve gol/asist/seri verilerini sıfırlıyordu.
+* **Düzeltme:** Her kanal kendi dosyasına izole edildi; yalnızca aktif kanalla eşleşen veriler mevcut oturuma işlenir. `mergeParsedDataIntoStats` fonksiyonu gol, asist, kurtarış, seri ve MVP sayılarını koruyacak şekilde güncellendi.
+
+### 6. MeH4n Geliştirici Korumasının Genişletilmesi
+* Yayıncı "İzleyicileri Sıfırla" (`clearAllPlayers`) butonuna bastığında dahi MeH4n'in havuza rolü, unvanı ve kaptanlığıyla korunarak dönmesi garanti altına alındı.
+
+---
+
+# 🌐 GitHub Yayını & "Yapan Kişi: Mehmet Helvacı" Güncellemesi
+
+Uygulamanın GitHub deposuna yüklenmesi, GitHub Pages üzerinde canlı bir web uygulaması (publish) olarak yayınlanması ve sayfanın en altına **"Yapan Kişi: Mehmet Helvacı"** imzasının eklenmesi başarıyla tamamlanmıştır.
+
+---
+
+## 🚀 Gerçekleştirilen Geliştirmeler
+
+### 1. Sayfa Altına "Yapan Kişi: Mehmet Helvacı" İmzasının Eklenmesi
+* **Arayüz (`app/index.html`):**
+  * Uygulamanın en altına şık ve modern bir **Alt Bilgi (Footer)** paneli eklendi (`#appFooter`).
+  * Alt bilgi içerisinde:
+    * 👑 **Yapan Kişi: Mehmet Helvacı** (Altın ışıltılı taç ikonu ve özel gölge efekti).
+    * 💻 **Proje Mimarı & Geliştirici** rozeti.
+    * 🛡️ **Strikers King Creator | Espor Turnuva, Kaptan Draft ve Takım Seçim Platformu** başlığı.
+    * 🔗 **GitHub Deposu** doğrudan bağlantı butonu ve **v5.0 Canlı Sürüm** rozeti.
+* **Açılış Ekranı (Splash Screen):**
+  * Uygulama ilk açıldığında gösterilen sinematik karşılama ekranına `Geliştirici: Mehmet Helvacı (MeH4n)` ibaresi entegre edildi.
+* **Ayarlar Çekmecesi (`#settingsDrawer`):**
+  * `Web & Yayın` sekmesi eklenerek canlı GitHub Pages bağlantısı, geliştirici künyesi ve tek tıkla kopyalama aracı yerleştirildi.
+* **OBS Canlı Yayın Koruması (`app/style.css`):**
+  * Yayın ekranında OBS Browser Source olarak kullanıldığında (`.obs-overlay-mode`), yayıncının oyun ve kamera görüntüsünü kapatmaması için alt bilgi otomatik olarak gizlenir. Normal tarayıcı modunda ise tüm ihtişamıyla görüntülenir.
+
+### 2. Canlı Web Yayını (GitHub Pages Publish) Mimarisi
+* **Kök Dizin Giriş Portalı (`index.html`):**
+  * Deponun ana dizinine ziyaretçileri karşılayan ve anında web uygulamasına (`./app/`) yönlendiren modern bir portal sayfası oluşturuldu.
+  * Sayfa içeriğinde **Yapan Kişi: Mehmet Helvacı** kartı, hızlı başlatma butonları ve otomatik yönlendirme motoru yer alır.
+* **Otomatik GitHub Actions İş Akışı (`.github/workflows/deploy-pages.yml`):**
+  * Depoya her `git push` yapıldığında projeyi otomatik olarak GitHub Pages'e dağıtan resmi GitHub Pages iş akışı devreye alındı.
+* **Canlı Web Adresi:**
+  * **Uygulama:** `https://mehmet7helvaci.github.io/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/`
+  * **Doğrudan Web Arayüzü:** `https://mehmet7helvaci.github.io/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/app/`
+  * **OBS Canlı Overlay Linki:** `https://mehmet7helvaci.github.io/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/app/?overlay=1`
+
+---
+
+## 🧪 Test ve Doğrulama
+* `test_suite.js` dosyasına 2 yeni test eklenerek test sayısı 10'a çıkarıldı:
+  * **Test 9:** `app/index.html` ve `app/style.css` dosyalarında "Mehmet Helvacı" imzasının ve OBS korumasının doğrulanması.
+  * **Test 10:** Kök `index.html` yönlendirme portalının ve `.github/workflows/deploy-pages.yml` iş akışının doğrulanması.
+* **Test Sonucu:** 10/10 test (%100 Başarı).
+* **C# Derlemesi:** `StrickersKingCreator.exe` başarıyla derlendi.
