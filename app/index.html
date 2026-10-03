@@ -48,7 +48,7 @@
                 <span class="teleport-word" style="--delay: 0.62s">Hoşgeldiniz</span>
             </h1>
             <p class="splash-subtitle">
-                <span class="teleport-word" style="--delay: 0.95s">Geliştirici: Mehmet Helvacı (MeH4n)</span>
+                <span class="teleport-word" style="--delay: 0.95s">Geliştirici: MeH4n</span>
             </p>
         </div>
     </div>
@@ -69,7 +69,11 @@
                     <input type="text" id="channelName" placeholder="Kick Kanal(lar)ı (örn: wtcn, elraenn)" autocomplete="off" />
                 </div>
                 <button id="connectBtn" class="btn primary-btn" title="Yayıncı chatine bağlan veya yeni yayıncı ekle"><i class="fa-solid fa-plug"></i> <span>Chat'e Bağlan</span></button>
-                <span id="connectionStatus" class="status disconnected"><i class="fa-solid fa-circle"></i> <span>Bağlı Değil</span></span>
+                <div id="connectionStatus" class="status status-badge disconnected" title="Chat Bağlantı Durumu">
+                    <span class="status-indicator"></span>
+                    <i class="fa-solid fa-tower-broadcast status-icon"></i>
+                    <span class="status-label">Bağlı Değil</span>
+                </div>
                 <div id="activeChannelsContainer" class="active-channels-container hidden"></div>
             </div>
 
@@ -111,9 +115,19 @@
                         <option value="1">1v1</option>
                         <option value="2">2v2</option>
                         <option value="3">3v3</option>
+                        <option value="4">4v4</option>
                         <option value="5" selected>5v5</option>
+                        <option value="6">6v6</option>
+                        <option value="7">7v7</option>
                         <option value="8">8v8</option>
+                        <option value="9">9v9</option>
+                        <option value="10">10v10</option>
                         <option value="11">11v11</option>
+                        <option value="12">12v12</option>
+                        <option value="13">13v13</option>
+                        <option value="14">14v14</option>
+                        <option value="15">15v15</option>
+                        <option value="16">16v16</option>
                     </select>
                     <!-- 3D Akıllı Saat Silindir Kaydırıcısı (Apple Watch / Digital Crown Style) -->
                     <div class="watch-crown-container" id="watchCrownSlider" title="Apple Watch tarzı 3D silindir kaydırıcı (Tekerlek, tık veya sürükle)">
@@ -123,9 +137,19 @@
                                 <div class="cylinder-item" data-value="1">1v1</div>
                                 <div class="cylinder-item" data-value="2">2v2</div>
                                 <div class="cylinder-item" data-value="3">3v3</div>
+                                <div class="cylinder-item" data-value="4">4v4</div>
                                 <div class="cylinder-item active" data-value="5">5v5</div>
+                                <div class="cylinder-item" data-value="6">6v6</div>
+                                <div class="cylinder-item" data-value="7">7v7</div>
                                 <div class="cylinder-item" data-value="8">8v8</div>
+                                <div class="cylinder-item" data-value="9">9v9</div>
+                                <div class="cylinder-item" data-value="10">10v10</div>
                                 <div class="cylinder-item" data-value="11">11v11</div>
+                                <div class="cylinder-item" data-value="12">12v12</div>
+                                <div class="cylinder-item" data-value="13">13v13</div>
+                                <div class="cylinder-item" data-value="14">14v14</div>
+                                <div class="cylinder-item" data-value="15">15v15</div>
+                                <div class="cylinder-item" data-value="16">16v16</div>
                             </div>
                             <div class="watch-glass-reflection"></div>
                             <div class="watch-center-indicator"></div>
@@ -145,47 +169,31 @@
                     <span class="participant-badge" id="participantCalcBadge" title="Otomatik Hesaplanan Turnuva Yapısı">8 Takım (Çeyrek Final)</span>
                 </div>
 
-                <div class="control-group command-group" title="Sadece bu komutu sohbete yazan izleyiciler listeye eklenir">
-                    <label for="joinCommandInput"><i class="fa-solid fa-terminal"></i> Komut:</label>
-                    <div class="command-input-wrap">
-                        <input type="text" id="joinCommandInput" value="!kingsc" placeholder="!kingsc" maxlength="30" />
-                        <span class="command-badge" id="commandActiveBadge">Aktif</span>
+                <!-- 2. Birleştirilmiş Chat Entegrasyonu Bölümü -->
+                <div class="chat-integration-card" id="chatIntegrationCard" title="Chat Entegrasyonu ve Katılım/Kaptan Komutları">
+                    <div class="chat-integration-header">
+                        <span class="chat-integration-title"><i class="fa-brands fa-kickstarter"></i> Chat Entegrasyonu</span>
+                    </div>
+                    <div class="chat-integration-content">
+                        <div class="command-input-wrap chat-cmd-pill" title="İzleyicilerin turnuvaya katılmak için yazacağı komut">
+                            <span class="cmd-pill-label"><i class="fa-solid fa-terminal"></i> Katıl:</span>
+                            <input type="text" id="joinCommandInput" value="!turnuvagiriş" placeholder="!turnuvagiriş" maxlength="30" />
+                            <span class="command-badge" id="commandActiveBadge">Aktif</span>
+                        </div>
+                        <div class="captain-codes-wrap">
+                            <span class="toolbar-cmd-tag tag-captain-join" title="İzleyiciler sohbete bu komutu yazarak Takım Kaptanı olur">
+                                <i class="fa-solid fa-crown"></i> <code>!kaptan</code>
+                            </span>
+                            <span class="toolbar-cmd-tag tag-captain-pick" title="Kaptanların oyuncu ve rol seçme komutu (örn: !sec @oyuncu GK veya CB, RM, LM)">
+                                <i class="fa-solid fa-user-check"></i> <code>!sec @oyuncu GK</code>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="control-group captain-codes-group" title="Kaptanlık ve oyuncu seçme komutları">
-                    <label><i class="fa-solid fa-crown"></i> Kaptan Kodları:</label>
-                    <div class="captain-codes-wrap">
-                        <span class="toolbar-cmd-tag tag-captain-join" title="İzleyiciler sohbete bu komutu yazarak Takım Kaptanı olur">
-                            <i class="fa-solid fa-crown"></i> <code>!kingkaptan</code>
-                        </span>
-                        <span class="toolbar-cmd-tag tag-captain-pick" title="Kaptanların oyuncu ve rol seçme komutu (örn: !sec @oyuncu GK veya CB, RM, LM)">
-                            <i class="fa-solid fa-user-check"></i> <code>!sec @oyuncu GK</code>
-                        </span>
-                    </div>
-                </div>
-
-                <div class="action-buttons">
-                    <button id="luckyWheelBtn" class="btn wheel-btn" title="İzleyicileri interaktif 3D çarkıfelek / kura ile takımlara dağıt">
-                        <i class="fa-solid fa-dharmachakra"></i> <span>Çarkıfelek / Kura</span>
-                    </button>
-                    <button id="watcherToggleBtn" class="btn watcher-btn" title="C# Sessiz Ekran & TAB Skor Algılayıcı (Otomatik Gol/Asist Takibi)">
-                        <i class="fa-solid fa-camera"></i> <span>TAB Algılayıcı: <b id="watcherBtnState">KAPALI</b></span>
-                    </button>
+                <div class="action-buttons header-action-buttons">
                     <button id="quickScorePanelToggleBtn" class="btn score-toggle-btn" title="Canlı Maç Skor & Gol/Asist Düzenleme Panelini Aç/Kapat">
                         <i class="fa-solid fa-stopwatch-20"></i> <span>Canlı Skor</span>
-                    </button>
-                    <button id="draftDiceBtn" class="btn dice-btn" title="Kaptanlar arasında zar atarak ilk oyuncuyu seçecek kaptanı belirle ve sıra sıra seçimi başlat">
-                        <i class="fa-solid fa-dice"></i> <span>Zar At (Kaptan Sırası)</span>
-                    </button>
-                    <button id="randomizeBtn" class="btn action-btn" title="Oyuncuları dengeli ve rastgele dağıtır">
-                        <i class="fa-solid fa-shuffle"></i> <span>Rastgele Dağıt</span>
-                    </button>
-                    <button id="resetTournamentBtn" class="btn warning-btn hidden" title="Turnuva ağacındaki tüm maç sonuçlarını sıfırlar ve oyuncuları havuza taşır">
-                        <i class="fa-solid fa-rotate-left"></i> <span>Turnuvayı Sıfırla</span>
-                    </button>
-                    <button id="clearBtn" class="btn danger-btn" title="Tüm izleyicileri havuzdan ve takımlardan siler">
-                        <i class="fa-solid fa-trash-can"></i> <span>İzleyicileri Sıfırla</span>
                     </button>
                     <button id="toggleAdvancedToolsBtn" class="btn secondary-btn advanced-toggle-btn" title="Gelişmiş OBS & Test Araçlarını Aç/Kapat (Kısayol: T)">
                         <i class="fa-solid fa-layer-group"></i> <span>Gelişmiş Araçlar</span>
@@ -201,6 +209,15 @@
                         <span class="advanced-group-title"><i class="fa-solid fa-vial"></i> Test:</span>
                         <button id="addTestPlayersBtn" class="btn secondary-btn btn-sm" title="Yayın öncesi test için havuza 10 rastgele izleyici ekler">
                             <i class="fa-solid fa-user-astronaut"></i> <span>+10 Test İzleyici</span>
+                        </button>
+                    </div>
+
+                    <div class="advanced-v-sep"></div>
+
+                    <div class="advanced-group watcher-group" title="C# Sessiz Ekran & TAB Skor Algılayıcı (Otomatik Gol/Asist Takibi)">
+                        <span class="advanced-group-title"><i class="fa-solid fa-camera"></i> Algılayıcı:</span>
+                        <button id="watcherToggleBtn" class="btn watcher-btn btn-sm" title="C# Sessiz Ekran & TAB Skor Algılayıcı (Otomatik Gol/Asist Takibi)">
+                            <i class="fa-solid fa-camera"></i> <span>TAB Algılayıcı: <b id="watcherBtnState">KAPALI</b></span>
                         </button>
                     </div>
 
@@ -286,10 +303,10 @@
                             <span id="captainCountBadge" class="captain-count-badge" title="Mevcut Kaptan Sayısı / Limit">0/2</span>
                         </div>
                         <div class="pool-command-tag" id="poolCommandTag" title="İzleyiciler sohbete bu komutu yazarak otomatik havuza eklenir">
-                            <i class="fa-solid fa-bolt"></i> <span id="poolCommandDisplay">!kingsc</span>
+                            <i class="fa-solid fa-bolt"></i> <span id="poolCommandDisplay">!turnuvagiriş</span>
                         </div>
                         <div class="pool-command-tag tag-captain-join" id="poolCaptainCommandTag" title="İzleyiciler sohbete bu komutu yazarak Takım Kaptanı olur">
-                            <i class="fa-solid fa-crown"></i> <span id="poolCaptainCommandDisplay">!kingkaptan</span>
+                            <i class="fa-solid fa-crown"></i> <span id="poolCaptainCommandDisplay">!kaptan</span>
                         </div>
                         <div class="pool-command-tag tag-captain-pick" id="poolPickCommandTag" title="Kaptanların oyuncu ve rol seçme komutu (örn: !sec @oyuncu GK veya CB, RM, LM)">
                             <i class="fa-solid fa-user-check"></i> <span id="poolPickCommandDisplay">!sec @oyuncu GK</span>
@@ -309,6 +326,34 @@
                         <input type="text" id="poolSearchInput" placeholder="Havuzda ara (isim)..." autocomplete="off" />
                         <span id="poolSearchCount" class="pool-search-badge hidden">0</span>
                         <button id="clearPoolSearchBtn" class="clear-pool-search-btn hidden" title="Aramayı Temizle"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <!-- İzleyici Havuzu Hızlı Filtre ve Sıralama Araç Çubuğu (Multi-Channel Sub & Sort) -->
+                    <div class="pool-filter-toolbar" id="poolFilterToolbar">
+                        <div class="pool-filter-tabs">
+                            <button type="button" class="pool-filter-tab active" data-filter="all" id="poolFilterAllBtn" title="Tüm Oyuncuları Göster">
+                                <span>Tümü</span>
+                            </button>
+                            <button type="button" class="pool-filter-tab" data-filter="subs" id="poolFilterSubsBtn" title="Yalnızca Kanal Abonelerini Göster">
+                                <i class="fa-solid fa-star"></i> <span>Aboneler</span>
+                            </button>
+                        </div>
+                        <div class="pool-filter-controls">
+                            <!-- Kanal Seçim Filtresi -->
+                            <div class="pool-channel-filter-wrap" id="poolChannelFilterWrap" title="Kanal bazında filtrele">
+                                <select id="poolChannelSelect" class="pool-channel-select">
+                                    <option value="all">Tüm Kanallar</option>
+                                </select>
+                            </div>
+                            <!-- Sıralama Butonları -->
+                            <div class="pool-sort-actions">
+                                <button type="button" class="btn-pool-sort" id="poolSortAzBtn" title="Alfabetik Sırala (A-Z)">
+                                    <i class="fa-solid fa-arrow-down-a-z"></i>
+                                </button>
+                                <button type="button" class="btn-pool-sort" id="poolSortSubBtn" title="Abonelik Süresine Göre Sırala">
+                                    <i class="fa-solid fa-award"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <ul id="playerPool" class="player-list sortable-list pool-list">
                         <!-- Players will appear here -->
@@ -393,6 +438,29 @@
                     </div>
                 </div>
 
+                <div class="teams-top-toolbar" id="teamsTopToolbar">
+                    <div class="teams-toolbar-left">
+                        <span class="teams-title-tag"><i class="fa-solid fa-users-viewfinder"></i> Karşılaşma Takımları</span>
+                    </div>
+                    <div class="teams-toolbar-actions" id="teamsToolbarActions">
+                        <button id="luckyWheelBtn" class="btn-compact-dice trigger-lucky-wheel" title="Çarkıfelek / Kura ile Takımlara Oyuncu Dağıt (3D Kura Modalı)">
+                            <i class="fa-solid fa-dice"></i> <span>Kura Çek</span>
+                        </button>
+                        <button id="randomizeBtn" class="btn action-btn btn-sm" title="Oyuncuları dengeli ve rastgele dağıtır">
+                            <i class="fa-solid fa-shuffle"></i> <span>Rastgele Dağıt</span>
+                        </button>
+                        <button id="draftDiceBtn" class="btn dice-btn btn-sm" title="Kaptanlar arasında zar atarak ilk oyuncuyu seçecek kaptanı belirle ve sıra sıra seçimi başlat">
+                            <i class="fa-solid fa-dice"></i> <span>Zar At (Kaptan Sırası)</span>
+                        </button>
+                        <button id="resetTournamentBtn" class="btn warning-btn btn-sm hidden" title="Turnuva ağacındaki tüm maç sonuçlarını sıfırlar ve oyuncuları havuza taşır">
+                            <i class="fa-solid fa-rotate-left"></i> <span>Turnuvayı Sıfırla</span>
+                        </button>
+                        <button id="clearBtn" class="btn danger-btn btn-sm" title="Tüm izleyicileri havuzdan ve takımlardan siler">
+                            <i class="fa-solid fa-trash-can"></i> <span>İzleyicileri Sıfırla</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="teams-container mode-single" id="teamsContainer">
                     <div class="team-box" id="team1Box">
                         <div class="team-header">
@@ -416,21 +484,12 @@
         <!-- Sayfa Alt Bilgisi (Footer) & Geliştirici İmzası -->
         <footer class="app-footer" id="appFooter">
             <div class="footer-container">
-                <div class="footer-brand">
-                    <img src="app.png" alt="Strikers King Creator" class="footer-logo">
-                    <div class="footer-info">
-                        <span class="footer-app-name">Strikers King <span class="logo-accent">Creator</span></span>
-                        <span class="footer-desc">Espor Turnuva, Kaptan Draft ve Takım Seçim Platformu</span>
-                    </div>
-                </div>
-
                 <div class="footer-author-box">
-                    <div class="author-badge"><i class="fa-solid fa-code"></i> Proje Mimarı & Geliştirici</div>
-                    <div class="author-name">
-                        <i class="fa-solid fa-crown" style="color: #ffd700;"></i> Yapan Kişi: <strong>Mehmet Helvacı</strong>
-                    </div>
+                    <span class="author-badge"><i class="fa-solid fa-code"></i> Proje Mimarı & Geliştirici</span>
+                    <span class="author-name">
+                        <i class="fa-solid fa-crown" style="color: #ffd700;"></i> Yapan Kişi: <strong>MeH4n</strong>
+                    </span>
                 </div>
-
                 <div class="footer-links-group">
                     <a href="https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator" target="_blank" rel="noopener noreferrer" class="footer-link-btn" title="GitHub Deposu">
                         <i class="fa-brands fa-github"></i> <span>GitHub Deposu</span>
@@ -443,6 +502,18 @@
 
     <!-- Konfeti Canvas (Turnuva Şampiyonu Kutlaması) -->
     <canvas id="confettiCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none;"></canvas>
+
+    <!-- Sol Alt Köşe Yayıncı Profil Kartı (theonlyk1ng / Kick Yayıncı) -->
+    <div id="streamerProfileCard" class="streamer-profile-card hidden">
+        <div class="streamer-avatar-wrap">
+            <img id="streamerAvatarImg" src="app.png" alt="Yayıncı" class="streamer-avatar-img" />
+            <span class="streamer-kick-badge"><i class="fa-brands fa-kickstarter"></i></span>
+        </div>
+        <div class="streamer-details">
+            <span class="streamer-channel-title" id="streamerChannelTitle">theonlyk1ng</span>
+            <span class="streamer-status-tag"><span class="streamer-live-dot"></span> Canlı Yayıncı</span>
+        </div>
+    </div>
 
     <!-- Modals & Notifications -->
     <div id="toast" class="toast hidden"></div>
@@ -460,6 +531,7 @@
             <div class="summary-cell"><span class="stat-val green" id="statCardWins">0</span><span class="stat-lbl">Galibiyet (W)</span></div>
             <div class="summary-cell"><span class="stat-val red" id="statCardLosses">0</span><span class="stat-lbl">Mağlubiyet (L)</span></div>
             <div class="summary-cell"><span class="stat-val gold" id="statCardWinRate">%0</span><span class="stat-lbl">Win Rate</span></div>
+            <div class="summary-cell"><span class="stat-val" id="statCardTotal" style="color:#a0aec0;">0</span><span class="stat-lbl">Toplam Maç</span></div>
         </div>
 
         <!-- Kolay Manuel İstatistik Düzenleyici (Gol, Asist, Kurtarış) -->
@@ -984,6 +1056,20 @@
                                 <span class="stat-label">İşlenen Maç</span>
                             </div>
                         </div>
+                    <!-- Sıfır Ayar (Zero Config) Ortak Espor Ligi Kartı -->
+                    <div class="hub-section zero-config-box" style="background: linear-gradient(135deg, rgba(0, 255, 204, 0.08), rgba(0, 162, 255, 0.08)); border: 1px solid rgba(0, 255, 204, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                        <div class="section-badge-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span class="sec-title" style="font-weight: 700; color: #00ffcc; font-size: 1.05rem;"><i class="fa-solid fa-bolt-lightning"></i> Sıfır Ayar Ortak Espor Ligi (Otomatik Senkronizasyon)</span>
+                            <span class="tunnel-status-badge active" style="background: rgba(0, 255, 204, 0.2); color: #00ffcc; border: 1px solid #00ffcc; padding: 3px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Tam Otomatik Aktif</span>
+                        </div>
+                        <p class="sec-hint" style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.5; margin-bottom: 8px;">
+                            Tünel linki kopyalama, JSON dosyası yönleme veya geri alma karmaşası tamamen ortadan kaldırıldı!
+                            Tüm yayıncılarda kaydedilen maçlar, goller ve istatistikler tek bir ortak kariyer ligine anında işlenir.
+                        </p>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px;">
+                            <div style="background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; color: #94a3b8;"><i class="fa-solid fa-id-card-clip" style="color:#38bdf8;"></i> <strong>Kariyer Tanıma:</strong> Farklı yayındaki oyuncu kariyerleri anında tanınır.</div>
+                            <div style="background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; color: #94a3b8;"><i class="fa-solid fa-arrows-rotate" style="color:#34d399;"></i> <strong>Canlı Yenileme:</strong> Maç tamamlandığında OBS Overlay tek tuşa basmadan yenilenir.</div>
+                        </div>
                     </div>
 
                     <!-- Cloudflare Quick Tunnel Bölümü -->
@@ -1198,9 +1284,10 @@
         <!-- Hızlı Modal Kısayolları (Geriye Dönük Uyumluluk ve Tam Görünüm) -->
         <div class="drawer-modal-shortcuts">
             <button id="audioSettingsBtn" class="btn drawer-shortcut-btn" title="Ses Penceresi"><i class="fa-solid fa-volume-high"></i> <span>Ses Paneli</span></button>
-            <button id="obsOverlayBtn" class="btn drawer-shortcut-btn" title="OBS Penceresi"><i class="fa-solid fa-display"></i> <span>OBS Linki</span></button>
+            <button id="drawerObsOverlayBtn" class="btn drawer-shortcut-btn" title="OBS Penceresi"><i class="fa-solid fa-display"></i> <span>OBS Linki</span></button>
             <button id="dataHubBtn" class="btn drawer-shortcut-btn" title="Veri Merkezi"><i class="fa-solid fa-server"></i> <span>Veri Merkezi</span></button>
             <button id="kickHelpBtn" class="btn drawer-shortcut-btn" title="Kick Yardımı"><i class="fa-solid fa-wrench"></i> <span>Kick Ayar</span></button>
+            <button id="drawerWatcherShortcutBtn" class="btn drawer-shortcut-btn" title="TAB Skor Algılayıcı"><i class="fa-solid fa-camera"></i> <span>TAB Algılayıcı</span></button>
         </div>
 
         <!-- Drawer Tabs Navigation -->
@@ -1433,6 +1520,18 @@
             <!-- TAB 4: Kick & API -->
             <div class="drawer-tab-pane" id="drawerTabKick">
                 <div class="drawer-card">
+                    <h4><i class="fa-solid fa-terminal" style="color: var(--primary-color);"></i> Katılım Komutu Özelleştirme</h4>
+                    <p class="drawer-subtext">İzleyicilerin turnuvaya katılmak için Kick sohbetine yazacağı komutu belirleyin (örn: <code>!turnuvagiriş</code>, <code>!turnuva</code>, <code>!oyna</code>):</p>
+                    <div class="command-input-wrap" style="margin-top: 10px; display: flex; gap: 8px;">
+                        <input type="text" id="drawerJoinCommandInput" value="!turnuvagiriş" placeholder="!turnuvagiriş" maxlength="30" style="flex: 1;" />
+                        <button id="drawerSaveJoinCommandBtn" class="btn primary-btn btn-sm" title="Kaydet"><i class="fa-solid fa-floppy-disk"></i> <span>Kaydet</span></button>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 11px; color: #a0aec0; line-height: 1.4;">
+                        <i class="fa-solid fa-circle-info" style="color: #00f0ff;"></i> Alternatif olarak <code>!katıl</code> ve <code>!katil</code> her zaman kabul edilir. Kaptanlık için <code>!kaptan</code> kullanılır.
+                    </div>
+                </div>
+
+                <div class="drawer-card">
                     <h4><i class="fa-brands fa-kickstarter" style="color: #00ff00;"></i> Manuel Kick Chatroom ID</h4>
                     <p class="drawer-subtext">Kanal adından otomatik bulunamazsa doğrudan sohbet ID numaranızı girin:</p>
                     <div class="kick-id-input-wrap">
@@ -1471,6 +1570,9 @@
                         <span>Algılayıcı Durumu:</span>
                         <strong id="drawerWatcherStatusLabel" style="color:#ff4444;">DEVRE DIŞI</strong>
                     </div>
+                    <button type="button" class="btn secondary-btn btn-sm" id="drawerWatcherActionBtn" style="margin-top:14px; width:100%; justify-content:center; gap:8px;">
+                        <i class="fa-solid fa-power-off"></i> <span>Algılayıcıyı Aç / Kapat</span>
+                    </button>
                 </div>
             </div>
 
@@ -1488,7 +1590,7 @@
                 <div class="drawer-card">
                     <div style="padding:14px; text-align:center; background:linear-gradient(135deg, rgba(255,215,0,0.12), rgba(0,240,255,0.08)); border:1px solid rgba(255,215,0,0.3); border-radius:12px;">
                         <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#00f0ff; margin-bottom:4px;"><i class="fa-solid fa-code"></i> Proje Mimarı & Geliştirici</div>
-                        <div style="font-size:16px; font-weight:800; color:#fff; text-shadow:0 0 10px rgba(255,215,0,0.6);"><i class="fa-solid fa-crown" style="color:#ffd700;"></i> Yapan Kişi: <strong>Mehmet Helvacı</strong></div>
+                        <div style="font-size:16px; font-weight:800; color:#fff; text-shadow:0 0 10px rgba(255,215,0,0.6);"><i class="fa-solid fa-crown" style="color:#ffd700;"></i> Yapan Kişi: <strong>MeH4n</strong></div>
                     </div>
                 </div>
 
@@ -1603,7 +1705,7 @@
                 <div class="guide-tab-pane" id="guideTabKick">
                     <div class="guide-doc-section">
                         <h4><i class="fa-brands fa-kickstarter"></i> 1. Kick Chat Katılımı</h4>
-                        <p>Kanal adınızı yazıp <b>Chat'e Bağlan</b> dediğinizde doğrudan Kick sohbetine bağlanılır. İzleyiciler sohbete <code>!kingsc</code> (veya belirlediğiniz komut) yazdığında havuza anında katılırlar.</p>
+                        <p>Kanal adınızı yazıp <b>Chat'e Bağlan</b> dediğinizde doğrudan Kick sohbetine bağlanılır. İzleyiciler sohbete <code>!turnuvagiriş</code> (veya belirlediğiniz komut) yazdığında havuza anında katılırlar.</p>
                     </div>
                     <div class="guide-doc-section">
                         <h4><i class="fa-solid fa-server"></i> 2. Ortak Veri Merkezi (Hub) & Çoklu Yayıncı</h4>
@@ -1643,7 +1745,7 @@
             <span class="obs-live-pill"><span class="live-dot pulse"></span> CANLI MAÇ</span>
             <span id="obsLiveMatchTitle" class="obs-live-title">1. Tur: Takım 1 vs Takım 2</span>
         </div>
-        <div class="obs-bar-item obs-bar-cmd"><i class="fa-solid fa-gamepad"></i> <span id="obsInfoBarText">Katıl: <strong>!kingsc</strong> | Kaptan: <strong>!kingkaptan</strong> | Seç: <strong>!sec @oyuncu GK</strong></span></div>
+        <div class="obs-bar-item obs-bar-cmd"><i class="fa-solid fa-gamepad"></i> <span id="obsInfoBarText">Katıl: <strong>!turnuvagiriş</strong> | Kaptan: <strong>!kaptan</strong> | Seç: <strong>!sec @oyuncu GK</strong></span></div>
         <div class="obs-bar-item obs-bar-pool"><i class="fa-solid fa-users"></i> Havuz: <strong id="obsPoolCountDisplay">0</strong></div>
     </div>
 

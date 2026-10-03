@@ -681,6 +681,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const diceWinnerScoreBadge = document.getElementById('diceWinnerScoreBadge');
     const diceOrderList = document.getElementById('diceOrderList');
 
+    // 🔍 Havuz Hızlı Filtre, Kanal & Sıralama DOM Elemanları
+    const poolFilterAllBtn = document.getElementById('poolFilterAllBtn');
+    const poolFilterSubsBtn = document.getElementById('poolFilterSubsBtn');
+    const poolChannelSelect = document.getElementById('poolChannelSelect');
+    const poolSortAzBtn = document.getElementById('poolSortAzBtn');
+    const poolSortSubBtn = document.getElementById('poolSortSubBtn');
+    const playerMetadataMap = new Map();
+    let currentPoolTab = 'all'; // 'all' | 'subs'
+    let currentPoolSortState = 'none'; // 'none' | 'az' | 'za' | 'sub'
+
     // 👑 Kaptan Sistemi DOM Elemanları
     const captainLimitMinusBtn = document.getElementById('captainLimitMinusBtn');
     const captainLimitPlusBtn = document.getElementById('captainLimitPlusBtn');
@@ -704,7 +714,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const matchModal = document.getElementById('matchModal');
     const matchWinnerName = document.getElementById('matchWinnerName');
-    const matchWinnerPlayers = document.getElementById('matchWinnerPlayers');
     const loserSelectGroup = document.getElementById('loserSelectGroup');
     const matchLoserSelect = document.getElementById('matchLoserSelect');
     const confirmMatchBtn = document.getElementById('confirmMatchBtn');
@@ -772,9 +781,127 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentDraftOrder = []; // [ { name, teamList, teamName, score, element } ]
     let currentDraftIndex = 0;
     let channelStats = {};
+    let globalCareerStats = {};
+    const processedMatchIds = new Set();
     let pendingMatch = null;
     let tournamentMatches = null;
-    let currentJoinCommand = localStorage.getItem('kick_strikers_join_cmd') || '!kingsc';
+    let currentJoinCommand = localStorage.getItem('kick_strikers_join_cmd');
+    if (!currentJoinCommand || currentJoinCommand === '!kingsc') {
+        currentJoinCommand = '!turnuvagiriş';
+        localStorage.setItem('kick_strikers_join_cmd', currentJoinCommand);
+    }
+
+    const bannedPlayers = new Set();
+    try {
+        const savedBans = JSON.parse(localStorage.getItem('kick_strikers_banned_players') || '[]');
+        if (Array.isArray(savedBans)) {
+            savedBans.forEach(b => {
+                if (b && typeof b === 'string') bannedPlayers.add(b.trim().toLowerCase());
+            });
+        }
+    } catch (e) {}
+
+    function saveBannedPlayers() {
+        try {
+            localStorage.setItem('kick_strikers_banned_players', JSON.stringify(Array.from(bannedPlayers)));
+        } catch (e) {}
+    }
+
+    function isPlayerBanned(name) {
+        if (!name) return false;
+        return bannedPlayers.has(name.trim().toLowerCase());
+    }
+
+    function removePlayerFromEverywhere(name) {
+        if (!name) return;
+        const lower = name.trim().toLowerCase();
+        const allItems = document.querySelectorAll('.player-item');
+        allItems.forEach(el => {
+            if ((el.dataset.name || '').trim().toLowerCase() === lower) {
+                el.remove();
+            }
+        });
+        updatePoolCount();
+        updateAllTeamCounts();
+        if (typeof syncToObs === 'function') syncToObs();
+    }
+
+    function isAuthorizedModerator(sender, channel) {
+        if (!sender) return false;
+        const uName = (sender.username || sender.slug || '').trim().toLowerCase();
+        if (!uName) return false;
+
+        // 1. Sistem kurucusu (MeH4n - case-insensitive)
+        if (uName === 'meh4n') return true;
+
+        // 2. Kanal sahibi yayıncı (broadcaster)
+        if (channel && uName === channel.trim().toLowerCase()) return true;
+
+        // 3. Kick resmi moderatör veya yayıncı rozeti
+        const badges = (sender.identity && Array.isArray(sender.identity.badges))
+            ? sender.identity.badges
+            : (Array.isArray(sender.badges) ? sender.badges : []);
+
+        for (const b of badges) {
+            if (!b) continue;
+            const bType = (typeof b === 'string' ? b : (b.type || b.text || '')).toLowerCase();
+            if (bType.includes('broadcaster') || bType.includes('moderator') || bType === 'mod') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    async function notifyHubBan(playerName, action = 'ban', by = 'MODERATOR') {
+        try {
+            const hubUrl = localStorage.getItem('kick_strikers_hub_url') || getApiBase();
+            await fetch(`${hubUrl}/api/hub/ban`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player: playerName, action: action, by: by })
+            });
+        } catch (e) {}
+    }
+
+    async function notifyHubResetPlayer(playerName, by = 'MODERATOR') {
+        try {
+            const hubUrl = localStorage.getItem('kick_strikers_hub_url') || getApiBase();
+            await fetch(`${hubUrl}/api/hub/reset?player=${encodeURIComponent(playerName)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player: playerName, by: by })
+            });
+        } catch (e) {}
+    }
+
+    async function fetchServerBans() {
+        try {
+            const hubUrl = localStorage.getItem('kick_strikers_hub_url') || getApiBase();
+            const res = await fetch(`${hubUrl}/api/hub/ban`, { cache: 'no-store' });
+            if (res.ok) {
+                const list = await res.json();
+                if (Array.isArray(list)) {
+                    let updated = false;
+                    list.forEach(p => {
+                        if (p && typeof p === 'string') {
+                            const l = p.trim().toLowerCase();
+                            if (!bannedPlayers.has(l)) {
+                                bannedPlayers.add(l);
+                                updated = true;
+                            }
+                        }
+                    });
+                    if (updated) {
+                        saveBannedPlayers();
+                        if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+                            renderLeaderboard();
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+    }
     let captainLimit = parseInt(localStorage.getItem('kick_captain_limit') || (gameModeSelect && gameModeSelect.value === 'tournament' ? '8' : '2'), 10);
     if (isNaN(captainLimit) || captainLimit < 1) captainLimit = 2;
     const captainSet = new Set();
@@ -841,25 +968,40 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addTestPlayersBtn) {
         addTestPlayersBtn.addEventListener('click', () => {
             playUiSfx('join');
-            const sampleNames = [
-                'wtcn', 'xqc', 'StrikerKing', 'ProGamer99', 'GamerGirl', 'NeonShadow', 'CyberKnight',
-                'FastFeet', 'GoalHunter', 'AlphaWolf', 'KickMaster', 'TurboPlayer',
-                'HyperStrike', 'ApexLegend', 'PixelHero', 'SpeedyGonzales', 'EagleEye'
+            const samplePlayers = [
+                { name: 'wtcn', channel: 'wtcn', isSub: true, subMonths: 12 },
+                { name: 'theonlyk1ng', channel: 'theonlyk1ng', isSub: true, subMonths: 24 },
+                { name: 'elraenn', channel: 'elraenn', isSub: true, subMonths: 18 },
+                { name: 'StrikerKing', channel: 'theonlyk1ng', isSub: true, subMonths: 6 },
+                { name: 'ProGamer99', channel: 'theonlyk1ng', isSub: true, subMonths: 3 },
+                { name: 'GamerGirl', channel: 'wtcn', isSub: true, subMonths: 5 },
+                { name: 'NeonShadow', channel: 'wtcn', isSub: false, subMonths: 0 },
+                { name: 'CyberKnight', channel: 'elraenn', isSub: false, subMonths: 0 },
+                { name: 'FastFeet', channel: 'theonlyk1ng', isSub: false, subMonths: 0 },
+                { name: 'GoalHunter', channel: 'Genel', isSub: false, subMonths: 0 },
+                { name: 'AlphaWolf', channel: 'wtcn', isSub: true, subMonths: 2 },
+                { name: 'KickMaster', channel: 'elraenn', isSub: true, subMonths: 8 },
+                { name: 'TurboPlayer', channel: 'theonlyk1ng', isSub: true, subMonths: 4 },
+                { name: 'ApexLegend', channel: 'elraenn', isSub: true, subMonths: 9 }
             ];
             let addedCount = 0;
-            // Rastgele 10 tanesini seç veya numara ekleyerek garantile
-            for (let i = 0; i < sampleNames.length && addedCount < 10; i++) {
-                const name = sampleNames[i];
-                if (addPlayerToPool(name)) {
+            for (let i = 0; i < samplePlayers.length && addedCount < 10; i++) {
+                const sample = samplePlayers[i];
+                const meta = {
+                    sourceChannel: sample.channel,
+                    isSub: sample.isSub,
+                    subMonths: sample.subMonths
+                };
+                if (addPlayerToPool(sample.name, null, meta)) {
                     addedCount++;
                 } else {
-                    const altName = `${name}_${Math.floor(Math.random() * 89 + 10)}`;
-                    if (addPlayerToPool(altName)) {
+                    const altName = `${sample.name}_${Math.floor(Math.random() * 89 + 10)}`;
+                    if (addPlayerToPool(altName, null, meta)) {
                         addedCount++;
                     }
                 }
             }
-            showToast(`🚀 ${addedCount} test izleyicisi havuza eklendi!`);
+            showToast(`🚀 ${addedCount} test izleyicisi havuza eklendi! (Aboneler & Kanallar Ayrıştırıldı)`);
         });
     }
 
@@ -1024,6 +1166,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 🔍 Havuz Hızlı Filtre Sekmeleri & Sıralama Dinleyicileri
+    if (poolFilterAllBtn) {
+        poolFilterAllBtn.addEventListener('click', () => {
+            currentPoolTab = 'all';
+            poolFilterAllBtn.classList.add('active');
+            if (poolFilterSubsBtn) poolFilterSubsBtn.classList.remove('active');
+            playUiSfx('click');
+            filterPlayerPool();
+        });
+    }
+    if (poolFilterSubsBtn) {
+        poolFilterSubsBtn.addEventListener('click', () => {
+            currentPoolTab = 'subs';
+            poolFilterSubsBtn.classList.add('active');
+            if (poolFilterAllBtn) poolFilterAllBtn.classList.remove('active');
+            playUiSfx('click');
+            filterPlayerPool();
+        });
+    }
+    if (poolChannelSelect) {
+        poolChannelSelect.addEventListener('change', () => {
+            playUiSfx('click');
+            filterPlayerPool();
+        });
+    }
+    if (poolSortAzBtn) {
+        poolSortAzBtn.addEventListener('click', () => {
+            sortPoolPlayers('az');
+        });
+    }
+    if (poolSortSubBtn) {
+        poolSortSubBtn.addEventListener('click', () => {
+            sortPoolPlayers('sub_desc');
+        });
+    }
+
     if (leaderboardBtn) leaderboardBtn.addEventListener('click', openLeaderboard);
     if (closeLeaderboardBtn) closeLeaderboardBtn.addEventListener('click', closeLeaderboard);
     if (closeLeaderboardFooterBtn) closeLeaderboardFooterBtn.addEventListener('click', closeLeaderboard);
@@ -1097,17 +1275,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // Katılım Komutu Yönetimi
     // =========================================================================
     function initJoinCommand() {
+        const drawerJoinCommandInput = document.getElementById('drawerJoinCommandInput');
+        const drawerSaveJoinCommandBtn = document.getElementById('drawerSaveJoinCommandBtn');
+
+        function updateCmd(val, notify = false) {
+            if (!val) return;
+            currentJoinCommand = val;
+            localStorage.setItem('kick_strikers_join_cmd', currentJoinCommand);
+            if (joinCommandInput && joinCommandInput.value !== currentJoinCommand) joinCommandInput.value = currentJoinCommand;
+            if (drawerJoinCommandInput && drawerJoinCommandInput.value !== currentJoinCommand) drawerJoinCommandInput.value = currentJoinCommand;
+            if (poolCommandDisplay) poolCommandDisplay.textContent = currentJoinCommand;
+            if (typeof syncToObs === 'function') syncToObs();
+            if (notify) showToast(`⚙️ Katılım komutu güncellendi: ${currentJoinCommand}`);
+        }
+
         if (joinCommandInput) {
             joinCommandInput.value = currentJoinCommand;
             joinCommandInput.addEventListener('input', () => {
-                const val = joinCommandInput.value.trim();
-                if (val) {
-                    currentJoinCommand = val;
-                    localStorage.setItem('kick_strikers_join_cmd', currentJoinCommand);
-                    if (poolCommandDisplay) poolCommandDisplay.textContent = currentJoinCommand;
+                updateCmd(joinCommandInput.value.trim());
+            });
+        }
+
+        if (drawerJoinCommandInput) {
+            drawerJoinCommandInput.value = currentJoinCommand;
+            drawerJoinCommandInput.addEventListener('input', () => {
+                updateCmd(drawerJoinCommandInput.value.trim());
+            });
+            drawerJoinCommandInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    updateCmd(drawerJoinCommandInput.value.trim(), true);
                 }
             });
         }
+
+        if (drawerSaveJoinCommandBtn) {
+            drawerSaveJoinCommandBtn.addEventListener('click', () => {
+                const val = drawerJoinCommandInput ? drawerJoinCommandInput.value.trim() : currentJoinCommand;
+                updateCmd(val, true);
+            });
+        }
+
         if (poolCommandDisplay) {
             poolCommandDisplay.textContent = currentJoinCommand;
         }
@@ -1255,8 +1462,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const sortable = new Sortable(teamList, {
                         group: 'shared',
-                        animation: 150,
+                        animation: 180,
                         ghostClass: 'sortable-ghost',
+                        chosenClass: 'sortable-chosen',
+                        dragClass: 'sortable-drag',
+                        onStart: (evt) => {
+                            document.body.classList.add('is-dragging-player');
+                            if (evt.item) evt.item.classList.add('is-dragging');
+                        },
+                        onEnd: (evt) => {
+                            document.body.classList.remove('is-dragging-player');
+                            if (evt.item) evt.item.classList.remove('is-dragging');
+                        },
                         onAdd: (evt) => handleSortableChange(evt, teamList, teamCount, teamBox),
                         onRemove: (evt) => handleSortableChange(evt, teamList, teamCount, teamBox)
                     });
@@ -1999,8 +2216,18 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const sortable = new Sortable(teamList, {
                     group: 'shared',
-                    animation: 150,
+                    animation: 180,
                     ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    dragClass: 'sortable-drag',
+                    onStart: (evt) => {
+                        document.body.classList.add('is-dragging-player');
+                        if (evt.item) evt.item.classList.add('is-dragging');
+                    },
+                    onEnd: (evt) => {
+                        document.body.classList.remove('is-dragging-player');
+                        if (evt.item) evt.item.classList.remove('is-dragging');
+                    },
                     onAdd: (evt) => handleSortableChange(evt, teamList, countBadge, slot),
                     onRemove: (evt) => handleSortableChange(evt, teamList, countBadge, slot)
                 });
@@ -2564,18 +2791,65 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Turnuva ağacı sıfırlandı ve oyuncular havuza aktarıldı.');
     }
 
+    // =========================================================================
+    // 🎯 SÜRÜKLE-BIRAK GERİ BİLDİRİMİ (MICRO-INTERACTIONS)
+    // =========================================================================
+    function triggerDropSuccessFeedback(element) {
+        if (!element) return;
+        element.classList.remove('drop-success-pop', 'drop-error-shake');
+        void element.offsetWidth; // re-flow
+        element.classList.add('drop-success-pop');
+
+        const existingCheck = element.querySelector('.drop-success-checkmark');
+        if (existingCheck) existingCheck.remove();
+
+        const checkBadge = document.createElement('span');
+        checkBadge.className = 'drop-success-checkmark';
+        checkBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+        element.appendChild(checkBadge);
+
+        setTimeout(() => {
+            if (checkBadge.parentNode) checkBadge.remove();
+            element.classList.remove('drop-success-pop');
+        }, 700);
+    }
+
+    function triggerDropErrorFeedback(element) {
+        if (!element) return;
+        element.classList.remove('drop-success-pop', 'drop-error-shake');
+        void element.offsetWidth;
+        element.classList.add('drop-error-shake');
+        playUiSfx('click');
+        setTimeout(() => {
+            element.classList.remove('drop-error-shake');
+        }, 700);
+    }
+
     function initPoolSortable() {
         if (typeof Sortable !== 'undefined' && playerPool) {
             try {
                 new Sortable(playerPool, {
                     group: 'shared',
-                    animation: 150,
+                    animation: 180,
                     ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    dragClass: 'sortable-drag',
                     scroll: true,
                     scrollSensitivity: 80,
                     scrollSpeed: 15,
                     bubbleScroll: true,
-                    onAdd: () => updatePoolCount(),
+                    onStart: (evt) => {
+                        document.body.classList.add('is-dragging-player');
+                        if (evt.item) evt.item.classList.add('is-dragging');
+                    },
+                    onEnd: (evt) => {
+                        document.body.classList.remove('is-dragging-player');
+                        if (evt.item) evt.item.classList.remove('is-dragging');
+                    },
+                    onAdd: (evt) => {
+                        updatePoolCount();
+                        triggerDropSuccessFeedback(evt.item);
+                    },
                     onRemove: () => updatePoolCount()
                 });
             } catch(e) {}
@@ -2594,11 +2868,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentCount > maxSize) {
             // Eğer kapasite aşıldıysa son ekleneni geri havuza gönder
             showToast(`Bir takım en fazla ${maxSize} kişi olabilir!`, true);
+            triggerDropErrorFeedback(evt.item);
             playerPool.appendChild(evt.item);
             if (countElement) {
                 countElement.textContent = isTournament ? `${listElement.children.length}/${maxSize}` : listElement.children.length;
             }
             updatePoolCount();
+        } else {
+            // Başarılı yerleşme micro-interaction geri bildirimi
+            triggerDropSuccessFeedback(evt.item);
         }
 
         if (boxElement) {
@@ -2621,13 +2899,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (collapsedBadge && poolCount) {
             collapsedBadge.textContent = poolCount.textContent;
         }
-        // Eğer havuzda bir arama sorgusu aktifse sonuçları filtrele ve güncelle
-        if (poolSearchInput && poolSearchInput.value.trim()) {
-            filterPlayerPool(poolSearchInput.value);
-        } else if (poolSearchCount) {
-            poolSearchCount.classList.add('hidden');
-            if (poolNoMatch) poolNoMatch.classList.add('hidden');
-        }
+        // Eğer havuzda bir arama sorgusu veya filtre aktifse sonuçları güncelle
+        filterPlayerPool();
+
         if (typeof updateCaptainDisplay === 'function') {
             updateCaptainDisplay();
         }
@@ -2640,7 +2914,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // 🔍 İZLEYİCİ HAVUZU İSİMDEN ARAMA VE FİLTRELEME SİSTEMİ
+    // 🔍 İZLEYİCİ HAVUZU İSİMDEN ARAMA VE ÇOKLU KANAL / ABONE FİLTRELEME SİSTEMİ
     // =========================================================================
     function normalizeSearchText(str) {
         if (!str) return '';
@@ -2655,29 +2929,27 @@ document.addEventListener('DOMContentLoaded', () => {
             .trim();
     }
 
-    function filterPlayerPool(query) {
+    function filterPlayerPool(query = null) {
         if (!playerPool) return;
-        const cleanQuery = normalizeSearchText(query);
+        const q = (query !== null ? query : (poolSearchInput ? poolSearchInput.value : '')).trim();
+        const cleanQuery = normalizeSearchText(q);
+        const selectedChannel = poolChannelSelect ? poolChannelSelect.value : 'all';
         const playerItems = Array.from(playerPool.querySelectorAll('.player-item'));
         const totalCount = playerItems.length;
-
-        if (!cleanQuery) {
-            playerItems.forEach(item => {
-                item.style.display = '';
-            });
-            if (clearPoolSearchBtn) clearPoolSearchBtn.classList.add('hidden');
-            if (poolSearchCount) poolSearchCount.classList.add('hidden');
-            if (poolNoMatch) poolNoMatch.classList.add('hidden');
-            return;
-        }
-
-        if (clearPoolSearchBtn) clearPoolSearchBtn.classList.remove('hidden');
 
         let matchCount = 0;
         playerItems.forEach(item => {
             const name = item.dataset.name || '';
             const normalizedName = normalizeSearchText(name);
-            const matches = normalizedName.includes(cleanQuery);
+            const nameMatches = !cleanQuery || normalizedName.includes(cleanQuery);
+
+            const isSub = item.dataset.isSub === 'true';
+            const tabMatches = (currentPoolTab === 'all') || (currentPoolTab === 'subs' && isSub);
+
+            const pChannel = (item.dataset.sourceChannel || '').toLowerCase();
+            const channelMatches = (selectedChannel === 'all') || (pChannel === selectedChannel.toLowerCase());
+
+            const matches = nameMatches && tabMatches && channelMatches;
             if (matches) {
                 item.style.display = '';
                 matchCount++;
@@ -2686,9 +2958,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        if (clearPoolSearchBtn) {
+            if (cleanQuery) clearPoolSearchBtn.classList.remove('hidden');
+            else clearPoolSearchBtn.classList.add('hidden');
+        }
+
         if (poolSearchCount) {
-            poolSearchCount.textContent = `${matchCount} / ${totalCount}`;
-            poolSearchCount.classList.remove('hidden');
+            if (cleanQuery || currentPoolTab !== 'all' || selectedChannel !== 'all') {
+                poolSearchCount.textContent = `${matchCount} / ${totalCount}`;
+                poolSearchCount.classList.remove('hidden');
+            } else {
+                poolSearchCount.classList.add('hidden');
+            }
         }
 
         if (poolNoMatch) {
@@ -2697,6 +2978,68 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 poolNoMatch.classList.add('hidden');
             }
+        }
+    }
+
+    function sortPoolPlayers(sortType) {
+        if (!playerPool) return;
+        const items = Array.from(playerPool.querySelectorAll('.player-item'));
+        if (items.length < 2) return;
+
+        if (sortType === 'az') {
+            if (currentPoolSortState === 'az') {
+                currentPoolSortState = 'za';
+                items.sort((a, b) => (b.dataset.name || '').localeCompare(a.dataset.name || '', 'tr', { sensitivity: 'base' }));
+                if (poolSortAzBtn) poolSortAzBtn.innerHTML = '<i class="fa-solid fa-arrow-up-z-a"></i>';
+            } else {
+                currentPoolSortState = 'az';
+                items.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || '', 'tr', { sensitivity: 'base' }));
+                if (poolSortAzBtn) poolSortAzBtn.innerHTML = '<i class="fa-solid fa-arrow-down-a-z"></i>';
+            }
+            if (poolSortAzBtn) poolSortAzBtn.classList.add('active');
+            if (poolSortSubBtn) poolSortSubBtn.classList.remove('active');
+        } else if (sortType === 'sub_desc') {
+            currentPoolSortState = 'sub';
+            items.sort((a, b) => {
+                const subA = a.dataset.isSub === 'true' ? (Number(a.dataset.subMonths) || 1) : -1;
+                const subB = b.dataset.isSub === 'true' ? (Number(b.dataset.subMonths) || 1) : -1;
+                if (subB !== subA) return subB - subA;
+                return (a.dataset.name || '').localeCompare(b.dataset.name || '', 'tr', { sensitivity: 'base' });
+            });
+            if (poolSortSubBtn) poolSortSubBtn.classList.add('active');
+            if (poolSortAzBtn) poolSortAzBtn.classList.remove('active');
+        }
+
+        items.forEach(el => playerPool.appendChild(el));
+        playUiSfx('click');
+    }
+
+    function updatePoolChannelFilterOptions() {
+        if (!poolChannelSelect) return;
+        const channels = new Set();
+        if (typeof activeChannels !== 'undefined' && activeChannels && activeChannels.size > 0) {
+            activeChannels.forEach(c => channels.add(c.channel));
+        }
+        if (typeof currentChannel !== 'undefined' && currentChannel && currentChannel.toLowerCase() !== 'genel') {
+            channels.add(currentChannel);
+        }
+        const poolItems = document.querySelectorAll('#playerPool .player-item');
+        poolItems.forEach(item => {
+            if (item.dataset.sourceChannel && item.dataset.sourceChannel.toLowerCase() !== 'genel') {
+                channels.add(item.dataset.sourceChannel);
+            }
+        });
+
+        const currentVal = poolChannelSelect.value;
+        poolChannelSelect.innerHTML = '<option value="all">Tüm Kanallar</option>';
+        channels.forEach(ch => {
+            const opt = document.createElement('option');
+            opt.value = ch;
+            opt.textContent = `${ch}`;
+            poolChannelSelect.appendChild(opt);
+        });
+        if (Array.from(channels).includes(currentVal)) {
+            poolChannelSelect.value = currentVal;
         }
     }
 
@@ -2832,6 +3175,54 @@ document.addEventListener('DOMContentLoaded', () => {
         return { title: 'Bronz', icon: 'fa-solid fa-shield', className: 'rank-bronze' };
     }
 
+    function loadGlobalCareerStats() {
+        try {
+            const localSaved = localStorage.getItem('kick_strikers_global_career');
+            if (localSaved) {
+                globalCareerStats = JSON.parse(localSaved);
+            }
+        } catch (e) {
+            globalCareerStats = {};
+        }
+
+        // Sunucudan Ortak Espor Ligi genel havuzunu sorgula (Cross-Streamer Career Pool)
+        fetch(`${getApiBase()}/api/hub/career`).then(r => r.json()).then(remoteData => {
+            if (remoteData && typeof remoteData === 'object') {
+                const careers = (remoteData.stats || (remoteData.success ? null : remoteData)) || remoteData;
+                if (typeof careers === 'object') {
+                    Object.keys(careers).forEach(k => {
+                        const c = careers[k];
+                        if (c && typeof c === 'object') {
+                            if (!globalCareerStats[k]) {
+                                globalCareerStats[k] = c;
+                            } else {
+                                const serverTotal = (Number(c.wins) || 0) + (Number(c.losses) || 0);
+                                const localTotal = (Number(globalCareerStats[k].wins) || 0) + (Number(globalCareerStats[k].losses) || 0);
+                                globalCareerStats[k].wins = Math.max(Number(globalCareerStats[k].wins) || 0, Number(c.wins) || 0);
+                                globalCareerStats[k].losses = Math.max(Number(globalCareerStats[k].losses) || 0, Number(c.losses) || 0);
+                                globalCareerStats[k].goals = Math.max(Number(globalCareerStats[k].goals) || 0, Number(c.goals) || 0);
+                                globalCareerStats[k].assists = Math.max(Number(globalCareerStats[k].assists) || 0, Number(c.assists) || 0);
+                                globalCareerStats[k].saves = Math.max(Number(globalCareerStats[k].saves) || 0, Number(c.saves) || 0);
+                                globalCareerStats[k].mvpCount = Math.max(Number(globalCareerStats[k].mvpCount) || 0, Number(c.mvpCount) || 0);
+                                // Sunucu verisi daha güncel veya eşitse sıfırlanmış yenilgi serisini (streak = 0) koru
+                                if (serverTotal >= localTotal) {
+                                    globalCareerStats[k].streak = Number(c.streak) || 0;
+                                } else {
+                                    globalCareerStats[k].streak = Math.max(Number(globalCareerStats[k].streak) || 0, Number(c.streak) || 0);
+                                }
+                                if (c.displayName) globalCareerStats[k].displayName = c.displayName;
+                            }
+                        }
+                    });
+                    try {
+                        localStorage.setItem('kick_strikers_global_career', JSON.stringify(globalCareerStats));
+                    } catch (e) {}
+                    refreshAllPlayerElements();
+                }
+            }
+        }).catch(() => {});
+    }
+
     function initChannelStorage() {
         const savedChannel = localStorage.getItem('kick_strikers_last_channel');
         if (savedChannel) {
@@ -2840,6 +3231,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             loadChannelStats('genel');
         }
+
+        // Ortak Espor Ligi Kariyer Havuzunu Yukle
+        loadGlobalCareerStats();
 
         // Otomatik eski sürüm veri algılama ve tarama motoru
         autoMigrateLegacyData();
@@ -2995,7 +3389,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 exportDate: new Date().toISOString(),
                 activeChannel: currentChannel,
                 lastChannel: localStorage.getItem('kick_strikers_last_channel') || 'genel',
-                joinCommand: localStorage.getItem('kick_strikers_join_cmd') || '!kingsc',
+                joinCommand: localStorage.getItem('kick_strikers_join_cmd') || '!turnuvagiriş',
+                bannedPlayers: Array.from(bannedPlayers),
                 channels: {}
             };
 
@@ -3127,6 +3522,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         currentJoinCommand = parsed.joinCommand;
                         localStorage.setItem('kick_strikers_join_cmd', currentJoinCommand);
                         if (joinCommandInput) joinCommandInput.value = currentJoinCommand;
+                        const drawerJoinCommandInput = document.getElementById('drawerJoinCommandInput');
+                        if (drawerJoinCommandInput) drawerJoinCommandInput.value = currentJoinCommand;
+                        if (poolCommandDisplay) poolCommandDisplay.textContent = currentJoinCommand;
+                    }
+
+                    if (Array.isArray(parsed.bannedPlayers)) {
+                        parsed.bannedPlayers.forEach(p => {
+                            if (p && typeof p === 'string') bannedPlayers.add(p.trim().toLowerCase());
+                        });
+                        saveBannedPlayers();
                     }
                 }
                 // 2. Durum: Eski sürüm veya ham veri (Array veya Object)
@@ -3157,19 +3562,30 @@ document.addEventListener('DOMContentLoaded', () => {
             currentChannelNameDisplay.textContent = currentChannel.toUpperCase();
         }
 
-        // 'theonlyk1ng' Özel Kraliyet Teması ve Arka Planı
-        if (currentChannel.toLowerCase() === 'theonlyk1ng') {
-            document.body.classList.add('theme-theonlyk1ng');
-            fetch(`/api/kick/channel?name=theonlyk1ng`).then(r => r.json()).then(data => {
-                if (data && data.success && data.banner) {
-                    document.body.style.setProperty('--theonlyk1ng-banner-url', `url('${data.banner}')`);
-                    document.body.classList.add('has-custom-banner');
+        // Sol alt köşe yayıncı profil kartı güncellemesi (Arka plan her zaman bg.jpg kalır)
+        const streamerCard = document.getElementById('streamerProfileCard');
+        const streamerTitle = document.getElementById('streamerChannelTitle');
+        const streamerAvatar = document.getElementById('streamerAvatarImg');
+
+        if (currentChannel.toLowerCase() === 'theonlyk1ng' || (currentChannel && currentChannel.toLowerCase() !== 'global' && currentChannel.trim() !== '')) {
+            if (currentChannel.toLowerCase() === 'theonlyk1ng') {
+                document.body.classList.add('theme-theonlyk1ng');
+            } else {
+                document.body.classList.remove('theme-theonlyk1ng');
+            }
+            if (streamerCard) {
+                streamerCard.classList.remove('hidden');
+                if (streamerTitle) streamerTitle.textContent = currentChannel;
+                // Avatar yükleme
+                if (typeof fetchUserAvatar === 'function') {
+                    fetchUserAvatar(currentChannel).then(avUrl => {
+                        if (avUrl && streamerAvatar) streamerAvatar.src = avUrl;
+                    }).catch(() => {});
                 }
-            }).catch(() => {});
+            }
         } else {
             document.body.classList.remove('theme-theonlyk1ng');
-            document.body.classList.remove('has-custom-banner');
-            document.body.style.removeProperty('--theonlyk1ng-banner-url');
+            if (streamerCard) streamerCard.classList.add('hidden');
         }
 
         try {
@@ -3257,16 +3673,50 @@ document.addEventListener('DOMContentLoaded', () => {
     function getPlayerStats(name) {
         const key = name.trim().toLowerCase();
         if (!channelStats[key]) {
-            channelStats[key] = {
-                wins: 0,
-                losses: 0,
-                goals: 0,
-                assists: 0,
-                saves: 0,
-                streak: 0,
-                mvpCount: 0,
-                displayName: name.trim()
-            };
+            // Ortak Espor Ligi Otomatik Kariyer Tanıma:
+            // Başka bir yayında oynayan oyuncunun kariyeri (gol, asist, mvp, maçlar), burada da otomatik tanınır
+            if (globalCareerStats && globalCareerStats[key]) {
+                const g = globalCareerStats[key];
+                channelStats[key] = {
+                    wins: Number(g.wins) || 0,
+                    losses: Number(g.losses) || 0,
+                    goals: Number(g.goals) || 0,
+                    assists: Number(g.assists) || 0,
+                    saves: Number(g.saves) || 0,
+                    streak: Number(g.streak) || 0,
+                    mvpCount: Number(g.mvpCount) || 0,
+                    displayName: g.displayName || name.trim()
+                };
+            } else {
+                channelStats[key] = {
+                    wins: 0,
+                    losses: 0,
+                    goals: 0,
+                    assists: 0,
+                    saves: 0,
+                    streak: 0,
+                    mvpCount: 0,
+                    displayName: name.trim()
+                };
+            }
+        } else {
+            // Eğer bu yayında 0 maç kaydı var ama lig kariyerinde maçlar/goller varsa kariyeri devral
+            const curStat = channelStats[key];
+            const curTotal = (Number(curStat.wins) || 0) + (Number(curStat.losses) || 0) + (Number(curStat.goals) || 0);
+            if (curTotal === 0 && globalCareerStats && globalCareerStats[key]) {
+                const g = globalCareerStats[key];
+                const gTotal = (Number(g.wins) || 0) + (Number(g.losses) || 0) + (Number(g.goals) || 0);
+                if (gTotal > 0) {
+                    channelStats[key].wins = Number(g.wins) || 0;
+                    channelStats[key].losses = Number(g.losses) || 0;
+                    channelStats[key].goals = Number(g.goals) || 0;
+                    channelStats[key].assists = Number(g.assists) || 0;
+                    channelStats[key].saves = Number(g.saves) || 0;
+                    channelStats[key].streak = Number(g.streak) || 0;
+                    channelStats[key].mvpCount = Number(g.mvpCount) || 0;
+                    if (g.displayName) channelStats[key].displayName = g.displayName;
+                }
+            }
         }
         const stat = channelStats[key];
         const wins = Number(stat.wins) || 0;
@@ -3482,7 +3932,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     }
 
-    function handleCaptainCommand(username, avatarUrl = null) {
+    function handleCaptainCommand(username, avatarUrl = null, metadata = null) {
         if (!username || !username.trim()) return;
         const cleanName = username.trim();
         const existingEl = findPlayerElementInSystem(cleanName);
@@ -3503,13 +3953,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             if (getCaptainsCount() >= captainLimit) {
                 showToast(`⚠️ Kaptanlık kontenjanı dolu (${captainLimit}/${captainLimit})! ${cleanName} normal izleyici olarak eklendi.`, true);
-                addPlayerToPool(cleanName, avatarUrl);
+                addPlayerToPool(cleanName, avatarUrl, metadata);
                 return;
             }
 
             captainSet.add(cleanName.toLowerCase());
             saveCaptainsState();
-            addPlayerToPool(cleanName, avatarUrl);
+            addPlayerToPool(cleanName, avatarUrl, metadata);
             updateCaptainDisplay();
             showToast(`👑 ${cleanName} Takım Kaptanı olarak havuza katıldı! (${getCaptainsCount()}/${captainLimit})`);
         }
@@ -4290,7 +4740,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function createPlayerElement(name, avatarUrl = null) {
+    function createPlayerElement(name, avatarUrl = null, metadata = null) {
         const li = document.createElement('li');
         li.className = 'player-item';
         li.dataset.name = name;
@@ -4304,6 +4754,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isPlayerCap) {
             li.classList.add('is-captain');
             li.dataset.isCaptain = "true";
+        }
+
+        const cleanNameLower = name.trim().toLowerCase();
+        const meta = metadata || playerMetadataMap.get(cleanNameLower) || {};
+
+        if (meta.sourceChannel) {
+            li.dataset.sourceChannel = meta.sourceChannel;
+        }
+        if (meta.isSub) {
+            li.dataset.isSub = "true";
+            li.dataset.subMonths = meta.subMonths || 1;
+        } else {
+            li.dataset.isSub = "false";
+            li.dataset.subMonths = "0";
         }
         
         // Avatar dairesi (profil fotoğrafı veya renkli baş harf yedeği)
@@ -4335,7 +4799,6 @@ document.addEventListener('DOMContentLoaded', () => {
         infoWrap.appendChild(nameSpan);
         infoWrap.appendChild(rankChip);
 
-        const cleanNameLower = name.trim().toLowerCase();
         if (playerRoles.has(cleanNameLower)) {
             const savedRole = playerRoles.get(cleanNameLower);
             li.dataset.role = savedRole;
@@ -4364,6 +4827,23 @@ document.addEventListener('DOMContentLoaded', () => {
             captainBadge.className = 'player-captain-badge';
             captainBadge.innerHTML = '<i class="fa-solid fa-crown"></i> KAPTAN';
             infoWrap.appendChild(captainBadge);
+        }
+
+        // ⭐ Kanal Abonelik Rozeti (Multi-Channel Subscription Badge)
+        if (meta.isSub) {
+            const subBadge = document.createElement('span');
+            subBadge.className = 'player-sub-badge';
+            const channelLabel = meta.sourceChannel || (typeof currentChannel !== 'undefined' && currentChannel ? currentChannel : 'Kick');
+            const monthText = meta.subMonths ? ` [${meta.subMonths}. Ay]` : '';
+            subBadge.innerHTML = `<i class="fa-solid fa-star"></i> ${channelLabel} Abonesi${monthText}`;
+            subBadge.title = `${channelLabel} Kanal Abonesi (${meta.subMonths || 1}. Ay)`;
+            infoWrap.appendChild(subBadge);
+        } else if (meta.sourceChannel && meta.sourceChannel.toLowerCase() !== 'genel') {
+            const chBadge = document.createElement('span');
+            chBadge.className = 'player-channel-badge';
+            chBadge.innerHTML = `<i class="fa-brands fa-kickstarter"></i> ${meta.sourceChannel}`;
+            chBadge.title = `Bağlı Kanal: ${meta.sourceChannel}`;
+            infoWrap.appendChild(chBadge);
         }
 
         // Butonlar / Eylemler Kapsayıcısı
@@ -4491,9 +4971,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return inTeams;
     }
 
-    function addPlayerToPool(name, avatarUrl = null) {
+    function addPlayerToPool(name, avatarUrl = null, metadata = null) {
         if (!name || !name.trim()) return false;
         const cleanName = name.trim();
+        const pKey = cleanName.toLowerCase();
+
+        if (isPlayerBanned(pKey)) {
+            console.warn(`[Ban Koruması] ${cleanName} banlı olduğu için turnuvaya eklenemez.`);
+            return false;
+        }
 
         if (isPlayerInSystem(cleanName)) return false;
 
@@ -4501,13 +4987,27 @@ document.addEventListener('DOMContentLoaded', () => {
             setCachedAvatar(cleanName, avatarUrl);
         }
 
+        if (metadata) {
+            playerMetadataMap.set(pKey, metadata);
+        }
+
+        const hadCareer = globalCareerStats && globalCareerStats[pKey] && 
+            ((Number(globalCareerStats[pKey].wins) || 0) + (Number(globalCareerStats[pKey].losses) || 0) + (Number(globalCareerStats[pKey].goals) || 0) > 0);
+        const wasNewInChannel = !channelStats[pKey];
+
         // Oyuncu kaydını garanti et ve kaydet
         getPlayerStats(cleanName);
         saveChannelStats();
 
-        const playerEl = createPlayerElement(cleanName, avatarUrl);
+        if (hadCareer && wasNewInChannel) {
+            const g = globalCareerStats[pKey];
+            showToast(`🌟 ${cleanName} Ortak Espor Ligi kariyeri tanındı: ${g.goals || 0} Gol, ${g.wins || 0} Galibiyet!`, false);
+        }
+
+        const playerEl = createPlayerElement(cleanName, avatarUrl, metadata);
         playerPool.appendChild(playerEl);
         updatePoolCount();
+        updatePoolChannelFilterOptions();
         playUiSfx('join');
         if (typeof obsSyncChannel !== 'undefined') obsSyncChannel.postMessage({ type: 'new_player', name: cleanName });
         setTimeout(() => {
@@ -4779,6 +5279,46 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Atomik Maç Sonuç Paketi (Tüm skorlar, goller, asistler, MVP tek pakette)
+        const atomicMatchPacket = {
+            matchId: 'match_' + Date.now(),
+            timestamp: Date.now(),
+            streamer: currentChannel || 'Yayıncı',
+            channel: currentChannel || 'genel',
+            winnerTitle: pendingMatch.winnerTitle,
+            winnerPlayers: pendingMatch.winnerPlayers,
+            loserTitle: loserTitle,
+            loserPlayers: loserPlayers,
+            mvp: matchMvpName ? { name: matchMvpName, score: highestMvpScore } : null,
+            playerUpdates: playerUpdates,
+            scores: (typeof liveMatchScores !== 'undefined') ? Object.assign({}, liveMatchScores) : {}
+        };
+
+        // Global Ortak Espor Ligi kariyerini de anında atomik olarak güncelle
+        playerUpdates.forEach(pu => {
+            const k = pu.name.trim().toLowerCase();
+            if (!globalCareerStats[k]) {
+                globalCareerStats[k] = { wins: 0, losses: 0, goals: 0, assists: 0, saves: 0, streak: 0, mvpCount: 0, displayName: pu.name.trim() };
+            }
+            globalCareerStats[k].goals = (globalCareerStats[k].goals || 0) + (pu.goals || 0);
+            globalCareerStats[k].assists = (globalCareerStats[k].assists || 0) + (pu.assists || 0);
+            globalCareerStats[k].saves = (globalCareerStats[k].saves || 0) + (pu.saves || 0);
+            if (pu.win) {
+                globalCareerStats[k].wins = (globalCareerStats[k].wins || 0) + 1;
+                globalCareerStats[k].streak = (globalCareerStats[k].streak || 0) + 1;
+            } else {
+                globalCareerStats[k].losses = (globalCareerStats[k].losses || 0) + 1;
+                globalCareerStats[k].streak = 0;
+            }
+            if (pu.isMvp) {
+                globalCareerStats[k].mvpCount = (globalCareerStats[k].mvpCount || 0) + 1;
+            }
+            globalCareerStats[k].displayName = pu.name.trim();
+        });
+        try {
+            localStorage.setItem('kick_strikers_global_career', JSON.stringify(globalCareerStats));
+        } catch(e) {}
+
         // Canlı skor panelini temizle
         if (typeof liveMatchScores !== 'undefined') {
             liveMatchScores = {};
@@ -4789,21 +5329,43 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshAllPlayerElements();
         renderLeaderboard();
 
-        // Hub'a ilet
-        if (typeof HubClient !== 'undefined' && HubClient.isConnected) {
-            HubClient.submitMatchResult({
-                streamer: currentChannel || 'Yayıncı',
-                channel: currentChannel || 'genel',
-                winnerTitle: pendingMatch.winnerTitle,
-                winnerPlayers: pendingMatch.winnerPlayers,
-                loserTitle: loserTitle,
-                loserPlayers: loserPlayers,
-                playerUpdates: playerUpdates
+        // Hub'a ilet (Merkeze tek atomik paket iletimi)
+        if (atomicMatchPacket.matchId) {
+            processedMatchIds.add(atomicMatchPacket.matchId);
+        }
+        if (typeof HubClient !== 'undefined') {
+            HubClient.submitMatchResult(atomicMatchPacket);
+        } else {
+            fetch(`${getApiBase()}/api/hub/match-result`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(atomicMatchPacket)
+            }).catch(() => {});
+        }
+
+        // OBS Overlay ve Canlı Ekran Tek Tuşa Basmadan Otomatik Yenileme (Live Auto-Refresh)
+        if (typeof obsSyncChannel !== 'undefined') {
+            const tc = document.getElementById('teamsContainer');
+            if (tc) {
+                obsSyncChannel.postMessage({ type: 'sync_html', html: tc.innerHTML, modeClass: tc.className });
+            }
+            obsSyncChannel.postMessage({
+                type: 'match_completed',
+                winner: pendingMatch.winnerTitle,
+                streamer: currentChannel,
+                mvp: matchMvpName
             });
+            obsSyncChannel.postMessage({
+                type: 'update_pool_count',
+                count: document.querySelectorAll('#playerPool .player-item').length
+            });
+        }
+        if (typeof syncToObs === 'function') {
+            syncToObs();
         }
 
         matchModal.classList.add('hidden');
-        showToast(`🏆 ${pendingMatch.winnerTitle} kazandı! +1W ve +1L istatistiklere işlendi.`);
+        showToast(`🏆 ${pendingMatch.winnerTitle} kazandı! Canlı ekran ve OBS Overlay otomatik yenilendi.`);
         pendingMatch = null;
     }
 
@@ -4907,10 +5469,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const streakHtml = pStreak >= 3 ? ` <span class="win-streak-badge" title="${pStreak} Maçlık Galibiyet Serisi!"><i class="fa-solid fa-fire live-flame"></i> ${pStreak}W</span>` : '';
             const mvpHtml = pMvp > 0 ? ` <span class="mvp-crown-badge" title="${pMvp} Kez Maçın MVP'si!"><i class="fa-solid fa-crown" style="color:#ffd700;"></i> MVP x${pMvp}</span>` : '';
             const devHtml = pKey === 'meh4n' ? ` <span class="role-dev" title="Sistem Geliştiricisi"><i class="fa-solid fa-code"></i> DEV</span>` : '';
+            const isBanned = isPlayerBanned(pKey);
+            const bannedHtml = isBanned ? ` <span class="banned-badge" title="Turnuvalardan Men Edildi (Banned)" style="background:#ff2b2b; color:#fff; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:800; margin-left:5px; text-shadow:none; display:inline-flex; align-items:center; gap:3px;"><i class="fa-solid fa-ban"></i> BANNED</span>` : '';
 
             tr.innerHTML = `
                 <td class="th-rank">${posHtml}</td>
-                <td class="player-col">${player.name}${golKraliHtml}${streakHtml}${mvpHtml}${devHtml} ${getTournamentBadgeHtml(channelStats[pKey])}</td>
+                <td class="player-col">${player.name}${bannedHtml}${golKraliHtml}${streakHtml}${mvpHtml}${devHtml} ${getTournamentBadgeHtml(channelStats[pKey])}</td>
                 <td>
                     <span class="player-rank-chip ${player.rank.className}">
                         <i class="${player.rank.icon}"></i> ${player.rank.title}
@@ -4952,6 +5516,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function addManualPlayer() {
         const name = manualNameInput.value.trim();
         if (name) {
+            if (isPlayerBanned(name)) {
+                showToast(`🚫 ${name} turnuvalardan men edilmiştir (Banned)!`, true);
+                return;
+            }
             if (addPlayerToPool(name)) {
                 manualNameInput.value = '';
                 // Arka planda Kick profil fotoğrafını getirmeyi dene
@@ -5337,8 +5905,8 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = '';
             container.classList.add('hidden');
             if (connectionStatus) {
-                connectionStatus.innerHTML = '<i class="fa-solid fa-circle"></i> <span>Bağlı Değil</span>';
-                connectionStatus.className = 'status disconnected';
+                connectionStatus.innerHTML = '<span class="status-indicator"></span><i class="fa-solid fa-tower-broadcast status-icon"></i><span class="status-label">Bağlı Değil</span>';
+                connectionStatus.className = 'status status-badge disconnected';
             }
             return;
         }
@@ -5366,13 +5934,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (connectionStatus) {
             const count = activeChannels.size;
+            let label = '';
             if (count === 1) {
                 const first = Array.from(activeChannels.values())[0];
-                connectionStatus.innerHTML = `<i class="fa-solid fa-circle"></i> <span>${first.channel} (Canlı)</span>`;
+                label = `${first.channel} (Canlı)`;
             } else {
-                connectionStatus.innerHTML = `<i class="fa-solid fa-circle"></i> <span>${count} Yayıncı Canlı</span>`;
+                label = `${count} Yayıncı Canlı`;
             }
-            connectionStatus.className = 'status connected';
+            connectionStatus.innerHTML = `<span class="status-indicator live-pulse"></span><i class="fa-solid fa-tower-broadcast status-icon"></i><span class="status-label">${label}</span>`;
+            connectionStatus.className = 'status status-badge connected';
         }
     }
 
@@ -5398,8 +5968,8 @@ document.addEventListener('DOMContentLoaded', () => {
         connectBtn.disabled = true;
         connectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Bağlanıyor...';
         if (connectionStatus && activeChannels.size === 0) {
-            connectionStatus.textContent = 'Aranıyor...';
-            connectionStatus.className = 'status disconnected';
+            connectionStatus.innerHTML = '<span class="status-indicator"></span><i class="fa-solid fa-satellite-dish fa-spin status-icon"></i><span class="status-label">Bağlanıyor...</span>';
+            connectionStatus.className = 'status status-badge disconnected';
         }
 
         let connectedCount = 0;
@@ -5467,6 +6037,39 @@ document.addEventListener('DOMContentLoaded', () => {
             setCachedAvatar(username, pusherAvatar);
         }
 
+        // 🛡️ Rozetler ve Abonelik Ayrıştırma (Multi-Channel Subscription Detection)
+        const badges = (sender.identity && Array.isArray(sender.identity.badges))
+            ? sender.identity.badges
+            : (Array.isArray(sender.badges) ? sender.badges : []);
+
+        let isSub = false;
+        let subMonths = 0;
+        let isMod = false;
+        let isVip = false;
+        let isFounder = false;
+
+        badges.forEach(b => {
+            const type = (b.type || '').toLowerCase();
+            if (type === 'subscriber' || type === 'founder' || type === 'sub_gifter') {
+                isSub = true;
+                const count = Number(b.count) || Number(b.months) || 1;
+                if (count > subMonths) subMonths = count;
+            }
+            if (type === 'moderator') isMod = true;
+            if (type === 'vip') isVip = true;
+            if (type === 'founder') isFounder = true;
+        });
+
+        const activeChannelName = (sourceChannel || (typeof currentChannel !== 'undefined' && currentChannel ? currentChannel : 'Genel')).trim();
+        const playerMeta = {
+            sourceChannel: activeChannelName,
+            isSub: isSub,
+            subMonths: subMonths,
+            isMod: isMod,
+            isVip: isVip,
+            isFounder: isFounder
+        };
+
         // Mesaj içeriğini tespit et (Kick Pusher content veya message alanı)
         const rawContent = (msgData.content || msgData.message || msgData.text || '').trim();
         if (!rawContent) return;
@@ -5475,9 +6078,90 @@ document.addEventListener('DOMContentLoaded', () => {
         const turkishNormContent = rawContent.replace(/ı/g, 'i').replace(/İ/g, 'i').toLowerCase();
         const firstToken = turkishNormContent.split(/\s+/)[0];
 
-        // 👑 1. Kaptanlık Komutu Kontrolü (!kingkaptan / !KİngKAPTAN / !kingcaptain)
-        if (firstToken === '!kingkaptan' || firstToken === '!kingcaptain') {
-            handleCaptainCommand(username, pusherAvatar);
+        // 🛡️ 0. MODERATÖR BAN & SIFIRLAMA SİSTEMİ (!ban, !unban, !sıfırla / !sifirla, !reset)
+        if (firstToken === '!ban' || firstToken === '!unban' || firstToken === '!sifirla' || firstToken === '!reset') {
+            if (isAuthorizedModerator(sender, currentChannel)) {
+                let targetUser = '';
+                const rawTokens = rawContent.split(/\s+/);
+                if (rawTokens.length > 1) {
+                    targetUser = rawTokens[1].replace(/^@/, '').trim();
+                }
+
+                if (!targetUser) {
+                    showToast(`⚠️ Kullanıcı adı belirtilmedi: ${firstToken} [kullanıcı]`, true);
+                    return;
+                }
+
+                const targetKey = targetUser.toLowerCase();
+
+                if (firstToken === '!ban') {
+                    if (targetKey === 'meh4n') {
+                        showToast('🛡️ MeH4n sistem kurucusudur, banlanamaz!', true);
+                        return;
+                    }
+                    bannedPlayers.add(targetKey);
+                    saveBannedPlayers();
+                    removePlayerFromEverywhere(targetUser);
+                    notifyHubBan(targetUser, 'ban', username);
+                    showToast(`🚫 ${targetUser} turnuvalardan men edildi (Banned)!`, true);
+                    playUiSfx('click');
+                    if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+                        renderLeaderboard();
+                    }
+                } else if (firstToken === '!unban') {
+                    bannedPlayers.delete(targetKey);
+                    saveBannedPlayers();
+                    notifyHubBan(targetUser, 'unban', username);
+                    showToast(`✅ ${targetUser} banı kaldırıldı!`, false);
+                    playUiSfx('click');
+                    if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+                        renderLeaderboard();
+                    }
+                } else if (firstToken === '!sifirla' || firstToken === '!reset') {
+                    if (targetKey === 'meh4n') {
+                        showToast('🛡️ MeH4n sistem kurucusudur, istatistikleri sıfırlanamaz!', true);
+                        return;
+                    }
+                    if (channelStats[targetKey]) {
+                        channelStats[targetKey].wins = 0;
+                        channelStats[targetKey].losses = 0;
+                        channelStats[targetKey].goals = 0;
+                        channelStats[targetKey].assists = 0;
+                        channelStats[targetKey].saves = 0;
+                        channelStats[targetKey].streak = 0;
+                        channelStats[targetKey].mvpCount = 0;
+                    }
+                    if (globalCareerStats[targetKey]) {
+                        globalCareerStats[targetKey].wins = 0;
+                        globalCareerStats[targetKey].losses = 0;
+                        globalCareerStats[targetKey].goals = 0;
+                        globalCareerStats[targetKey].assists = 0;
+                        globalCareerStats[targetKey].saves = 0;
+                        globalCareerStats[targetKey].streak = 0;
+                        globalCareerStats[targetKey].mvpCount = 0;
+                    }
+                    try { localStorage.setItem('kick_strikers_global_career', JSON.stringify(globalCareerStats)); } catch(e) {}
+                    saveChannelStats();
+                    notifyHubResetPlayer(targetUser, username);
+                    showToast(`🔄 ${targetUser} istatistikleri başarıyla sıfırlandı!`, false);
+                    refreshAllPlayerElements();
+                    if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+                        renderLeaderboard();
+                    }
+                }
+            }
+            // Yetkisiz izleyicilerin ban/sıfırla komutları tamamen yok sayılır
+            return;
+        }
+
+        // 🚫 Ban Kontrolü: Banlanan oyuncu turnuvaya katılamaz, komutları yoksayılır
+        if (isPlayerBanned(username)) {
+            return;
+        }
+
+        // 👑 1. Kaptanlık Komutu Kontrolü (!kaptan / !kingkaptan / !kingcaptain)
+        if (firstToken === '!kaptan' || firstToken === '!kingkaptan' || firstToken === '!kingcaptain') {
+            handleCaptainCommand(username, pusherAvatar, playerMeta);
             if (!pusherAvatar) {
                 fetchUserAvatar(username);
             }
@@ -5512,13 +6196,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 🎮 3. Aktif normal katılım komutu kontrolü (örn: !kingsc)
-        const activeCmd = (currentJoinCommand || '!kingsc').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+        // 🎮 3. Aktif normal katılım komutu kontrolü (!turnuvagiriş, !katıl, !katil veya özelleştirilmiş komut)
+        const activeCmd = (currentJoinCommand || '!turnuvagiriş').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+        const isJoinCmd = (firstToken === activeCmd) ||
+                          (firstToken === '!turnuvagiris') ||
+                          (firstToken === '!katil') ||
+                          (firstToken === '!kingsc');
 
-        if (firstToken === activeCmd) {
-            const added = addPlayerToPool(username, pusherAvatar);
+        if (isJoinCmd) {
+            const added = addPlayerToPool(username, pusherAvatar, playerMeta);
             if (added) {
-                showToast(`🎮 ${username} havuza eklendi! (${activeCmd})`);
+                const subNotice = isSub ? ` (⭐ ${activeChannelName} Abonesi [${subMonths || 1}. Ay])` : '';
+                showToast(`🎮 ${username} havuza eklendi!${subNotice}`);
                 if (!pusherAvatar) {
                     fetchUserAvatar(username);
                 }
@@ -6746,7 +7435,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tc) {
                 obsSyncChannel.postMessage({ type: 'sync_html', html: tc.innerHTML, modeClass: tc.className });
             }
-            obsSyncChannel.postMessage({ type: 'update_command', cmd: typeof currentJoinCommand !== "undefined" ? currentJoinCommand : "!kingsc" });
+            obsSyncChannel.postMessage({ type: 'update_command', cmd: typeof currentJoinCommand !== "undefined" ? currentJoinCommand : "!turnuvagiriş" });
             const pCount = document.getElementById('poolCount');
             if (pCount) obsSyncChannel.postMessage({ type: 'update_pool_count', count: pCount.textContent });
             obsSyncChannel.postMessage({ type: 'update_obs_config', config: obsConfig });
@@ -6762,7 +7451,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     obsSyncChannel.postMessage({ type: 'sync_html', html: tc.innerHTML, modeClass: tc.className });
                 }
                 const cmdInput = document.getElementById('joinCommandInput');
-                obsSyncChannel.postMessage({ type: 'update_command', cmd: cmdInput ? cmdInput.value : (typeof currentJoinCommand !== "undefined" ? currentJoinCommand : "!kingsc") });
+                obsSyncChannel.postMessage({ type: 'update_command', cmd: cmdInput ? cmdInput.value : (typeof currentJoinCommand !== "undefined" ? currentJoinCommand : "!turnuvagiriş") });
                 const pCount = document.getElementById('poolCount');
                 if (pCount) obsSyncChannel.postMessage({ type: 'update_pool_count', count: pCount.textContent });
                 obsSyncChannel.postMessage({ type: 'update_obs_config', config: obsConfig });
@@ -7146,6 +7835,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (obsOverlayBtn) obsOverlayBtn.addEventListener('click', openObsModalHandler);
         if (obsQuickSettingsBtn) obsQuickSettingsBtn.addEventListener('click', openObsModalHandler);
+        // Drawer içindeki OBS kısayol butonu (ID duplikat düzeltmesi sonrası)
+        const drawerObsOverlayBtn = document.getElementById('drawerObsOverlayBtn');
+        if (drawerObsOverlayBtn) drawerObsOverlayBtn.addEventListener('click', openObsModalHandler);
         
         const closeObsModal = () => {
             if (obsLinkModal) obsLinkModal.classList.add('hidden');
@@ -7259,7 +7951,7 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             target: '.connection-panel',
             title: '<i class="fa-brands fa-kickstarter"></i> Kick Chat & Katılım Komutu Filtresi',
-            text: 'Kick kanal adınızı yazıp <b>Chat\'e Bağlan</b> butonuna tıklayın. Yayınınızda sadece sohbete <b>!kingsc</b> (veya belirlediğiniz komutu) yazan izleyiciler otomatik olarak İzleyici Havuzuna eklenir.'
+            text: 'Kick kanal adınızı yazıp <b>Chat\'e Bağlan</b> butonuna tıklayın. Yayınınızda sadece sohbete <b>!turnuvagiriş</b> (veya belirlediğiniz komutu) yazan izleyiciler otomatik olarak İzleyici Havuzuna eklenir.'
         },
         {
             target: '.controls',
@@ -7284,7 +7976,7 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             target: '.connection-panel',
             title: '<i class="fa-brands fa-kickstarter"></i> Kesintisiz Kick Chat Bağlantısı',
-            text: 'Yayınınızda izleyicilerin sohbete katılım komutunu (varsayılan: <b>!kingsc</b>) yazması yeterlidir. Bağlantı durumunuzu yeşil/kırmızı rozetten canlı takip edebilirsiniz.'
+            text: 'Yayınınızda izleyicilerin sohbete katılım komutunu (varsayılan: <b>!turnuvagiriş</b>) yazması yeterlidir. Bağlantı durumunuzu yeşil/kırmızı rozetten canlı takip edebilirsiniz.'
         },
         {
             target: '#leaderboardBtn',
@@ -8076,6 +8768,37 @@ document.addEventListener('DOMContentLoaded', () => {
                             } catch (e) {}
                         }
 
+                        if (data.globalStats) {
+                            try {
+                                const parsedGlob = typeof data.globalStats === 'string' ? JSON.parse(data.globalStats) : data.globalStats;
+                                if (parsedGlob && typeof parsedGlob === 'object') {
+                                    Object.keys(parsedGlob).forEach(k => {
+                                        globalCareerStats[k] = parsedGlob[k];
+                                    });
+                                    localStorage.setItem('kick_strikers_global_career', JSON.stringify(globalCareerStats));
+                                }
+                            } catch (e) {}
+                        }
+
+                        if (Array.isArray(data.bannedPlayers)) {
+                            let updatedBans = false;
+                            data.bannedPlayers.forEach(p => {
+                                if (p && typeof p === 'string') {
+                                    const l = p.trim().toLowerCase();
+                                    if (!bannedPlayers.has(l)) {
+                                        bannedPlayers.add(l);
+                                        updatedBans = true;
+                                    }
+                                }
+                            });
+                            if (updatedBans) {
+                                saveBannedPlayers();
+                                if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+                                    renderLeaderboard();
+                                }
+                            }
+                        }
+
                         if (Array.isArray(data.events) && data.events.length > 0) {
                             data.events.forEach(ev => this.handleEvent(ev));
                         }
@@ -8101,43 +8824,137 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast(toastMsg, false);
                 if (typeof playUiSfx === 'function') playUiSfx('join');
 
-                if (Array.isArray(event.playerUpdates)) {
+                const isAlreadyProcessedLocally = !!(event.matchId && processedMatchIds.has(event.matchId));
+                if (event.matchId) {
+                    processedMatchIds.add(event.matchId);
+                    if (processedMatchIds.size > 200) {
+                        const first = processedMatchIds.values().next().value;
+                        processedMatchIds.delete(first);
+                    }
+                }
+
+                if (!isAlreadyProcessedLocally && Array.isArray(event.playerUpdates)) {
+                    // Kanal İzolasyonu Kontrolü: Maç bu yayıncının kanalına mı ait?
+                    const isMatchForThisChannel = !event.channel || !currentChannel ||
+                        (event.channel.trim().toLowerCase() === currentChannel.trim().toLowerCase());
+
                     event.playerUpdates.forEach(p => {
                         if (!p.name) return;
                         const key = p.name.trim().toLowerCase();
-                        if (!channelStats[key]) {
-                            channelStats[key] = { wins: 0, losses: 0, goals: 0, assists: 0, saves: 0, streak: 0, mvpCount: 0, displayName: p.name.trim() };
+
+                        // 1. Ortak Espor Ligi global kariyer havuzunu her zaman güncelle (tüm yayıncılarda ortak)
+                        if (!globalCareerStats[key]) {
+                            globalCareerStats[key] = { wins: 0, losses: 0, goals: 0, assists: 0, saves: 0, streak: 0, mvpCount: 0, displayName: p.name.trim() };
                         }
-                        channelStats[key].goals = (channelStats[key].goals || 0) + (p.goals || 0);
-                        channelStats[key].assists = (channelStats[key].assists || 0) + (p.assists || 0);
-                        channelStats[key].saves = (channelStats[key].saves || 0) + (p.saves || 0);
+                        globalCareerStats[key].goals = (globalCareerStats[key].goals || 0) + (p.goals || 0);
+                        globalCareerStats[key].assists = (globalCareerStats[key].assists || 0) + (p.assists || 0);
+                        globalCareerStats[key].saves = (globalCareerStats[key].saves || 0) + (p.saves || 0);
                         if (p.win) {
-                            channelStats[key].wins += 1;
-                            channelStats[key].streak = (channelStats[key].streak || 0) + 1;
+                            globalCareerStats[key].wins += 1;
+                            globalCareerStats[key].streak = (globalCareerStats[key].streak || 0) + 1;
                         } else {
-                            channelStats[key].losses += 1;
-                            channelStats[key].streak = 0;
+                            globalCareerStats[key].losses += 1;
+                            globalCareerStats[key].streak = 0;
                         }
                         if (p.isMvp) {
-                            channelStats[key].mvpCount = (channelStats[key].mvpCount || 0) + 1;
+                            globalCareerStats[key].mvpCount = (globalCareerStats[key].mvpCount || 0) + 1;
                         }
-                        channelStats[key].displayName = p.name.trim();
+                        globalCareerStats[key].displayName = p.name.trim();
+
+                        // 2. Kanal İzolasyonu: SADECE bu kanala ait maçlarda yerel kanal istatistiklerini güncelle!
+                        if (isMatchForThisChannel) {
+                            if (!channelStats[key]) {
+                                channelStats[key] = { wins: 0, losses: 0, goals: 0, assists: 0, saves: 0, streak: 0, mvpCount: 0, displayName: p.name.trim() };
+                            }
+                            channelStats[key].goals = (channelStats[key].goals || 0) + (p.goals || 0);
+                            channelStats[key].assists = (channelStats[key].assists || 0) + (p.assists || 0);
+                            channelStats[key].saves = (channelStats[key].saves || 0) + (p.saves || 0);
+                            if (p.win) {
+                                channelStats[key].wins += 1;
+                                channelStats[key].streak = (channelStats[key].streak || 0) + 1;
+                            } else {
+                                channelStats[key].losses += 1;
+                                channelStats[key].streak = 0;
+                            }
+                            if (p.isMvp) {
+                                channelStats[key].mvpCount = (channelStats[key].mvpCount || 0) + 1;
+                            }
+                            channelStats[key].displayName = p.name.trim();
+                        }
                     });
 
-                    saveChannelStats();
+                    try {
+                        localStorage.setItem('kick_strikers_global_career', JSON.stringify(globalCareerStats));
+                    } catch(e) {}
+
+                    if (isMatchForThisChannel) {
+                        saveChannelStats();
+                    }
+                    refreshAllPlayerElements();
+                    if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+                        renderLeaderboard();
+                    }
+                }
+
+                // Canlı Ekran & OBS Overlay Tek Tuşa Basmadan Otomatik Yenileme (Live Auto-Refresh)
+                if (typeof syncToObs === 'function') syncToObs();
+                if (typeof obsSyncChannel !== 'undefined') {
+                    const tc = document.getElementById('teamsContainer');
+                    if (tc) obsSyncChannel.postMessage({ type: 'sync_html', html: tc.innerHTML, modeClass: tc.className });
+                }
+            } else if (event.type === 'BAN_RECORDED') {
+                const pKey = (event.player || '').trim().toLowerCase();
+                if (pKey) {
+                    if (event.action === 'unban') {
+                        bannedPlayers.delete(pKey);
+                        showToast(event.summary || `✅ ${event.player} banı kaldırıldı!`, false);
+                    } else {
+                        bannedPlayers.add(pKey);
+                        showToast(event.summary || `🚫 ${event.player} turnuvalardan men edildi (Banned)!`, true);
+                        removePlayerFromEverywhere(pKey);
+                    }
+                    saveBannedPlayers();
                     refreshAllPlayerElements();
                     if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
                         renderLeaderboard();
                     }
                 }
             } else if (event.type === 'STATS_RESET') {
-                showToast('⚠️ Merkezi istatistik havuzu sıfırlandı.', true);
-                channelStats = {};
-                saveChannelStats();
+                if (event.player) {
+                    const pKey = event.player.trim().toLowerCase();
+                    if (channelStats[pKey]) {
+                        channelStats[pKey].wins = 0;
+                        channelStats[pKey].losses = 0;
+                        channelStats[pKey].goals = 0;
+                        channelStats[pKey].assists = 0;
+                        channelStats[pKey].saves = 0;
+                        channelStats[pKey].streak = 0;
+                        channelStats[pKey].mvpCount = 0;
+                    }
+                    if (globalCareerStats[pKey]) {
+                        globalCareerStats[pKey].wins = 0;
+                        globalCareerStats[pKey].losses = 0;
+                        globalCareerStats[pKey].goals = 0;
+                        globalCareerStats[pKey].assists = 0;
+                        globalCareerStats[pKey].saves = 0;
+                        globalCareerStats[pKey].streak = 0;
+                        globalCareerStats[pKey].mvpCount = 0;
+                    }
+                    try { localStorage.setItem('kick_strikers_global_career', JSON.stringify(globalCareerStats)); } catch(e) {}
+                    saveChannelStats();
+                    showToast(event.summary || `🔄 ${event.player} istatistikleri sıfırlandı.`, false);
+                } else {
+                    showToast('⚠️ Merkezi istatistik havuzu sıfırlandı.', true);
+                    channelStats = {};
+                    globalCareerStats = {};
+                    try { localStorage.removeItem('kick_strikers_global_career'); } catch(e) {}
+                    saveChannelStats();
+                }
                 refreshAllPlayerElements();
                 if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
                     renderLeaderboard();
                 }
+                if (typeof syncToObs === 'function') syncToObs();
             }
         },
 
@@ -8169,9 +8986,9 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         async submitMatchResult(payload) {
-            if (!this.baseUrl) return false;
+            const targetUrl = this.baseUrl || getApiBase() || 'http://localhost:18888';
             try {
-                const res = await fetch(`${this.baseUrl}/api/hub/match-result`, {
+                const res = await fetch(`${targetUrl}/api/hub/match-result`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -8434,12 +9251,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const select = document.getElementById('teamSize');
         if (!slider || !barrel || !select) return;
 
-        const values = [1, 2, 3, 5, 8, 11];
+        const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let currentIndex = values.indexOf(parseInt(select.value, 10));
-        if (currentIndex < 0) currentIndex = 3;
+        if (currentIndex < 0) currentIndex = 4; // 5v5 index is 4
 
-        const angleStep = 40;
-        const radius = 48;
+        const angleStep = 360 / values.length;
+        const radius = 60;
 
         const items = barrel.querySelectorAll('.cylinder-item');
         items.forEach((item, idx) => {
@@ -8803,6 +9620,23 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
+        const drawerActionBtn = document.getElementById('drawerWatcherActionBtn');
+        if (drawerActionBtn) {
+            drawerActionBtn.onclick = () => {
+                playUiSfx('click');
+                setWatcherState(!isWatcherActive);
+            };
+        }
+
+        const drawerShortcutBtn = document.getElementById('drawerWatcherShortcutBtn');
+        if (drawerShortcutBtn) {
+            drawerShortcutBtn.onclick = () => {
+                playUiSfx('click');
+                const watcherTabBtn = document.querySelector('.drawer-tab-btn[data-drawer-tab="watcher"]');
+                if (watcherTabBtn) watcherTabBtn.click();
+            };
+        }
+
         if (drawerCheckbox) {
             drawerCheckbox.onchange = () => {
                 playUiSfx('click');
@@ -9021,6 +9855,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (openBtn) openBtn.onclick = openModal;
+        document.querySelectorAll('.trigger-lucky-wheel').forEach(b => {
+            b.onclick = openModal;
+        });
         if (closeBtn) closeBtn.onclick = closeModal;
         if (closeFooterBtn) closeFooterBtn.onclick = closeModal;
 

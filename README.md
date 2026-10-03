@@ -121,7 +121,7 @@ Birden çok yayıncı ortak turnuva düzenleyeceğinde:
 
 ## 👤 Geliştirici
 
-**Mehmet Helvacı**
+**MeH4n**
 * Proje: *Strikers King Creator - Espor Turnuva & Takım Seçme Uygulaması*
 * GitHub: [@mehmet7helvaci](https://github.com/mehmet7helvaci)
 

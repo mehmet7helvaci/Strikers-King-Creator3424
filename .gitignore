@@ -5,3 +5,8 @@ Thumbs.db
 *.log
 .vs/
 .vscode/
+
+# Antigravity & AI Agent Instruction Files
+.agents/
+AGENTS.md
+GEMINI.md

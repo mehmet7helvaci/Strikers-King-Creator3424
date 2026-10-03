@@ -68,9 +68,13 @@ $statsFile = Join-Path $dataPath "hub_stats.json"
 if (-not (Test-Path $statsFile)) {
     [System.IO.File]::WriteAllText($statsFile, "{}", [System.Text.Encoding]::UTF8)
 }
+$bansFile = Join-Path $dataPath "hub_bans.json"
+if (-not (Test-Path $bansFile)) {
+    [System.IO.File]::WriteAllText($bansFile, "[]", [System.Text.Encoding]::UTF8)
+}
 $tunnelUrlFile = Join-Path $scriptDir "tunnel_url.txt"
 
-$global:ObsSyncState = '{"html":"<div class=\"team-box\" id=\"team1Box\"><div class=\"team-header\"><input type=\"text\" class=\"team-name-input\" value=\"Takım 1\"><span class=\"team-count badge\">0/5</span></div><ul class=\"team-list sortable-list\" id=\"team-1\"></ul></div><div class=\"team-box\" id=\"team2Box\"><div class=\"team-header\"><input type=\"text\" class=\"team-name-input\" value=\"Takım 2\"><span class=\"team-count badge\">0/5</span></div><ul class=\"team-list sortable-list\" id=\"team-2\"></ul></div>","modeClass":"teams-container mode-single","cmd":"!kingsc","poolCount":"0","newPlayer":null,"obsConfig":{"scaleMode":"auto","manualScale":100,"infoBarPos":"top","align":"center","activeMatchId":"single_match"},"activeMatchId":"single_match","ts":0}'
+$global:ObsSyncState = '{"html":"<div class=\"team-box\" id=\"team1Box\"><div class=\"team-header\"><input type=\"text\" class=\"team-name-input\" value=\"Takım 1\"><span class=\"team-count badge\">0/5</span></div><ul class=\"team-list sortable-list\" id=\"team-1\"></ul></div><div class=\"team-box\" id=\"team2Box\"><div class=\"team-header\"><input type=\"text\" class=\"team-name-input\" value=\"Takım 2\"><span class=\"team-count badge\">0/5</span></div><ul class=\"team-list sortable-list\" id=\"team-2\"></ul></div>","modeClass":"teams-container mode-single","cmd":"!turnuvagiriş","poolCount":"0","newPlayer":null,"obsConfig":{"scaleMode":"auto","manualScale":100,"infoBarPos":"top","align":"center","activeMatchId":"single_match"},"activeMatchId":"single_match","ts":0}'
 $global:HubEvents = [System.Collections.ArrayList]::new()
 $global:EventCounter = 0
 $global:ActiveClients = @{}
@@ -78,6 +82,27 @@ $global:TunnelUrl = ""
 $global:AvatarCache = [System.Collections.Hashtable]::Synchronized(@{})
 $global:AvatarPending = [System.Collections.Hashtable]::Synchronized(@{})
 $global:WatcherState = @{ enabled = $false; activeMatch = ""; lastDetected = $null; events = [System.Collections.ArrayList]::new() }
+
+function Get-HubBansContent {
+    try {
+        if (Test-Path $bansFile) {
+            $content = [System.IO.File]::ReadAllText($bansFile, [System.Text.Encoding]::UTF8)
+            if (-not [string]::IsNullOrWhiteSpace($content)) {
+                return $content
+            }
+        }
+    } catch {}
+    return "[]"
+}
+
+function Save-HubBansContent([string]$content) {
+    try {
+        [System.IO.File]::WriteAllText($bansFile, $content, [System.Text.Encoding]::UTF8)
+        return $true
+    } catch {
+        return $false
+    }
+}
 
 function Get-ChannelFilePath([string]$channel) {
     if ([string]::IsNullOrWhiteSpace($channel) -or $channel.Trim().ToLower() -eq "global") {
@@ -587,11 +612,81 @@ while ($listener.IsListening) {
                 $newStatsJson = $statsObj | ConvertTo-Json -Depth 5 -Compress
                 Save-HubStatsContent $newStatsJson $targetChannel
 
+                # Atomik Ortak Espor Ligi: Merkezi kariyer havuzunu (hub_stats.json) da es zamanli guncelle
+                try {
+                    $globalStJson = Get-HubStatsContent ""
+                    $globalStatsObj = @{}
+                    $rawGlob = ConvertFrom-Json $globalStJson
+                    if ($rawGlob) {
+                        foreach ($prop in ($rawGlob | Get-Member -MemberType NoteProperty)) {
+                            $globalStatsObj[$prop.Name] = $rawGlob.$($prop.Name)
+                        }
+                    }
+
+                    if ($matchData.playerUpdates) {
+                        foreach ($p in $matchData.playerUpdates) {
+                            $pName = if ($p.name) { $p.name.ToString().Trim() } else { "" }
+                            if ([string]::IsNullOrWhiteSpace($pName)) { continue }
+                            $gKey = $pName.ToLower()
+
+                            $goals = if ($p.goals) { [int]$p.goals } else { 0 }
+                            $assists = if ($p.assists) { [int]$p.assists } else { 0 }
+                            $saves = if ($p.saves) { [int]$p.saves } else { 0 }
+                            $isWin = if ($null -ne $p.win) { [bool]$p.win } else { $false }
+                            $isMvp = if ($null -ne $p.isMvp) { [bool]$p.isMvp } else { $false }
+
+                            if (-not $globalStatsObj.ContainsKey($gKey)) {
+                                $globalStatsObj[$gKey] = [PSCustomObject]@{
+                                    wins = 0
+                                    losses = 0
+                                    goals = 0
+                                    assists = 0
+                                    saves = 0
+                                    streak = 0
+                                    mvpCount = 0
+                                    displayName = $pName
+                                }
+                            }
+
+                            $gCurr = $globalStatsObj[$gKey]
+                            $gCurr.goals += $goals
+                            $gCurr.assists += $assists
+                            $gCurr.saves += $saves
+                            if ($isWin) {
+                                $gCurr.wins += 1
+                                if ($gCurr.PSObject.Properties['streak']) {
+                                    $gCurr.streak = [int]$gCurr.streak + 1
+                                } else {
+                                    $gCurr | Add-Member -NotePropertyName streak -NotePropertyValue 1 -Force
+                                }
+                            } else {
+                                $gCurr.losses += 1
+                                if ($gCurr.PSObject.Properties['streak']) {
+                                    $gCurr.streak = 0
+                                } else {
+                                    $gCurr | Add-Member -NotePropertyName streak -NotePropertyValue 0 -Force
+                                }
+                            }
+                            if ($isMvp) {
+                                if ($gCurr.PSObject.Properties['mvpCount']) {
+                                    $gCurr.mvpCount = [int]$gCurr.mvpCount + 1
+                                } else {
+                                    $gCurr | Add-Member -NotePropertyName mvpCount -NotePropertyValue 1 -Force
+                                }
+                            }
+                            $gCurr.displayName = $pName
+                        }
+                        $newGlobalStatsJson = $globalStatsObj | ConvertTo-Json -Depth 5 -Compress
+                        Save-HubStatsContent $newGlobalStatsJson ""
+                    }
+                } catch {}
+
                 # Generate broadcast event
                 $global:EventCounter++
                 $hlSummary = if ($highlightList.Count -gt 0) { $highlightList -join ", " } else { "Maç tamamlandı" }
                 $eventObj = @{
                     id = $global:EventCounter
+                    matchId = if ($matchData.matchId) { $matchData.matchId.ToString() } else { "match_$($global:EventCounter)" }
                     type = "MATCH_RECORDED"
                     timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
                     streamer = $streamerName
@@ -646,8 +741,8 @@ while ($listener.IsListening) {
             $newEvents = @()
             foreach ($ev in $global:HubEvents) {
                 if ($ev.id -gt $since) {
-                    # If event is channel specific, only deliver if matching or global
-                    if ([string]::IsNullOrWhiteSpace($reqChannel) -or [string]::IsNullOrWhiteSpace($ev.channel) -or ($ev.channel -eq $reqChannel)) {
+                    # MATCH_RECORDED, BAN_RECORDED ve STATS_RESET olaylari tum yayincilara aninda iletilir
+                    if ($ev.type -eq "MATCH_RECORDED" -or $ev.type -eq "BAN_RECORDED" -or $ev.type -eq "STATS_RESET" -or [string]::IsNullOrWhiteSpace($reqChannel) -or [string]::IsNullOrWhiteSpace($ev.channel) -or ($ev.channel -eq $reqChannel)) {
                         $newEvents += $ev
                     }
                 }
@@ -663,9 +758,43 @@ while ($listener.IsListening) {
 
             if ($since -eq 0 -or $request.QueryString["full"] -eq "1") {
                 $syncResp["fullStats"] = Get-HubStatsContent $reqChannel
+                $syncResp["globalStats"] = Get-HubStatsContent ""
+                $syncResp["bannedPlayers"] = (ConvertFrom-Json (Get-HubBansContent))
+            } elseif ($request.QueryString["includeGlobal"] -eq "1") {
+                $syncResp["globalStats"] = Get-HubStatsContent ""
             }
 
             $jsonResp = $syncResp | ConvertTo-Json -Depth 6 -Compress
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        # 4.1. Ortak Espor Ligi Oyuncu Kariyeri API (Cross-Streamer Career API)
+        if ($rawUrl.StartsWith("/api/hub/career")) {
+            $pName = if ($request.QueryString["player"]) { $request.QueryString["player"].Trim() } else { "" }
+            $globalContent = Get-HubStatsContent ""
+            if ([string]::IsNullOrWhiteSpace($pName)) {
+                $jsonResp = $globalContent
+            } else {
+                $pKey = $pName.ToLower()
+                $foundCareer = $null
+                try {
+                    $allC = ConvertFrom-Json $globalContent
+                    if ($allC -and $allC.$pKey) {
+                        $foundCareer = $allC.$pKey
+                    }
+                } catch {}
+                if ($foundCareer) {
+                    $jsonResp = @{ success = $true; found = $true; player = $pName; stats = $foundCareer } | ConvertTo-Json -Compress
+                } else {
+                    $jsonResp = @{ success = $true; found = $false; player = $pName; stats = $null } | ConvertTo-Json -Compress
+                }
+            }
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
             $response.ContentType = "application/json; charset=utf-8"
             $response.ContentLength64 = $buffer.Length
@@ -731,19 +860,159 @@ while ($listener.IsListening) {
             continue
         }
 
-        # 6. Hub Reset (Reset all player stats)
-        if ($rawUrl.StartsWith("/api/hub/reset") -and $request.HttpMethod -eq "POST") {
-            Save-HubStatsContent "{}"
-            $global:EventCounter++
-            $global:HubEvents.Add(@{
-                id = $global:EventCounter
-                type = "STATS_RESET"
-                timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-                streamer = "ADMIN"
-                summary = "⚠️ Tüm merkezi oyuncu istatistikleri sıfırlandı."
-            }) | Out-Null
+        # 5. Hub Ban API (Ban / Unban / Query Banned Players)
+        if ($rawUrl.StartsWith("/api/hub/ban")) {
+            if ($request.HttpMethod -eq "POST") {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $bodyText = $reader.ReadToEnd()
+                $reader.Close()
 
-            $jsonResp = '{"success":true,"message":"Merkezi veri havuzu başarıyla sıfırlandı"}'
+                $banData = $null
+                try { $banData = ConvertFrom-Json $bodyText } catch {}
+
+                $targetPlayer = if ($banData -and $banData.player) { $banData.player.ToString().Trim() } else { "" }
+                $action = if ($banData -and $banData.action) { $banData.action.ToString().Trim().ToLower() } else { "ban" }
+                $by = if ($banData -and $banData.by) { $banData.by.ToString().Trim() } else { "MODERATOR" }
+
+                if (-not [string]::IsNullOrWhiteSpace($targetPlayer)) {
+                    $tKey = $targetPlayer.ToLower()
+                    $bansRaw = Get-HubBansContent
+                    $bansList = [System.Collections.ArrayList]::new()
+                    try {
+                        $parsedBans = ConvertFrom-Json $bansRaw
+                        if ($parsedBans) {
+                            foreach ($b in $parsedBans) {
+                                if ($b -and -not [string]::IsNullOrWhiteSpace($b.ToString())) {
+                                    $bStr = $b.ToString().Trim().ToLower()
+                                    if (-not $bansList.Contains($bStr)) {
+                                        [void]$bansList.Add($bStr)
+                                    }
+                                }
+                            }
+                        }
+                    } catch {}
+
+                    if ($action -eq "unban") {
+                        while ($bansList.Contains($tKey)) {
+                            $bansList.Remove($tKey)
+                        }
+                    } else {
+                        if (-not $bansList.Contains($tKey)) {
+                            [void]$bansList.Add($tKey)
+                        }
+                    }
+
+                    $savedBansJson = ($bansList | ConvertTo-Json -Compress)
+                    if (-not $savedBansJson) { $savedBansJson = "[]" }
+                    Save-HubBansContent $savedBansJson
+
+                    $global:EventCounter++
+                    $banEvent = @{
+                        id = $global:EventCounter
+                        type = "BAN_RECORDED"
+                        timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                        player = $targetPlayer
+                        action = $action
+                        bannedBy = $by
+                        summary = if ($action -eq "unban") { "✅ $targetPlayer banı kaldırıldı." } else { "🚫 $targetPlayer turnuvalardan men edildi (Banned)." }
+                    }
+                    $global:HubEvents.Add($banEvent) | Out-Null
+
+                    $jsonResp = '{"success":true,"message":"Ban işlemi kaydedildi","player":"' + $targetPlayer + '","action":"' + $action + '"}'
+                } else {
+                    $jsonResp = '{"success":false,"message":"Kullanıcı adı belirtilmedi"}'
+                }
+            } else {
+                $jsonResp = Get-HubBansContent
+            }
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        # 6. Hub Reset (Reset all player stats or single player)
+        if ($rawUrl.StartsWith("/api/hub/reset") -and $request.HttpMethod -eq "POST") {
+            $targetPlayer = ""
+            if ($request.QueryString["player"]) {
+                $targetPlayer = $request.QueryString["player"].Trim()
+            }
+            if ([string]::IsNullOrWhiteSpace($targetPlayer)) {
+                try {
+                    $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                    $bText = $reader.ReadToEnd()
+                    $reader.Close()
+                    if (-not [string]::IsNullOrWhiteSpace($bText)) {
+                        $rObj = ConvertFrom-Json $bText
+                        if ($rObj -and $rObj.player) { $targetPlayer = $rObj.player.ToString().Trim() }
+                    }
+                } catch {}
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($targetPlayer)) {
+                $pKey = $targetPlayer.ToLower()
+                # Zero out in global stats
+                try {
+                    $gJson = Get-HubStatsContent ""
+                    $gObj = ConvertFrom-Json $gJson
+                    if ($gObj -and ($gObj | Get-Member -Name $pKey -MemberType NoteProperty)) {
+                        $gObj.$pKey.wins = 0
+                        $gObj.$pKey.losses = 0
+                        $gObj.$pKey.goals = 0
+                        $gObj.$pKey.assists = 0
+                        $gObj.$pKey.saves = 0
+                        $gObj.$pKey.streak = 0
+                        $gObj.$pKey.mvpCount = 0
+                        Save-HubStatsContent ($gObj | ConvertTo-Json -Depth 5 -Compress) ""
+                    }
+                } catch {}
+                # Zero out in channel files
+                try {
+                    Get-ChildItem -Path $channelsPath -Filter "*.json" | ForEach-Object {
+                        try {
+                            $cContent = [System.IO.File]::ReadAllText($_.FullName, [System.Text.Encoding]::UTF8)
+                            $cObj = ConvertFrom-Json $cContent
+                            if ($cObj -and ($cObj | Get-Member -Name $pKey -MemberType NoteProperty)) {
+                                $cObj.$pKey.wins = 0
+                                $cObj.$pKey.losses = 0
+                                $cObj.$pKey.goals = 0
+                                $cObj.$pKey.assists = 0
+                                $cObj.$pKey.saves = 0
+                                $cObj.$pKey.streak = 0
+                                $cObj.$pKey.mvpCount = 0
+                                [System.IO.File]::WriteAllText($_.FullName, ($cObj | ConvertTo-Json -Depth 5 -Compress), [System.Text.Encoding]::UTF8)
+                            }
+                        } catch {}
+                    }
+                } catch {}
+
+                $global:EventCounter++
+                $global:HubEvents.Add(@{
+                    id = $global:EventCounter
+                    type = "STATS_RESET"
+                    timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                    player = $targetPlayer
+                    streamer = "MODERATOR"
+                    summary = "🔄 $targetPlayer kullanıcısının istatistikleri sıfırlandı."
+                }) | Out-Null
+
+                $jsonResp = '{"success":true,"message":"' + $targetPlayer + ' istatistikleri sıfırlandı","player":"' + $targetPlayer + '"}'
+            } else {
+                Save-HubStatsContent "{}"
+                $global:EventCounter++
+                $global:HubEvents.Add(@{
+                    id = $global:EventCounter
+                    type = "STATS_RESET"
+                    timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                    streamer = "ADMIN"
+                    summary = "⚠️ Tüm merkezi oyuncu istatistikleri sıfırlandı."
+                }) | Out-Null
+
+                $jsonResp = '{"success":true,"message":"Merkezi veri havuzu başarıyla sıfırlandı"}'
+            }
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
             $response.ContentType = "application/json; charset=utf-8"
             $response.ContentLength64 = $buffer.Length
@@ -806,13 +1075,13 @@ while ($listener.IsListening) {
             continue
         }
 
-        # Auto Scan Sealed Backup Files (/api/scan-backups)
+        # Auto Scan Sealed Backup Files (/api/scan-backups) - Sandbox Korumali
         if ($rawUrl.StartsWith("/api/scan-backups")) {
             try {
+                # Sandbox: Sadece uygulama dizini ve data klasoru taranir (Desktop/Downloads erisimi sinirlandirildi)
                 $searchFolders = @(
-                    "$env:USERPROFILE\Downloads",
-                    "$env:USERPROFILE\Desktop",
-                    "$scriptDir"
+                    "$scriptDir",
+                    "$dataPath"
                 )
                 
                 $sealedFiles = @()
@@ -864,17 +1133,31 @@ while ($listener.IsListening) {
             }
         }
 
-        # Static file handling
+        # Static file handling with strict sandbox path traversal prevention
         $path = $request.Url.LocalPath
         if ($path -eq "/" -or [string]::IsNullOrWhiteSpace($path)) {
             $path = "/index.html"
         }
-        $localPath = Join-Path $scriptDir $path.TrimStart("/").Replace("/", "\")
 
-        if (Test-Path $localPath -PathType Leaf) {
-            $ext = [System.IO.Path]::GetExtension($localPath).ToLower()
+        $canonicalScriptDir = [System.IO.Path]::GetFullPath($scriptDir).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+        $cleanRel = $path.TrimStart("/").Replace("/", "\")
+        $targetFullPath = [System.IO.Path]::GetFullPath((Join-Path $scriptDir $cleanRel))
+
+        $isWithinSandbox = $targetFullPath.StartsWith($canonicalScriptDir, [System.StringComparison]::OrdinalIgnoreCase) -or ($targetFullPath -eq [System.IO.Path]::GetFullPath($scriptDir).TrimEnd('\', '/'))
+        if (-not $isWithinSandbox) {
+            $response.StatusCode = 403
+            $forbidden = [System.Text.Encoding]::UTF8.GetBytes("403 Forbidden: Sandbox Guvenlik Korumasi (Path Traversal Engellendi)")
+            $response.ContentType = "text/plain; charset=utf-8"
+            $response.ContentLength64 = $forbidden.Length
+            $response.OutputStream.Write($forbidden, 0, $forbidden.Length)
+            $response.Close()
+            continue
+        }
+
+        if (Test-Path $targetFullPath -PathType Leaf) {
+            $ext = [System.IO.Path]::GetExtension($targetFullPath).ToLower()
             $mime = if ($mimeTypes.ContainsKey($ext)) { $mimeTypes[$ext] } else { "application/octet-stream" }
-            $bytes = [System.IO.File]::ReadAllBytes($localPath)
+            $bytes = [System.IO.File]::ReadAllBytes($targetFullPath)
             $response.ContentType = $mime
             $response.ContentLength64 = $bytes.Length
             $response.StatusCode = 200
@@ -882,7 +1165,7 @@ while ($listener.IsListening) {
         } else {
             $response.StatusCode = 404
             $notFound = [System.Text.Encoding]::UTF8.GetBytes("404 Not Found")
-            $response.ContentType = "text/plain"
+            $response.ContentType = "text/plain; charset=utf-8"
             $response.ContentLength64 = $notFound.Length
             $response.OutputStream.Write($notFound, 0, $notFound.Length)
         }

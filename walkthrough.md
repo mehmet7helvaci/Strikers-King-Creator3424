@@ -604,24 +604,24 @@ Uygulamanın ilk uygulamasında titizlikle yapılan bağımsız denetimde tespit
 
 ---
 
-# 🌐 GitHub Yayını & "Yapan Kişi: Mehmet Helvacı" Güncellemesi
+# 🌐 GitHub Yayını & "Yapan Kişi: MeH4n" Güncellemesi
 
-Uygulamanın GitHub deposuna yüklenmesi, GitHub Pages üzerinde canlı bir web uygulaması (publish) olarak yayınlanması ve sayfanın en altına **"Yapan Kişi: Mehmet Helvacı"** imzasının eklenmesi başarıyla tamamlanmıştır.
+Uygulamanın GitHub deposuna yüklenmesi, GitHub Pages üzerinde canlı bir web uygulaması (publish) olarak yayınlanması ve sayfanın en altına **"Yapan Kişi: MeH4n"** imzasının eklenmesi başarıyla tamamlanmıştır.
 
 ---
 
 ## 🚀 Gerçekleştirilen Geliştirmeler
 
-### 1. Sayfa Altına "Yapan Kişi: Mehmet Helvacı" İmzasının Eklenmesi
+### 1. Sayfa Altına "Yapan Kişi: MeH4n" İmzasının Eklenmesi
 * **Arayüz (`app/index.html`):**
   * Uygulamanın en altına şık ve modern bir **Alt Bilgi (Footer)** paneli eklendi (`#appFooter`).
   * Alt bilgi içerisinde:
-    * 👑 **Yapan Kişi: Mehmet Helvacı** (Altın ışıltılı taç ikonu ve özel gölge efekti).
+    * 👑 **Yapan Kişi: MeH4n** (Altın ışıltılı taç ikonu ve özel gölge efekti).
     * 💻 **Proje Mimarı & Geliştirici** rozeti.
     * 🛡️ **Strikers King Creator | Espor Turnuva, Kaptan Draft ve Takım Seçim Platformu** başlığı.
     * 🔗 **GitHub Deposu** doğrudan bağlantı butonu ve **v5.0 Canlı Sürüm** rozeti.
 * **Açılış Ekranı (Splash Screen):**
-  * Uygulama ilk açıldığında gösterilen sinematik karşılama ekranına `Geliştirici: Mehmet Helvacı (MeH4n)` ibaresi entegre edildi.
+  * Uygulama ilk açıldığında gösterilen sinematik karşılama ekranına `Geliştirici: MeH4n` ibaresi entegre edildi.
 * **Ayarlar Çekmecesi (`#settingsDrawer`):**
   * `Web & Yayın` sekmesi eklenerek canlı GitHub Pages bağlantısı, geliştirici künyesi ve tek tıkla kopyalama aracı yerleştirildi.
 * **OBS Canlı Yayın Koruması (`app/style.css`):**
@@ -630,7 +630,7 @@ Uygulamanın GitHub deposuna yüklenmesi, GitHub Pages üzerinde canlı bir web 
 ### 2. Canlı Web Yayını (GitHub Pages Publish) Mimarisi
 * **Kök Dizin Giriş Portalı (`index.html`):**
   * Deponun ana dizinine ziyaretçileri karşılayan ve anında web uygulamasına (`./app/`) yönlendiren modern bir portal sayfası oluşturuldu.
-  * Sayfa içeriğinde **Yapan Kişi: Mehmet Helvacı** kartı, hızlı başlatma butonları ve otomatik yönlendirme motoru yer alır.
+  * Sayfa içeriğinde **Yapan Kişi: MeH4n** kartı, hızlı başlatma butonları ve otomatik yönlendirme motoru yer alır.
 * **Otomatik GitHub Actions İş Akışı (`.github/workflows/deploy-pages.yml`):**
   * Depoya her `git push` yapıldığında projeyi otomatik olarak GitHub Pages'e dağıtan resmi GitHub Pages iş akışı devreye alındı.
 * **Canlı Web Adresi:**
@@ -642,7 +642,300 @@ Uygulamanın GitHub deposuna yüklenmesi, GitHub Pages üzerinde canlı bir web 
 
 ## 🧪 Test ve Doğrulama
 * `test_suite.js` dosyasına 2 yeni test eklenerek test sayısı 10'a çıkarıldı:
-  * **Test 9:** `app/index.html` ve `app/style.css` dosyalarında "Mehmet Helvacı" imzasının ve OBS korumasının doğrulanması.
+  * **Test 9:** `app/index.html` ve `app/style.css` dosyalarında "MeH4n" imzasının ve OBS korumasının doğrulanması.
   * **Test 10:** Kök `index.html` yönlendirme portalının ve `.github/workflows/deploy-pages.yml` iş akışının doğrulanması.
 * **Test Sonucu:** 10/10 test (%100 Başarı).
 * **C# Derlemesi:** `StrickersKingCreator.exe` başarıyla derlendi.
+
+
+---
+
+# 🌐 Sıfır Ayar Ortak Espor Ligi, Canlı Maç Yenileme, Sistem Tepsisi & Sandbox Güvenliği Güncellemesi
+
+Bu güncelleme ile kullanıcının belirttiği **tünel açma, link kopyalama, dosya yönleme veya geri alma ("dosyaları yönle, dosyaları geri al")** zorunlulukları tamamen kaldırılarak; tüm yayıncıların tek tıkla veya sıfır ayarla katıldığı, ev bilgisayarının siber risklere karşı korunduğu ve maç bittiğinde ana ekranın kendiliğinden yenilendiği yeni nesil bir **Ortak Espor Ligi & Otomasyon Altyapısı** kurulmuştur.
+
+---
+
+## 🎯 Çözülen Temel Problemler ve Mimari Yenilikler
+
+### 1. Manuel Tünel ve Dosya Aktarımının Sona Ermesi (Zero-Config Espor Ligi)
+- **Problem:** Önceki versiyonda ana yayıncının her seferinde Cloudflare tüneli başlatması, rastgele oluşan karmaşık `trycloudflare.com` linkini kopyalayıp diğer yayıncılara atması ve maç kayıtlarını birbirlerine JSON dosyası olarak Discord'dan gönderip içe/dışa aktarması gerekiyordu.
+- **Çözüm:** 
+  - `app/app.js` içerisine **Ortak Espor Ligi (Universal Global League)** ve otomatik veri senkronizasyonu entegre edildi.
+  - Uygulama ister masaüstünden (`StrickersKingCreator.exe`), ister GitHub Pages üzerinden açılsın; sıfır ayarla doğrudan ortak espor veri ağına bağlanır.
+  - Hiçbir JSON yedek dosyasını manuel indirip diğer bilgisayara yüklemeye gerek kalmadı.
+
+### 2. Çapraz Yayıncı Oyuncu Kariyeri (Cross-Streamer Career Inheritance)
+- **Özellik:** A yayıncısının yayınında maça çıkan bir oyuncu (örneğin "Ali") 3 gol 1 asist yaptığında; yarın B yayıncısının yayınına katıldığında sistem Ali'yi doğrudan küresel kariyer veritabanından tanır.
+- Ali'nin önceki maçlardaki kümülatif golleri, asistleri, MVP ödülleri ve galibiyet oranı B yayıncısının ekranında otomatik olarak gösterilir.
+
+### 3. Maç Bittiğinde Otomatik Canlı Ekran Yenileme (Live Auto-Refresh)
+- **Optimizasyon:** Maç esnasında her tuşa basıldığında sunucuya gereksiz istek gönderilerek ağ trafiği yaratılmaz.
+- **Canlı Akış:** Maç tamamlanıp "Maçı Kaydet" butonuna basıldığı an:
+  - Tüm skorlar, goller ve MVP bilgisi tek bir atomik veri paketi halinde işlenir.
+  - Açık olan ana bilgisayar ekranına ve OBS Canlı Overlay kaynağına otomatik yenileme sinyali (`syncToObs` & `obsSyncChannel`) gönderilir.
+  - Ana yayıncı tek bir tuşa basmak zorunda kalmadan ekranındaki turnuva ağacı ve skorlar kendiliğinden güncellenir.
+
+### 4. Windows Sistem Tepsisi (System Tray) & Masaüstü Bildirimleri (`Program.cs`)
+- **Problem:** Ana bilgisayarda tarayıcı penceresi kapatıldığında sunucu kapanabiliyor ya da yayıncı arkada neler olduğunu göremiyordu.
+- **Çözüm:**
+  - `Program.cs` Windows Forms `NotifyIcon` altyapısıyla güçlendirildi.
+  - Tarayıcı penceresi kapatılsa dahi uygulama Windows saatinin yanında (System Tray) sessizce arka planda çalışmaya devam eder.
+  - Başka bir yayıncı maçı bitirdiğinde Windows sağ alttan sesli **"🏆 Maç Sonucu Kaydedildi!"** bildirim balonu (BalloonTip) patlatır.
+  - Sistem tepsisindeki ikona çift tıklayarak veya sağ tıklayıp menüden arayüz anında tekrar ekrana getirilebilir.
+
+### 5. Katı Sandbox Güvenlik Koruması (`server.ps1`)
+- **Güvenlik Tedbiri:** Kullanıcının açık kaynaklı uygulamada kişisel bilgisayarındaki diğer dosyaların tehlikeye girmemesi talebi doğrultusunda:
+  - `server.ps1` üzerinde **Path Traversal ve Sibling Directory** açıkları kesin olarak engellendi (`[System.IO.Path]::DirectorySeparatorChar` denetimi).
+  - Dosya tarama uç noktası (`/api/scan-backups`), kullanıcının masaüstü (`Desktop`) veya indirilenler (`Downloads`) klasörlerini taramak yerine sadece projenin kendi `app/` ve `app/data/` dizinlerine sınırlandırıldı (Jail/Sandbox).
+  - Dışarıdan veya ağdan gelen isteklerin bilgisayardaki özel belgelere erişmesi %100 engellendi.
+
+---
+
+## 🧪 Kapsamlı Test & Doğrulama Sonuçları
+
+`test_suite.js` test motoru 15 testten **20 tam teste** çıkarılmıştır ve tamamı hatasız geçmiştir:
+
+```text
+=== STRICKERS KING CREATOR AUTOMATED VERIFICATION SUITE ===
+
+✔ Test 1 Passed: app/data/hub_stats.json is initialized to {} without test dummies.
+✔ Test 2 Passed: 0-match player has strictly 0% winrate and Derecesiz rank.
+✔ Test 3 Passed: Server channel persistence isolation confirmed.
+✔ Test 4 Passed: Match MVP calculation (goals*2 + assists) and isMvp tagging verified.
+✔ Test 5 Passed: 3D Apple Watch Cylinder geometry calculations verified.
+✔ Test 6 Passed: MeH4n Developer role lock protection verified.
+✔ Test 7 Passed: Backup import multi-channel isolation verified.
+✔ Test 8 Passed: Kick chat /goal and /boost command parser verified.
+✔ Test 9 Passed: MeH4n developer attribution & OBS protection verified.
+✔ Test 10 Passed: GitHub Pages root redirect portal & automated deployment workflow verified.
+✔ Test 11 Passed: Atomic match completion packet structure verified.
+✔ Test 12 Passed: Cross-streamer player career auto-inheritance verified.
+✔ Test 13 Passed: Sandbox path traversal defense & restricted backup scanning verified.
+✔ Test 14 Passed: C# System Tray background execution & BalloonTip match notification verified.
+✔ Test 15 Passed: Live auto-refresh broadcast to OBS overlay and global career tracking verified.
+✔ Test 16 Passed: Hub remote match delivery channel isolation verified.
+✔ Test 17 Passed: Submitting streamer event deduplication via matchId verified.
+✔ Test 18 Passed: Server MVP property creation & streak preservation logic verified.
+✔ Test 19 Passed: Sibling directory path traversal defense verified.
+✔ Test 20 Passed: Global league streak reset preservation on remote defeat verified.
+
+======================================================
+ALL 20 CORE SYSTEM TESTS PASSED SUCCESSFULLY! (100% OK)
+======================================================
+```
+
+`StrickersKingCreator.exe` dosyası en son C# kodlarıyla Microsoft C# derleyicisi (`csc.exe`) kullanılarak sıfır hata ile yeniden derlenmiştir.
+
+
+---
+
+# 🛡️ Moderatör Anti-Cheat Ban Sistemi, İstatistik Sıfırlama ve Özelleştirilebilir Chat Komutları Güncellemesi
+
+Bu güncelleme ile lig sisteminin açıklarını kullanmaya çalışan (kendi yayınını açıp kendi kendine sahte goller atarak istatistik manipülasyonu yapan) kişilere karşı **Moderatör Yayıncı Anti-Cheat & Ban Altyapısı** kurulmuş; turnuva komutları `!kingsc` yerine amaca uygun Türkçe kelimelerle (`!turnuvagiriş`, `!katıl`, `!kaptan`) standartlaştırılarak yayıncıların dilediği gibi özelleştirebileceği hale getirilmiştir.
+
+---
+
+## 🎯 Gerçekleştirilen Geliştirmeler & Güvenlik Kalkanı
+
+### 1. Açık Kaynak Korumalı Chat Tabanlı Moderatör Yetkilendirmesi
+- **Güvenlik Analizi:** Uygulama GitHub üzerinde açık kaynak kodlu ve GitHub Pages üzerinden canlı yayınlandığı için, web arayüzüne herkese açık kontrolsüz bir "Banla" butonu koymak kötü niyetli kişilerin masum oyuncuları banlamasına yol açabilirdi.
+- **Mühendislik Çözümü:** Banlama ve istatistik sıfırlama yetkisi **doğrudan Kick canlı sohbeti** üzerinden doğrulanır.
+  - Komutu yazan kişinin:
+    1. Kanal sahibi yayıncı (`broadcaster`),
+    2. Kanalın resmi Kick moderatörü (`sender.identity.badges` içinde `moderator`),
+    3. Veya sistem mimarı (`MeH4n`) olması zorunludur.
+  - Normal izleyicilerin yazdığı `!ban` veya `!sıfırla` komutları sistem tarafından tamamen yok sayılır.
+
+### 2. Küresel Ban & Turnuva Engeli (`!ban [kullanıcı]` & `!unban [kullanıcı]`)
+- Yetkili yayıncı veya moderatör sohbete `!ban [kullanıcı]` yazdığında:
+  - Oyuncu derhal `bannedPlayers` kara listesine alınır ve kalıcı olarak kaydedilir.
+  - Oyuncu mevcut maçlardan, takımlardan ve oyuncu havuzundan anında silinir (`removePlayerFromEverywhere`).
+  - Banlanan oyuncu bir daha hiçbir yayıncının yayınında `!turnuvagiriş` veya `!katıl` yazsa dahi sisteme alınmaz, komutları tamamen yoksayılır.
+  - Arayüzden elle eklenmeye çalışılsa bile sistem ban uyarısı vererek eklemeyi engeller.
+  - **Liderlik Tablosu:** Oyuncunun profilinde parlak kırmızı **`🚫 BANNED`** rozeti çıkar.
+- **Ban Kaldırma:** Yanlışlıkla banlanan oyuncular için yetkili yayıncının `!unban [kullanıcı]` yazması yeterlidir.
+
+### 3. İstatistik Sıfırlama & Hile Temizliği (`!sıfırla [kullanıcı]` / `!reset [kullanıcı]`)
+- Kendi yayınında sahte gollerle puan şişiren hilecilerin istatistikleri, yetkili moderatör veya yayıncının `!sıfırla [kullanıcı]` yazmasıyla anında tüm kanallardan ve küresel havuzdan `0`'a çekilir.
+- Sıfırlama olayı tüm bağlı yayıncılara `STATS_RESET` olayı olarak yayınlanır ve ekranlar anında güncellenir.
+- **MeH4n Sistem Koruması:** Sistem geliştiricisi MeH4n banlanamaz ve istatistikleri sıfırlanamaz.
+
+### 4. Amacına Uygun Türkçe Komutlar & Yayıncı Özelleştirmesi
+- Eski kafa karıştırıcı `!kingsc` komutu yerine:
+  - **Katılım:** `!turnuvagiriş` (eşzamanlı olarak `!katıl` ve `!katil` de kusursuz çalışır).
+  - **Kaptanlık:** `!kaptan` (ve `!kingkaptan`).
+  - **Oyuncu Seçme:** `!seç`, `!sec`, `!al`.
+  - **Banlama:** `!ban [isim]`.
+  - **Ban Kaldırma:** `!unban [isim]`.
+  - **İstatistik Sıfırlama:** `!sıfırla [isim]` / `!reset [isim]`.
+- **Ayarlar Çekmecesi Özelleştirmesi:**
+  - Ayarlar çekmecesine eklenen `#drawerJoinCommandInput` alanı sayesinde her yayıncı kendi konseptine uygun komutu (örneğin `!oyna`, `!turnuva`, `!macagirin`) saniyeler içinde belirleyebilir.
+
+### 5. Sunucu & Hub Senkronizasyonu (`server.ps1`)
+- `/api/hub/ban` uç noktası eklendi (GET ile banlı oyuncu listesi sorgulama, POST ile ban/unban kaydetme).
+- `/api/hub/reset?player=xyz` uç noktası tekil oyuncu istatistiklerini hem `hub_stats.json` hem de `channels/*.json` dosyalarından güvenle sıfırlar.
+- `BAN_RECORDED` olayı tüm bağlı yayıncılara dağıtılarak banlar her yerde eşzamanlı aktifleşir.
+
+---
+
+## 🧪 Test & Doğrulama Sonuçları (Önceki 24 Test)
+
+`test_suite.js` test süiti **24 tam test** ile doğrulanmış ve tüm testler sıfır hata ile geçmiştir.
+
+---
+
+# 🎨 UI Ergonomisi, 16v16 Turnuva, Stadyum Arka Planı & Ağaç Simetrisi Güncellemesi
+
+Bu güncelleme ile kullanıcılardan gelen geri bildirimler doğrultusunda arayüzün göz yoran parlak beyaz elemanları koyu cyberpunk/glassmorphism temasıyla uyumlu hale getirilmiş, yayıncı profili sol alt kartta konumlandırılırken stadyum atmosferi kalıcı kılınmış, takım boyutu 16v16'ya kadar genişletilmiş ve turnuva ağacındaki asimetri sorunu giderilmiştir.
+
+---
+
+### 1. Göz Yormayan Koyu Cam Teması (Dark Glassmorphism) & Beyaz Buton Düzeltmesi
+- **Kök Neden:** `.btn` temel sınıfı CSS'te açık bir arka plan rengi tanımlamıyordu. CSS değiştiricisi (modifier) atanmamış veya varsayılan stilini tarayıcıdan alan butonlar (`TAB watcher`, canlı skor aç/kapat, çark vb.), tarayıcının yerel buton stili olan parlak beyaz/açık gri (`buttonface`) renginde render ediliyordu.
+- **Çözüm:**
+  - Tüm butonların temel `.btn` kuralına `rgba(13, 20, 36, 0.75)` koyu cam arka planı, `backdrop-filter: blur(10px)` ve neon mavi/altın kenarlıklar tanımlandı.
+  - `.watcher-btn`, `.score-toggle-btn`, `.wheel-btn` gibi tüm yardımcı sınıflar koyu temaya büründürülerek göz kamaşması tamamen ortadan kaldırıldı.
+
+### 2. TAB Algılayıcı & Kompakt Çarkıfelek (Zar Butonu) Ergonomisi
+- **TAB Algılayıcı Butonu:** Ana başlık çubuğundan kaldırılarak **Gelişmiş Araçlar Paneli** (`#advancedControlsPanel`) içerisindeki özel `.watcher-group` içine ve **Ayarlar Çekmecesi** (`#settingsDrawer`) içerisine taşındı. Böylece ekran kalabalığı önlendi.
+- **Kura / Çarkıfelek:** Üst menüdeki devasa buton yerine, doğrudan takımlar panelinin hemen üstündeki mini araç çubuğuna (`#teamsTopToolbar`) zar simgeli kompakt bir buton (`🎲` / `.btn-compact-dice`) olarak yerleştirildi. Mevcut çarkıfelek modalı aynı işlevsellikle korunmuştur.
+
+### 3. Sürekli Stadyum Arka Planı (`bg.jpg`) & Sol Alt Yayıncı Profil Kartı
+- **Stadyum Arka Planı:** `theonlyk1ng` veya başka bir yayıncıya bağlanıldığında stadyum görselini (`app/bg.jpg`) kapatan tam ekran banner arka plan ezmesi tamamen kaldırıldı. Stadyum atmosferi her zaman korunur.
+- **Yayıncı Profil Kartı:** Bağlanılan yayıncının Kick profil fotoğrafı, canlı durum rozeti ve kullanıcı adı ekranın sol alt köşesinde yüzen şık ve kompakt bir cam kart (`#streamerProfileCard`) olarak sunuldu.
+
+### 4. 1v1'den 16v16'ya Genişletilmiş 3D Apple Watch Silindir Seçici
+- Takım boyutu seçici 1v1'den 16v16'ya kadar (32 kişilik dev maçlar için) genişletildi.
+- 3D Apple Watch silindir çarkı 16 dilime göre matematiksel olarak yeniden modellendi: Her dilim `360 / 16 = 22.5 deg` adımla ve `radius = 60px` derinlikle kusursuz 3D rotasyonla döner.
+- HTML `<select id="teamSize">` seçeneği ve dinamik çark elemanları 1..16 aralığına senkronize edildi.
+
+### 5. Simetrik Yukarı Piramit Turnuva Ağacı Düzeni (Feeder Eşleşme Ortalaması)
+- **Kök Neden:** Yukarı piramit modunda (`orient-upward` / `.bracket-upward`), turlar arasındaki maçlar `width: max-content; gap: 16px; justify-content: center;` ile hizalandığı için 1. tur maçları (geniş) ile 2. tur maçları (dar) sola yaslanıyor ve sağ tarafta orantısız boşluklar kalıyordu.
+- **Çözüm:** `.bracket-round` ve `.round-matches` kapsayıcılarına `width: 100% !important; display: flex !important; flex-direction: row !important; justify-content: space-around !important;` kuralları uygulandı. Böylece ikili ağaç mantığına göre ($W/2$ ve $3W/2 \to 2W/2$) besleyici maçlar tam olarak üstlerindeki turun merkezine simetrik olarak hizalanır.
+
+### 6. Geliştirici İsminin "MeH4n" Olarak Güncellenmesi
+- Kod tabanındaki, arayüzdeki, indirme sayfalarındaki ve dokümantasyondaki tüm "Mehmet Helvacı" referansları geliştiricinin rumuzu olan **"MeH4n"** ("Yapan Kişi: MeH4n") olarak güncellenmiştir.
+
+---
+
+## 🧪 Güncellenmiş Test & Doğrulama Sonuçları (27/27)
+
+`test_suite.js` test süiti **27 tam teste** çıkarılmış ve tüm testler sıfır hata ile geçmiştir:
+
+```text
+=== STRICKERS KING CREATOR AUTOMATED VERIFICATION SUITE ===
+
+✔ Test 1 Passed: app/data/hub_stats.json is initialized to {} without test dummies.
+✔ Test 2 Passed: 0-match player has strictly 0% winrate and Derecesiz rank.
+✔ Test 3 Passed: Server channel persistence isolation confirmed.
+✔ Test 4 Passed: Match MVP calculation (goals*2 + assists) and isMvp tagging verified.
+✔ Test 5 Passed: 3D Apple Watch Cylinder geometry calculations (1v1 to 16v16) verified.
+✔ Test 6 Passed: MeH4n Developer role lock protection verified.
+✔ Test 7 Passed: Backup import multi-channel isolation verified.
+✔ Test 8 Passed: Kick chat /goal and /boost command parser verified.
+✔ Test 9 Passed: MeH4n developer attribution & OBS protection verified.
+✔ Test 10 Passed: GitHub Pages root redirect portal & automated deployment workflow verified.
+✔ Test 11 Passed: Atomic match completion packet structure verified.
+✔ Test 12 Passed: Cross-streamer player career auto-inheritance verified.
+✔ Test 13 Passed: Sandbox path traversal defense & restricted backup scanning verified.
+✔ Test 14 Passed: C# System Tray background execution & BalloonTip match notification verified.
+✔ Test 15 Passed: Live auto-refresh broadcast to OBS overlay and global career tracking verified.
+✔ Test 16 Passed: Hub remote match delivery channel isolation verified.
+✔ Test 17 Passed: Submitting streamer event deduplication via matchId verified.
+✔ Test 18 Passed: Server MVP property creation & streak preservation logic verified.
+✔ Test 19 Passed: Sibling directory path traversal defense verified.
+✔ Test 20 Passed: Global league streak reset preservation on remote defeat verified.
+✔ Test 21 Passed: Authorized Moderator verification (Broadcaster, Mod, MeH4n) verified.
+✔ Test 22 Passed: Banned player pool exclusion & MeH4n ban protection verified.
+✔ Test 23 Passed: Anti-Cheat player stat reset (!sıfırla / !reset) verified.
+✔ Test 24 Passed: Command Renaming & Customization (!turnuvagiriş, !katıl, !kaptan) verified.
+✔ Test 25 Passed: Streamer Profile Card & Stadium Background Preservation verified.
+✔ Test 26 Passed: Symmetrical Upward Tournament Bracket Feeder Alignment verified.
+✔ Test 27 Passed: TAB Watcher & Dice Kura UI Ergonomics verified.
+
+======================================================
+ALL 27 CORE SYSTEM TESTS PASSED SUCCESSFULLY! (100% OK)
+======================================================
+```
+
+---
+
+# 🎯 Modern UX/UI Ergonomisi, Sürükle-Bırak Mikro Etkileşimleri, Çoklu Kanal Abonelik Filtrelemesi & Kompakt Footer Güncellemesi
+
+Bu güncelleme ile kullanıcı tavsiyeleri ve yayıncı ergonomisi göz önünde bulundurularak arayüz karmaşası giderilmiş, sürükle-bırak deneyimi modern mikro etkileşimlerle akıcılaştırılmış, alt bar alanı temizlenerek ekran alanı turnuvaya kazandırılmış ve birden fazla kanalı aynı anda dinleyen sistem için kanala özel abonelik rozetleri ve filtreleri eklenmiştir.
+
+---
+
+### 1. 🎛️ Sürükle-Bırak Mikro Etkileşimleri (Drag-and-Drop Micro-Interactions)
+- **Görsel Geri Bildirim:** Bir oyuncu kartı sürüklenmeye başlandığında (`is-dragging-player`), kart hafifçe küçülür ve açılanır (`transform: scale(0.93) rotate(1.8deg)`), neon gölge yayar.
+- **Hedef Alan Parlaması:** Oyuncu sürüklendiği anda müsait tüm takım kutuları ve listeler yeşilimsi neon çerçeveyle (`0 0 16px rgba(0, 240, 255, 0.45)`) parlayarak hedefi belirginleştirir.
+- **Başarılı Atama Onayı:** Oyuncu bir takıma yerleştiğinde yeşil checkmark rozeti patlar (`.drop-success-pop` ve `.drop-success-checkmark`), anında görsel tatmin sağlar.
+- **Hata ve Dolu Takım Uyarısı:** Dolu bir takıma oyuncu bırakılmaya çalışıldığında kart kırmızı uyarı efektiyle titrer (`.drop-error-shake`).
+
+### 2. 📡 Modern Canlı Yayın Durum Rozeti (Live Broadcast Badge)
+- Eski statik daire yerine canlı nabız efekti (`.live-pulse`), canlı uydu/yayın ikonu ve bağlı kanal sayısını gösteren profesyonel bir espor durum rozeti (`.status-badge`) getirildi.
+
+### 3. 🧹 Kompakt Alt Bar (Footer) Temizliği
+- **Kazanılan Ekran Alanı:** Sayfanın altında gereksiz yer kaplayan devasa uygulama logosu ve başlık kaldırıldı (zaten sayfa başında mevcuttur).
+- **Zarif ve İşlevsel Tasarım:** Yalnızca 30px yüksekliğinde kompakt bir alt çubuğa dönüştürüldü; geliştirici imzası (**`MeH4n`**) ve GitHub bağlantısı zarif çipler olarak korundu.
+
+### 4. 🧩 Eylemler ve Komutların Mantıksal Gruplandırılması
+- **Takım Yönetimi Eylemleri:** Dağınık durumdaki "Kura Çek", "Rastgele Dağıt", "Turnuvayı Sıfırla" ve "Havuzu Sıfırla" butonları, takımlar panelinin hemen üstündeki modern `#teamsTopToolbar` araç çubuğunda toplandı.
+- **Chat Entegrasyonu Bölümü:** `!turnuvagiriş` katılım komutu, `!kaptan` ve `!seç` kodları üst kontrol panelindeki birleşik `.chat-integration-card` kartında toplandı.
+
+### 5. ⭐ Çoklu Kanal Abonelik Rozetleri ve Akıllı Filtreleme
+- **Kanal Bazlı Ayrıştırma:** Birden fazla chat odası bağlıyken (örn. `theonlyk1ng`, `wtcn`, `elraenn`) hangi izleyicinin hangi kanala abone olduğu rozette açıkça belirtilir:
+  - `⭐ theonlyk1ng Abonesi [4. Ay]`
+- **Hızlı Filtreleme Araç Çubuğu (`#poolFilterToolbar`):**
+  - **Tümü / ⭐ Aboneler Sekmeleri:** Tek tıkla sadece aboneleri veya herkesi listeleme.
+  - **Kanal Seçici Açılır Menüsü (`#poolChannelSelect`):** Birden fazla kanal bağlıysa sadece belirli bir kanalın izleyicilerini süzme.
+  - **A-Z Alfabetik Sıralama:** Büyük havuzlarda isimle hızlı arama.
+  - **Abonelik Süresi Sıralaması:** En eski ve sadık aboneleri en üste getirme.
+- **Gelişmiş Mock Veri:** `+10 Test İzleyici` butonu test amacıyla farklı kanallardan abonelik ayları olan gerçekçi oyuncuları havuza ekleyecek şekilde güncellendi.
+
+---
+
+## 🧪 Güncellenmiş Test & Doğrulama Sonuçları (31/31)
+
+`test_suite.js` test süiti **31 tam teste** çıkarılmış ve tüm testler sıfır hata ile geçmiştir:
+
+```text
+=== STRICKERS KING CREATOR AUTOMATED VERIFICATION SUITE ===
+
+✔ Test 1 Passed: app/data/hub_stats.json is initialized to {} without test dummies.
+✔ Test 2 Passed: 0-match player has strictly 0% winrate and Derecesiz rank.
+✔ Test 3 Passed: Server channel persistence isolation confirmed.
+✔ Test 4 Passed: Match MVP calculation (goals*2 + assists) and isMvp tagging verified.
+✔ Test 5 Passed: 3D Apple Watch Cylinder geometry calculations (1v1 to 16v16) verified.
+✔ Test 6 Passed: MeH4n Developer role lock protection verified.
+✔ Test 7 Passed: Backup import multi-channel isolation verified.
+✔ Test 8 Passed: Kick chat /goal and /boost command parser verified.
+✔ Test 9 Passed: MeH4n developer attribution & OBS protection verified.
+✔ Test 10 Passed: GitHub Pages root redirect portal & automated deployment workflow verified.
+✔ Test 11 Passed: Atomic match completion packet structure verified.
+✔ Test 12 Passed: Cross-streamer player career auto-inheritance verified.
+✔ Test 13 Passed: Sandbox path traversal defense & restricted backup scanning verified.
+✔ Test 14 Passed: C# System Tray background execution & BalloonTip match notification verified.
+✔ Test 15 Passed: Live auto-refresh broadcast to OBS overlay and global career tracking verified.
+✔ Test 16 Passed: Hub remote match delivery channel isolation verified.
+✔ Test 17 Passed: Submitting streamer event deduplication via matchId verified.
+✔ Test 18 Passed: Server MVP property creation & streak preservation logic verified.
+✔ Test 19 Passed: Sibling directory path traversal defense verified.
+✔ Test 20 Passed: Global league streak reset preservation on remote defeat verified.
+✔ Test 21 Passed: Authorized Moderator verification (Broadcaster, Mod, MeH4n) verified.
+✔ Test 22 Passed: Banned player pool exclusion & MeH4n ban protection verified.
+✔ Test 23 Passed: Anti-Cheat player stat reset (!sıfırla / !reset) verified.
+✔ Test 24 Passed: Command Renaming & Customization (!turnuvagiriş, !katıl, !kaptan) verified.
+✔ Test 25 Passed: Streamer Profile Card & Stadium Background Preservation verified.
+✔ Test 26 Passed: Symmetrical Upward Tournament Bracket Feeder Alignment verified.
+✔ Test 27 Passed: TAB Watcher & Dice Kura UI Ergonomics verified.
+✔ Test 28 Passed: Multi-Channel Subscriber Badge & Metadata Parser verified.
+✔ Test 29 Passed: Pool Quick Filters & Sorting Logic verified.
+✔ Test 30 Passed: Compact Footer & Action Toolbar UI Ergonomics verified.
+✔ Test 31 Passed: Drag-and-Drop Micro-interaction Classes & CSS verified.
+
+======================================================
+ALL 31 CORE SYSTEM TESTS PASSED SUCCESSFULLY! (100% OK)
+======================================================
+```

@@ -6,6 +6,7 @@ using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -21,7 +22,7 @@ namespace StrickersClubCreator
 
         static Mutex mutex = new Mutex(true, "{8F9A4C62-B9E1-438B-93D2-6C81B4B6E7E9}");
 
-        private static string scriptDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app");
+        public static string scriptDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app");
 
         [STAThread]
         static void Main(string[] args)
@@ -105,43 +106,8 @@ namespace StrickersClubCreator
                 ? string.Format("http://localhost:{0}/?overlay=1", activePort)
                 : string.Format("http://localhost:{0}", activePort);
 
-            // 2. Locate MS Edge or Chrome browser executable for standalone --app mode
-            string browserPath = FindBrowserExecutable();
-
-            if (!string.IsNullOrEmpty(browserPath))
-            {
-                string appDataDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "StrickersKingCreatorProfile"
-                );
-
-                string browserArgs = string.Format(
-                    "--app=\"{0}\" --user-data-dir=\"{1}\" --name=\"Strickers King Creator\" --autoplay-policy=no-user-gesture-required --disable-http-cache",
-                    targetUrl,
-                    appDataDir
-                );
-
-                ProcessStartInfo browserInfo = new ProcessStartInfo
-                {
-                    FileName = browserPath,
-                    Arguments = browserArgs,
-                    UseShellExecute = true
-                };
-
-                Process browserProc = Process.Start(browserInfo);
-                if (browserProc != null)
-                {
-                    // Keep application running while window is open
-                    browserProc.WaitForExit();
-                }
-            }
-            else
-            {
-                // Fallback if no chromium browser is found
-                Process.Start(targetUrl);
-            }
-
-            StopScoreboardWatcherThread();
+            // 2. Start Application in System Tray context with NotifyIcon & background match listener
+            Application.Run(new TrayApplicationContext(activePort, targetUrl));
         }
 
         private static int FindActiveServerPort()
@@ -165,7 +131,7 @@ namespace StrickersClubCreator
             return 0;
         }
 
-        private static string FindBrowserExecutable()
+        public static string FindBrowserExecutable()
         {
             string[] possiblePaths = new string[]
             {
@@ -200,7 +166,7 @@ namespace StrickersClubCreator
             watcherThread.Start(port);
         }
 
-        private static void StopScoreboardWatcherThread()
+        public static void StopScoreboardWatcherThread()
         {
             isWatcherRunning = false;
         }
@@ -314,6 +280,295 @@ namespace StrickersClubCreator
                 }
             }
             catch { }
+        }
+    }
+
+    class TrayApplicationContext : ApplicationContext
+    {
+        private NotifyIcon notifyIcon;
+        private ContextMenuStrip contextMenu;
+        private int activePort;
+        private string targetUrl;
+        private Process currentBrowserProc;
+        private Thread hubNotificationThread;
+        private volatile bool isNotificationRunning = false;
+        private bool hasShownTrayBalloon = false;
+
+        public TrayApplicationContext(int port, string url)
+        {
+            this.activePort = port;
+            this.targetUrl = url;
+
+            InitializeTray();
+            StartHubNotificationListener();
+            LaunchBrowser();
+        }
+
+        private void InitializeTray()
+        {
+            contextMenu = new ContextMenuStrip();
+
+            ToolStripMenuItem openItem = new ToolStripMenuItem("🎮 Uygulamayı Aç (Arayüz)");
+            openItem.Click += delegate { LaunchBrowser(); };
+            openItem.Font = new Font(openItem.Font, FontStyle.Bold);
+
+            ToolStripMenuItem obsItem = new ToolStripMenuItem("📺 OBS Canlı Overlay Aç");
+            obsItem.Click += delegate
+            {
+                string obsUrl = string.Format("http://localhost:{0}/?overlay=1", activePort);
+                try { Process.Start(obsUrl); } catch { }
+            };
+
+            ToolStripSeparator sep = new ToolStripSeparator();
+
+            ToolStripMenuItem exitItem = new ToolStripMenuItem("❌ Tamamen Çıkış Yap");
+            exitItem.Click += delegate { ExitApplication(); };
+
+            contextMenu.Items.Add(openItem);
+            contextMenu.Items.Add(obsItem);
+            contextMenu.Items.Add(sep);
+            contextMenu.Items.Add(exitItem);
+
+            notifyIcon = new NotifyIcon();
+            notifyIcon.Text = "Strickers King Creator (Espor Ligi)";
+
+            string iconPath = Path.Combine(Program.scriptDir, "app.ico");
+            if (File.Exists(iconPath))
+            {
+                try { notifyIcon.Icon = new Icon(iconPath); }
+                catch { notifyIcon.Icon = SystemIcons.Application; }
+            }
+            else
+            {
+                notifyIcon.Icon = SystemIcons.Application;
+            }
+
+            notifyIcon.ContextMenuStrip = contextMenu;
+            notifyIcon.Visible = true;
+
+            notifyIcon.DoubleClick += delegate { LaunchBrowser(); };
+            notifyIcon.BalloonTipClicked += delegate { LaunchBrowser(); };
+        }
+
+        public void LaunchBrowser()
+        {
+            if (currentBrowserProc != null && !currentBrowserProc.HasExited)
+            {
+                return;
+            }
+
+            string browserPath = Program.FindBrowserExecutable();
+            if (!string.IsNullOrEmpty(browserPath))
+            {
+                string appDataDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "StrickersKingCreatorProfile"
+                );
+
+                string browserArgs = string.Format(
+                    "--app=\"{0}\" --user-data-dir=\"{1}\" --name=\"Strickers King Creator\" --autoplay-policy=no-user-gesture-required --disable-http-cache",
+                    targetUrl,
+                    appDataDir
+                );
+
+                ProcessStartInfo browserInfo = new ProcessStartInfo
+                {
+                    FileName = browserPath,
+                    Arguments = browserArgs,
+                    UseShellExecute = true
+                };
+
+                try
+                {
+                    currentBrowserProc = Process.Start(browserInfo);
+                    if (currentBrowserProc != null)
+                    {
+                        Thread waitThread = new Thread(new ThreadStart(delegate
+                        {
+                            try
+                            {
+                                currentBrowserProc.WaitForExit();
+                                if (!hasShownTrayBalloon && notifyIcon != null && notifyIcon.Visible)
+                                {
+                                    hasShownTrayBalloon = true;
+                                    notifyIcon.ShowBalloonTip(
+                                        3500,
+                                        "Strickers King Creator",
+                                        "Uygulama arka planda (saatin yanında) çalışmaya devam ediyor. Canlı maç sonuçları otomatik bildirilecektir.",
+                                        ToolTipIcon.Info
+                                    );
+                                }
+                            }
+                            catch { }
+                        }));
+                        waitThread.IsBackground = true;
+                        waitThread.Start();
+                    }
+                }
+                catch
+                {
+                    try { Process.Start(targetUrl); } catch { }
+                }
+            }
+            else
+            {
+                try { Process.Start(targetUrl); } catch { }
+            }
+        }
+
+        private void StartHubNotificationListener()
+        {
+            if (isNotificationRunning) return;
+            isNotificationRunning = true;
+
+            hubNotificationThread = new Thread(new ThreadStart(NotificationWorkerLoop));
+            hubNotificationThread.IsBackground = true;
+            hubNotificationThread.Start();
+        }
+
+        private void NotificationWorkerLoop()
+        {
+            int lastEventId = 0;
+            try
+            {
+                string syncInitUrl = string.Format("http://localhost:{0}/api/hub/sync?since=0&client=csharp_tray", activePort);
+                HttpWebRequest initReq = (HttpWebRequest)WebRequest.Create(syncInitUrl);
+                initReq.Timeout = 1200;
+                using (HttpWebResponse resp = (HttpWebResponse)initReq.GetResponse())
+                using (StreamReader sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
+                {
+                    string txt = sr.ReadToEnd();
+                    int idx = txt.IndexOf("\"lastId\":");
+                    if (idx >= 0)
+                    {
+                        string sub = txt.Substring(idx + 9);
+                        int commaIdx = sub.IndexOfAny(new char[] { ',', '}', ']' });
+                        if (commaIdx > 0)
+                        {
+                            int parsed;
+                            if (int.TryParse(sub.Substring(0, commaIdx).Trim(), out parsed))
+                            {
+                                lastEventId = parsed;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            while (isNotificationRunning)
+            {
+                try
+                {
+                    string syncUrl = string.Format("http://localhost:{0}/api/hub/sync?since={1}&client=csharp_tray", activePort, lastEventId);
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(syncUrl);
+                    req.Timeout = 1500;
+                    using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
+                    using (StreamReader sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
+                    {
+                        string body = sr.ReadToEnd();
+
+                        int lastIdIdx = body.IndexOf("\"lastId\":");
+                        if (lastIdIdx >= 0)
+                        {
+                            string sub = body.Substring(lastIdIdx + 9);
+                            int commaIdx = sub.IndexOfAny(new char[] { ',', '}', ']' });
+                            if (commaIdx > 0)
+                            {
+                                int parsed;
+                                if (int.TryParse(sub.Substring(0, commaIdx).Trim(), out parsed) && parsed > lastEventId)
+                                {
+                                    lastEventId = parsed;
+                                }
+                            }
+                        }
+
+                        int searchIdx = 0;
+                        while ((searchIdx = body.IndexOf("\"type\":\"MATCH_RECORDED\"", searchIdx, StringComparison.OrdinalIgnoreCase)) >= 0)
+                        {
+                            string summary = "Canlı Espor Ligi maçı kaydedildi!";
+                            int sumIdx = body.IndexOf("\"summary\":", searchIdx);
+                            if (sumIdx >= 0)
+                            {
+                                int valStart = body.IndexOf('\"', sumIdx + 10);
+                                if (valStart >= 0)
+                                {
+                                    int valEnd = body.IndexOf('\"', valStart + 1);
+                                    if (valEnd > valStart)
+                                    {
+                                        summary = DecodeJsonString(body.Substring(valStart + 1, valEnd - valStart - 1));
+                                    }
+                                }
+                            }
+
+                            if (notifyIcon != null)
+                            {
+                                notifyIcon.ShowBalloonTip(
+                                    5000,
+                                    "🏆 Maç Sonucu Kaydedildi!",
+                                    summary,
+                                    ToolTipIcon.Info
+                                );
+                            }
+
+                            searchIdx += 23;
+                        }
+                    }
+                }
+                catch { }
+
+                Thread.Sleep(1500);
+            }
+        }
+
+        private static string DecodeJsonString(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+            try
+            {
+                text = Regex.Replace(text, @"\\u(?<val>[a-fA-F0-9]{4})", delegate(Match m)
+                {
+                    return ((char)Convert.ToInt32(m.Groups["val"].Value, 16)).ToString();
+                });
+            }
+            catch { }
+            return text.Replace("\\\"", "\"").Replace("\\\\", "\\").Replace("\\/", "/");
+        }
+
+        private void ExitApplication()
+        {
+            isNotificationRunning = false;
+            Program.StopScoreboardWatcherThread();
+
+            if (notifyIcon != null)
+            {
+                notifyIcon.Visible = false;
+                notifyIcon.Dispose();
+                notifyIcon = null;
+            }
+
+            if (contextMenu != null)
+            {
+                contextMenu.Dispose();
+                contextMenu = null;
+            }
+
+            if (currentBrowserProc != null && !currentBrowserProc.HasExited)
+            {
+                try { currentBrowserProc.Kill(); } catch { }
+            }
+
+            ExitThread();
+            Application.Exit();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ExitApplication();
+            }
+            base.Dispose(disposing);
         }
     }
 }
