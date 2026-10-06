@@ -588,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const metalGain = ctx.createGain();
             metalGain.gain.setValueAtTime(0.001, now);
-            metalGain.linearRampToValueAtTime(0.35, now + 0.002);
+            metalGain.gain.linearRampToValueAtTime(0.35, now + 0.002);
             metalGain.gain.exponentialRampToValueAtTime(0.0001, now + (isFinal ? 0.35 : 0.22));
 
             metalOsc1.connect(metalGain);
@@ -625,7 +625,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const dismissSplash = () => {
                 splashScreen.classList.add('hidden');
-                playBackgroundMusic();
+                splashScreen.style.display = 'none';
+                splashScreen.style.pointerEvents = 'none';
+                try {
+                    playBackgroundMusic();
+                } catch (e) {}
             };
             const splashTimer = setTimeout(dismissSplash, 3200);
             splashScreen.addEventListener('click', () => {
@@ -963,56 +967,65 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const addTestPlayersBtn = document.getElementById('addTestPlayersBtn');
-
-    if (addTestPlayersBtn) {
-        addTestPlayersBtn.addEventListener('click', () => {
-            playUiSfx('join');
-            const samplePlayers = [
-                { name: 'wtcn', channel: 'wtcn', isSub: true, subMonths: 12 },
-                { name: 'theonlyk1ng', channel: 'theonlyk1ng', isSub: true, subMonths: 24 },
-                { name: 'elraenn', channel: 'elraenn', isSub: true, subMonths: 18 },
-                { name: 'StrikerKing', channel: 'theonlyk1ng', isSub: true, subMonths: 6 },
-                { name: 'ProGamer99', channel: 'theonlyk1ng', isSub: true, subMonths: 3 },
-                { name: 'GamerGirl', channel: 'wtcn', isSub: true, subMonths: 5 },
-                { name: 'NeonShadow', channel: 'wtcn', isSub: false, subMonths: 0 },
-                { name: 'CyberKnight', channel: 'elraenn', isSub: false, subMonths: 0 },
-                { name: 'FastFeet', channel: 'theonlyk1ng', isSub: false, subMonths: 0 },
-                { name: 'GoalHunter', channel: 'Genel', isSub: false, subMonths: 0 },
-                { name: 'AlphaWolf', channel: 'wtcn', isSub: true, subMonths: 2 },
-                { name: 'KickMaster', channel: 'elraenn', isSub: true, subMonths: 8 },
-                { name: 'TurboPlayer', channel: 'theonlyk1ng', isSub: true, subMonths: 4 },
-                { name: 'ApexLegend', channel: 'elraenn', isSub: true, subMonths: 9 }
-            ];
-            let addedCount = 0;
-            for (let i = 0; i < samplePlayers.length && addedCount < 10; i++) {
-                const sample = samplePlayers[i];
-                const meta = {
-                    sourceChannel: sample.channel,
-                    isSub: sample.isSub,
-                    subMonths: sample.subMonths
-                };
-                if (addPlayerToPool(sample.name, null, meta)) {
+    function addTestPlayers(count = 10) {
+        playUiSfx('join');
+        const samplePlayers = [
+            { name: 'wtcn', channel: 'wtcn', isSub: true, subMonths: 12 },
+            { name: 'theonlyk1ng', channel: 'theonlyk1ng', isSub: true, subMonths: 24 },
+            { name: 'elraenn', channel: 'elraenn', isSub: true, subMonths: 18 },
+            { name: 'StrikerKing', channel: 'theonlyk1ng', isSub: true, subMonths: 6 },
+            { name: 'ProGamer99', channel: 'theonlyk1ng', isSub: true, subMonths: 3 },
+            { name: 'GamerGirl', channel: 'wtcn', isSub: true, subMonths: 5 },
+            { name: 'NeonShadow', channel: 'wtcn', isSub: false, subMonths: 0 },
+            { name: 'CyberKnight', channel: 'elraenn', isSub: false, subMonths: 0 },
+            { name: 'FastFeet', channel: 'theonlyk1ng', isSub: false, subMonths: 0 },
+            { name: 'GoalHunter', channel: 'Genel', isSub: false, subMonths: 0 },
+            { name: 'AlphaWolf', channel: 'wtcn', isSub: true, subMonths: 2 },
+            { name: 'KickMaster', channel: 'elraenn', isSub: true, subMonths: 8 },
+            { name: 'TurboPlayer', channel: 'theonlyk1ng', isSub: true, subMonths: 4 },
+            { name: 'ApexLegend', channel: 'elraenn', isSub: true, subMonths: 9 }
+        ];
+        let addedCount = 0;
+        for (let i = 0; i < samplePlayers.length && addedCount < count; i++) {
+            const sample = samplePlayers[i];
+            const meta = {
+                sourceChannel: sample.channel,
+                isSub: sample.isSub,
+                subMonths: sample.subMonths
+            };
+            if (addPlayerToPool(sample.name, null, meta)) {
+                addedCount++;
+            } else {
+                const altName = `${sample.name}_${Math.floor(Math.random() * 89 + 10)}`;
+                if (addPlayerToPool(altName, null, meta)) {
                     addedCount++;
-                } else {
-                    const altName = `${sample.name}_${Math.floor(Math.random() * 89 + 10)}`;
-                    if (addPlayerToPool(altName, null, meta)) {
-                        addedCount++;
-                    }
                 }
             }
-            showToast(`🚀 ${addedCount} test izleyicisi havuza eklendi! (Aboneler & Kanallar Ayrıştırıldı)`);
+        }
+        showToast(`🚀 ${addedCount} test izleyicisi havuza eklendi! (Aboneler & Kanallar Ayrıştırıldı)`);
+        return addedCount;
+    }
+    window.addTestPlayers = addTestPlayers;
+
+    const addTestPlayersBtn = document.getElementById('addTestPlayersBtn');
+    if (addTestPlayersBtn) {
+        addTestPlayersBtn.addEventListener('click', () => {
+            addTestPlayers(10);
         });
     }
 
-    randomizeBtn.addEventListener('click', () => {
-        playUiSfx('shuffle');
-        randomizePlayers();
-    });
-    clearBtn.addEventListener('click', () => {
-        playUiSfx('click');
-        clearAllPlayers();
-    });
+    if (randomizeBtn) {
+        randomizeBtn.addEventListener('click', () => {
+            playUiSfx('shuffle');
+            randomizePlayers();
+        });
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            playUiSfx('click');
+            clearAllPlayers();
+        });
+    }
     connectBtn.addEventListener('click', () => {
         playUiSfx('click');
         connectToKick();
@@ -4362,9 +4375,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startCaptainDiceRoll() {
-        const captains = getEligibleCaptainsForDraft();
+        let captains = getEligibleCaptainsForDraft();
+        
+        // Eğer 2'den az kaptan varsa, takımlardan veya havuzdan ilk 2 oyuncuyu otomatik kaptan yap
         if (captains.length < 2) {
-            showToast('⚠️ Zar kurası için en az 2 takım kaptanı gereklidir! Chat\'e !kingkaptan yazarak veya oyuncu kartındaki taç (👑) simgesiyle kaptan belirleyin.', true);
+            const allItems = Array.from(document.querySelectorAll('.player-item'));
+            const nonCaptains = allItems.filter(p => !p.classList.contains('is-captain'));
+            for (let i = nonCaptains.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [nonCaptains[i], nonCaptains[j]] = [nonCaptains[j], nonCaptains[i]];
+            }
+            if (captains.length === 1 && nonCaptains.length >= 1) {
+                const target = nonCaptains[0];
+                target.classList.add('is-captain');
+                target.dataset.isCaptain = "true";
+                if (target.dataset.name) captainSet.add(target.dataset.name.toLowerCase());
+            } else if (captains.length === 0 && nonCaptains.length >= 2) {
+                nonCaptains[0].classList.add('is-captain');
+                nonCaptains[0].dataset.isCaptain = "true";
+                nonCaptains[1].classList.add('is-captain');
+                nonCaptains[1].dataset.isCaptain = "true";
+                if (nonCaptains[0].dataset.name) captainSet.add(nonCaptains[0].dataset.name.toLowerCase());
+                if (nonCaptains[1].dataset.name) captainSet.add(nonCaptains[1].dataset.name.toLowerCase());
+            }
+            saveCaptainsState();
+            updateCaptainDisplay();
+            captains = getEligibleCaptainsForDraft();
+        }
+
+        if (captains.length < 2) {
+            showToast('⚠️ Zar kurası için havuzda veya takımlarda en az 2 oyuncu olmalıdır!', true);
             playUiSfx('click');
             return;
         }
@@ -4844,6 +4884,31 @@ document.addEventListener('DOMContentLoaded', () => {
             chBadge.innerHTML = `<i class="fa-brands fa-kickstarter"></i> ${meta.sourceChannel}`;
             chBadge.title = `Bağlı Kanal: ${meta.sourceChannel}`;
             infoWrap.appendChild(chBadge);
+        }
+
+        // 🌟 Ünlü Yayıncı Rozeti ve Dönen Neon Çerçevesi
+        const cleanNameKey = name.trim().toLowerCase();
+        let celebTier = meta.celebrityTier;
+        let celebLabel = meta.celebrityLabel;
+        let celebCount = meta.followersCount;
+        if (!celebTier && typeof KNOWN_CELEBRITIES !== 'undefined' && KNOWN_CELEBRITIES[cleanNameKey]) {
+            const tInfo = getCelebrityTierFromCount(KNOWN_CELEBRITIES[cleanNameKey]);
+            if (tInfo) {
+                celebTier = tInfo.tierClass;
+                celebLabel = tInfo.label;
+                celebCount = KNOWN_CELEBRITIES[cleanNameKey];
+            }
+        }
+        if (celebTier) {
+            li.classList.add(celebTier);
+            const celebBadge = document.createElement('span');
+            celebBadge.className = `player-celebrity-badge ${celebTier}-badge`;
+            let celebIcon = 'fa-bolt';
+            if (celebTier === 'celebrity-tier3') celebIcon = 'fa-crown';
+            else if (celebTier === 'celebrity-tier2') celebIcon = 'fa-star';
+            celebBadge.innerHTML = `<i class="fa-solid ${celebIcon}"></i> ${celebLabel || 'Ünlü Yayıncı'}`;
+            celebBadge.title = `Ünlü Yayıncı (${celebCount ? celebCount.toLocaleString() + ' Takipçi' : ''})`;
+            infoWrap.appendChild(celebBadge);
         }
 
         // Butonlar / Eylemler Kapsayıcısı
@@ -5374,12 +5439,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
 
     function openLeaderboard() {
-        renderLeaderboard();
+        if (!leaderboardModal) return;
         leaderboardModal.classList.remove('hidden');
+        leaderboardModal.style.display = 'flex';
+        try {
+            renderLeaderboard();
+        } catch (e) {
+            console.error('Leaderboard render error:', e);
+        }
+        playUiSfx('click');
     }
 
     function closeLeaderboard() {
+        if (!leaderboardModal) return;
         leaderboardModal.classList.add('hidden');
+        leaderboardModal.style.display = 'none';
+        playUiSfx('click');
     }
 
     function renderLeaderboard() {
@@ -5530,95 +5605,212 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function clearAllPlayers() {
-        if (confirm('Tüm izleyicileri havuzdan ve takımlardan silmek istediğinize emin misiniz?')) {
-            // MeH4n geliştirici koruması: MeH4n sisteme katılmışsa rolü ve kaptanlığıyla korunur
-            const devEl = document.querySelector('.player-item.is-developer, .player-item[data-name="MeH4n" i]');
-            const devRole = playerRoles.get('meh4n');
-            const devIsCaptain = captainSet.has('meh4n');
+    const clearConfirmModal = document.getElementById('clearConfirmModal');
+    const executeClearConfirmBtn = document.getElementById('executeClearConfirmBtn');
+    const cancelClearConfirmBtn = document.getElementById('cancelClearConfirmBtn');
+    const closeClearConfirmModalBtn = document.getElementById('closeClearConfirmModalBtn');
 
-            playerPool.innerHTML = '';
-            document.querySelectorAll('.team-list').forEach(list => {
-                list.innerHTML = '';
-                const teamBox = list.closest('.team-box') || list.closest('.bracket-team-slot');
-                if (teamBox) {
-                    const countBadge = teamBox.querySelector('.team-count');
-                    if (countBadge) countBadge.textContent = '0';
-                    teamBox.classList.remove('full');
-                }
-            });
-            if (gameModeSelect.value === 'tournament') {
-                tournamentMatches = getInitialTournamentMatches();
-                initTeams();
-            }
-            captainSet.clear();
-            playerRoles.clear();
+    function openClearConfirmModal() {
+        if (!clearConfirmModal) {
+            executeClearAllPlayers();
+            return;
+        }
+        clearConfirmModal.classList.remove('hidden');
+        clearConfirmModal.style.display = 'flex';
+        playUiSfx('click');
+    }
 
-            if (devEl) {
-                // MeH4n'i koruyarak havuza geri yerleştir
-                const preservedDev = createPlayerElement('MeH4n');
-                if (devRole) {
-                    playerRoles.set('meh4n', devRole);
-                    setPlayerRole(preservedDev, devRole);
-                }
-                if (devIsCaptain) {
-                    captainSet.add('meh4n');
-                    preservedDev.classList.add('is-captain');
-                    preservedDev.dataset.isCaptain = "true";
-                }
-                playerPool.appendChild(preservedDev);
-            }
+    function closeClearConfirmModal() {
+        if (!clearConfirmModal) return;
+        clearConfirmModal.classList.add('hidden');
+        clearConfirmModal.style.display = 'none';
+        playUiSfx('click');
+    }
 
-            savePlayerRolesState();
-            endDraftTurnMode(false);
-            saveCaptainsState();
-            updateCaptainDisplay();
-            updatePoolCount();
-            if (devEl) {
-                showToast('İzleyiciler temizlendi (🛡️ Sistem Geliştiricisi MeH4n korundu).');
-            } else {
-                showToast('Tüm izleyiciler sıfırlandı ve silindi.');
+    if (executeClearConfirmBtn) {
+        executeClearConfirmBtn.onclick = () => {
+            executeClearAllPlayers();
+            closeClearConfirmModal();
+        };
+    }
+    if (cancelClearConfirmBtn) {
+        cancelClearConfirmBtn.onclick = closeClearConfirmModal;
+    }
+    if (closeClearConfirmModalBtn) {
+        closeClearConfirmModalBtn.onclick = closeClearConfirmModal;
+    }
+    if (clearConfirmModal) {
+        clearConfirmModal.addEventListener('click', (e) => {
+            if (e.target === clearConfirmModal) closeClearConfirmModal();
+        });
+    }
+
+    function executeClearAllPlayers() {
+        // MeH4n geliştirici koruması: MeH4n sisteme katılmışsa rolü ve kaptanlığıyla korunur
+        const devEl = document.querySelector('.player-item.is-developer, .player-item[data-name="MeH4n" i]');
+        const devRole = playerRoles.get('meh4n');
+        const devIsCaptain = captainSet.has('meh4n');
+
+        playerPool.innerHTML = '';
+        document.querySelectorAll('.team-list').forEach(list => {
+            list.innerHTML = '';
+            const teamBox = list.closest('.team-box') || list.closest('.bracket-team-slot');
+            if (teamBox) {
+                const countBadge = teamBox.querySelector('.team-count');
+                if (countBadge) countBadge.textContent = '0';
+                teamBox.classList.remove('full');
             }
+        });
+        if (gameModeSelect && gameModeSelect.value === 'tournament') {
+            tournamentMatches = getInitialTournamentMatches();
+            initTeams();
+        }
+        captainSet.clear();
+        playerRoles.clear();
+
+        if (devEl) {
+            // MeH4n'i koruyarak havuza geri yerleştir
+            const preservedDev = createPlayerElement('MeH4n');
+            if (devRole) {
+                playerRoles.set('meh4n', devRole);
+                setPlayerRole(preservedDev, devRole);
+            }
+            if (devIsCaptain) {
+                captainSet.add('meh4n');
+                preservedDev.classList.add('is-captain');
+                preservedDev.dataset.isCaptain = "true";
+            }
+            playerPool.appendChild(preservedDev);
+        }
+
+        savePlayerRolesState();
+        endDraftTurnMode(false);
+        saveCaptainsState();
+        updateCaptainDisplay();
+        updatePoolCount();
+        if (devEl) {
+            showToast('İzleyiciler temizlendi (🛡️ Sistem Geliştiricisi MeH4n korundu).');
+        } else {
+            showToast('Tüm izleyiciler sıfırlandı ve silindi.');
         }
     }
 
+    function clearAllPlayers(force = false) {
+        if (force) {
+            executeClearAllPlayers();
+        } else {
+            openClearConfirmModal();
+        }
+    }
+
+    const randomizeAssistModal = document.getElementById('randomizeAssistModal');
+    const autoAddAndRandomizeBtn = document.getElementById('autoAddAndRandomizeBtn');
+    const cancelRandomizeAssistBtn = document.getElementById('cancelRandomizeAssistBtn');
+    const closeRandomizeAssistModalBtn = document.getElementById('closeRandomizeAssistModalBtn');
+
+    function openRandomizeAssistModal() {
+        if (!randomizeAssistModal) return;
+        randomizeAssistModal.classList.remove('hidden');
+        randomizeAssistModal.style.display = 'flex';
+        playUiSfx('click');
+    }
+
+    function closeRandomizeAssistModal() {
+        if (!randomizeAssistModal) return;
+        randomizeAssistModal.classList.add('hidden');
+        randomizeAssistModal.style.display = 'none';
+        playUiSfx('click');
+    }
+
+    if (autoAddAndRandomizeBtn) {
+        autoAddAndRandomizeBtn.onclick = () => {
+            closeRandomizeAssistModal();
+            if (typeof addTestPlayers === 'function') {
+                addTestPlayers(10);
+            }
+            setTimeout(() => {
+                playUiSfx('shuffle');
+                randomizePlayers();
+            }, 120);
+        };
+    }
+    if (cancelRandomizeAssistBtn) {
+        cancelRandomizeAssistBtn.onclick = closeRandomizeAssistModal;
+    }
+    if (closeRandomizeAssistModalBtn) {
+        closeRandomizeAssistModalBtn.onclick = closeRandomizeAssistModal;
+    }
+    if (randomizeAssistModal) {
+        randomizeAssistModal.addEventListener('click', (e) => {
+            if (e.target === randomizeAssistModal) closeRandomizeAssistModal();
+        });
+    }
+
     function randomizePlayers() {
-        const allPlayers = Array.from(playerPool.children);
-        if (allPlayers.length === 0) {
-            showToast('Havuzda dağıtılacak oyuncu yok!', true);
-            return;
+        // Dağıtılacak oyuncuları topla: Önce havuzdaki oyunculara bak
+        let playersToDistribute = Array.from(playerPool ? playerPool.querySelectorAll('.player-item') : []);
+
+        // Eğer havuz boşsa ama takımlarda zaten oyuncular varsa, takımlardakileri toplayıp yeniden karıştır
+        if (playersToDistribute.length === 0) {
+            const teamPlayerElements = Array.from(document.querySelectorAll('.team-list .player-item'));
+            if (teamPlayerElements.length === 0) {
+                openRandomizeAssistModal();
+                return;
+            }
+            teamPlayerElements.forEach(el => el.remove());
+            playersToDistribute = teamPlayerElements;
         }
 
         const isTournament = gameModeSelect && gameModeSelect.value === 'tournament';
-        const teams = document.querySelectorAll(isTournament ? 'ul.team-list:not(.progress-team-list)' : '.team-box .team-list');
-        const maxSize = parseInt(teamSizeSelect.value);
+        const teams = Array.from(document.querySelectorAll(isTournament ? 'ul.team-list:not(.progress-team-list)' : '.team-box .team-list'));
+        if (teams.length === 0) return;
+
+        let maxSize = 5;
+        if (teamSizeSelect && teamSizeSelect.value) {
+            const parsed = parseInt(teamSizeSelect.value, 10);
+            if (!isNaN(parsed) && parsed > 0) maxSize = parsed;
+        }
         
-        // Karıştır
-        for (let i = allPlayers.length - 1; i > 0; i--) {
+        // Karıştır (Fisher-Yates)
+        for (let i = playersToDistribute.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [allPlayers[i], allPlayers[j]] = [allPlayers[j], allPlayers[i]];
+            [playersToDistribute[i], playersToDistribute[j]] = [playersToDistribute[j], playersToDistribute[i]];
         }
 
         let playerIndex = 0;
         let distributed = 0;
 
-        teams.forEach(teamList => {
-            let currentCount = teamList.children.length;
-            const teamBox = teamList.closest('.team-box') || teamList.closest('.bracket-team-slot') || teamList.parentElement;
-            const countBadge = teamBox ? teamBox.querySelector('.team-count') : null;
+        // Dengeli / Sırayla (Round-Robin) Dağıtım: Takım 1'e 1, Takım 2'ye 1... böylece güç eşit kalır
+        while (playerIndex < playersToDistribute.length) {
+            let placedInRound = false;
+            for (let t = 0; t < teams.length; t++) {
+                const teamList = teams[t];
+                if (teamList.children.length < maxSize && playerIndex < playersToDistribute.length) {
+                    teamList.appendChild(playersToDistribute[playerIndex]);
+                    playerIndex++;
+                    distributed++;
+                    placedInRound = true;
+                }
+            }
+            if (!placedInRound) break; // Tüm takımlar doldu
+        }
 
-            while (currentCount < maxSize && playerIndex < allPlayers.length) {
-                teamList.appendChild(allPlayers[playerIndex]);
-                currentCount++;
-                playerIndex++;
-                distributed++;
-            }
-            
-            if (countBadge) {
-                countBadge.textContent = isTournament ? `${currentCount}/${maxSize}` : currentCount;
-            }
+        // Dolduktan sonra artan oyuncuları tekrar havuza bırak
+        while (playerIndex < playersToDistribute.length) {
+            if (playerPool) playerPool.appendChild(playersToDistribute[playerIndex]);
+            playerIndex++;
+        }
+
+        // Rozetleri ve doluluk durumlarını güncelle
+        teams.forEach(teamList => {
+            const currentCount = teamList.children.length;
+            const teamBox = teamList.closest('.team-box') || teamList.closest('.bracket-team-slot') || teamList.parentElement;
             if (teamBox) {
-                if (currentCount === maxSize) {
+                const countBadge = teamBox.querySelector('.team-count');
+                if (countBadge) {
+                    countBadge.textContent = `${currentCount}/${maxSize}`;
+                }
+                if (currentCount >= maxSize) {
                     teamBox.classList.add('full');
                 } else {
                     teamBox.classList.remove('full');
@@ -5627,12 +5819,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updatePoolCount();
+        updateTeamPowerBar();
+        playUiSfx('shuffle');
         if (distributed > 0) {
-            showToast(`${distributed} oyuncu takımlara dağıtıldı!`);
+            showToast(`🎲 ${distributed} oyuncu takımlara adil ve dengeli biçimde dağıtıldı!`);
         }
-        
-        if (playerIndex < allPlayers.length) {
-            showToast('Takımlar doldu, kalan oyuncular havuzda bekliyor.', true);
+        if (playerIndex < playersToDistribute.length) {
+            showToast('Takım limitleri doldu, kalan oyuncular havuzda bekliyor.', true);
         }
     }
 
@@ -5799,6 +5992,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             pusher.connection.bind('connected', () => {
                 updateActiveChannelsUI();
+                const streamerTag = document.getElementById('streamerStatusTag');
+                if (streamerTag) {
+                    streamerTag.innerHTML = '<span class="streamer-live-dot" style="background-color: #53fc18;" id="streamerStatusDot"></span> Chat Bağlı';
+                }
             });
 
             pusher.connection.bind('connecting', () => {
@@ -5812,6 +6009,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeChannels.size === 0 && connectionStatus) {
                     connectionStatus.textContent = 'Bağlantı Kesildi';
                     connectionStatus.className = 'status disconnected';
+                }
+                const streamerTag = document.getElementById('streamerStatusTag');
+                if (streamerTag) {
+                    streamerTag.classList.remove('is-connected');
+                    streamerTag.innerHTML = '<span class="streamer-live-dot" id="streamerStatusDot"></span> Offline';
                 }
             });
 
@@ -5908,6 +6110,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 connectionStatus.innerHTML = '<span class="status-indicator"></span><i class="fa-solid fa-tower-broadcast status-icon"></i><span class="status-label">Bağlı Değil</span>';
                 connectionStatus.className = 'status status-badge disconnected';
             }
+            const streamerStatusTag = document.getElementById('streamerStatusTag');
+            if (streamerStatusTag) {
+                streamerStatusTag.classList.remove('is-connected');
+                streamerStatusTag.innerHTML = '<span class="streamer-live-dot" id="streamerStatusDot"></span> Offline';
+            }
             return;
         }
 
@@ -5943,6 +6150,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             connectionStatus.innerHTML = `<span class="status-indicator live-pulse"></span><i class="fa-solid fa-tower-broadcast status-icon"></i><span class="status-label">${label}</span>`;
             connectionStatus.className = 'status status-badge connected';
+        }
+
+        const streamerStatusTag = document.getElementById('streamerStatusTag');
+        if (streamerStatusTag) {
+            streamerStatusTag.classList.add('is-connected');
+            streamerStatusTag.innerHTML = '<span class="streamer-live-dot" id="streamerStatusDot"></span> Chat Bağlı';
         }
     }
 
@@ -6013,6 +6226,83 @@ document.addEventListener('DOMContentLoaded', () => {
             connectBtn.disabled = false;
             connectBtn.innerHTML = '<i class="fa-solid fa-plug"></i> <span>Chat\'e Bağlan</span>';
             updateActiveChannelsUI();
+        }
+    }
+
+    // =========================================================================
+    // 🌟 Ünlü Yayıncı & Fenomen Algılama ve Dönen Neon Animasyon Sistemi
+    // =========================================================================
+    const KNOWN_CELEBRITIES = {
+        'elraenn': 250000,
+        'wtcn': 120000,
+        'kendinemuzisyen': 110000,
+        'theonlyk1ng': 18000,
+        'unlostv': 95000,
+        'kemalcanparlak': 85000,
+        'leventbalim': 12000,
+        'mithrain': 80000,
+        'alicorn': 25000,
+        'ferit': 120000,
+        'tugkan': 250000
+    };
+
+    function getCelebrityTierFromCount(count) {
+        if (typeof count !== 'number' || count < 1000) return null;
+        if (count >= 100000) return { tierClass: 'celebrity-tier3', label: '100K+ Efsane', icon: 'fa-crown' };
+        if (count >= 10000) return { tierClass: 'celebrity-tier2', label: '10K+ Fenomen', icon: 'fa-star' };
+        return { tierClass: 'celebrity-tier1', label: '1K+ Yayıncı', icon: 'fa-bolt' };
+    }
+
+    async function checkAndApplyCelebrityTier(username) {
+        if (!username) return;
+        const cleanUser = username.trim().toLowerCase();
+        let count = KNOWN_CELEBRITIES[cleanUser] || 0;
+
+        try {
+            const res = await fetch(`/api/kick/channel?name=${encodeURIComponent(cleanUser)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && typeof data.followersCount === 'number' && data.followersCount > 0) {
+                    count = data.followersCount;
+                }
+            }
+        } catch(e) {}
+
+        const tierInfo = getCelebrityTierFromCount(count);
+        if (!tierInfo) return;
+
+        // Store in playerMetadataMap
+        const meta = playerMetadataMap.get(cleanUser) || {};
+        meta.celebrityTier = tierInfo.tierClass;
+        meta.followersCount = count;
+        meta.celebrityLabel = tierInfo.label;
+        playerMetadataMap.set(cleanUser, meta);
+
+        // Update all DOM elements for this player
+        document.querySelectorAll('.player-item').forEach(item => {
+            if (item.dataset.name && item.dataset.name.trim().toLowerCase() === cleanUser) {
+                item.classList.remove('celebrity-tier1', 'celebrity-tier2', 'celebrity-tier3');
+                item.classList.add(tierInfo.tierClass);
+                const infoWrap = item.querySelector('.player-info-wrap');
+                if (infoWrap && !infoWrap.querySelector('.player-celebrity-badge')) {
+                    const badge = document.createElement('span');
+                    badge.className = `player-celebrity-badge ${tierInfo.tierClass}-badge`;
+                    badge.innerHTML = `<i class="fa-solid ${tierInfo.icon}"></i> ${tierInfo.label}`;
+                    badge.title = `Ünlü Yayıncı (${count.toLocaleString()} Takipçi)`;
+                    infoWrap.appendChild(badge);
+                }
+            }
+        });
+
+        if (tierInfo.tierClass === 'celebrity-tier3') {
+            showToast(`👑 Efsane Yayıncı ${username} turnuvaya katıldı! (${count.toLocaleString()} Takipçi)`, false);
+            playUiSfx('win');
+            if (typeof triggerConfettiCelebration === 'function') triggerConfettiCelebration();
+        } else if (tierInfo.tierClass === 'celebrity-tier2') {
+            showToast(`⭐ Ünlü Yayıncı ${username} katıldı! (${count.toLocaleString()} Takipçi)`, false);
+            playUiSfx('click');
+        } else if (tierInfo.tierClass === 'celebrity-tier1') {
+            showToast(`🌟 Yayıncı ${username} katıldı! (${count.toLocaleString()} Takipçi)`, false);
         }
     }
 
@@ -6211,6 +6501,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!pusherAvatar) {
                     fetchUserAvatar(username);
                 }
+
+                checkAndApplyCelebrityTier(username);
             }
             return;
         }
@@ -8089,6 +8381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function openComprehensiveGuide(tab = 'tour') {
         if (!comprehensiveGuideModal) return;
         comprehensiveGuideModal.classList.remove('hidden');
+        comprehensiveGuideModal.style.display = 'flex';
         playUiSfx('click');
 
         // İlgili sekmeyi aktifleştir
@@ -8105,6 +8398,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeComprehensiveGuide() {
         if (!comprehensiveGuideModal) return;
         comprehensiveGuideModal.classList.add('hidden');
+        comprehensiveGuideModal.style.display = 'none';
         playUiSfx('click');
     }
 
@@ -8199,8 +8493,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         drawerOverlay.classList.remove('hidden');
+        drawerOverlay.style.display = 'block';
         drawerOverlay.classList.add('open');
         settingsDrawer.classList.remove('hidden');
+        settingsDrawer.style.display = 'flex';
         settingsDrawer.classList.add('open');
         playUiSfx('click');
     }
@@ -8211,7 +8507,9 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsDrawer.classList.remove('open');
         setTimeout(() => {
             drawerOverlay.classList.add('hidden');
+            drawerOverlay.style.display = 'none';
             settingsDrawer.classList.add('hidden');
+            settingsDrawer.style.display = 'none';
         }, 300);
         playUiSfx('click');
     }
@@ -8539,12 +8837,29 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (e.key === 'Escape') {
             if (isGuideActive) closeGuide();
-            if (comprehensiveGuideModal && !comprehensiveGuideModal.classList.contains('hidden')) closeComprehensiveGuide();
+            if (comprehensiveGuideModal && (!comprehensiveGuideModal.classList.contains('hidden') || comprehensiveGuideModal.style.display !== 'none')) closeComprehensiveGuide();
             if (settingsDrawer && settingsDrawer.classList.contains('open')) closeSettingsDrawer();
             if (audioModal && !audioModal.classList.contains('hidden')) closeAudioModal();
-            if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) closeLeaderboard();
+            if (leaderboardModal && (!leaderboardModal.classList.contains('hidden') || leaderboardModal.style.display !== 'none')) closeLeaderboard();
             if (kickModal && !kickModal.classList.contains('hidden')) closeKickModal();
             if (obsLinkModal && !obsLinkModal.classList.contains('hidden')) closeObsLinkModal();
+            if (typeof commandsModal !== 'undefined' && commandsModal && (!commandsModal.classList.contains('hidden') || commandsModal.style.display !== 'none')) {
+                commandsModal.classList.add('hidden');
+                commandsModal.style.display = 'none';
+            }
+            if (typeof clearConfirmModal !== 'undefined' && clearConfirmModal && (!clearConfirmModal.classList.contains('hidden') || clearConfirmModal.style.display !== 'none')) {
+                clearConfirmModal.classList.add('hidden');
+                clearConfirmModal.style.display = 'none';
+            }
+            if (typeof randomizeAssistModal !== 'undefined' && randomizeAssistModal && (!randomizeAssistModal.classList.contains('hidden') || randomizeAssistModal.style.display !== 'none')) {
+                randomizeAssistModal.classList.add('hidden');
+                randomizeAssistModal.style.display = 'none';
+            }
+            const wheelModalEl = document.getElementById('wheelModal');
+            if (wheelModalEl && (!wheelModalEl.classList.contains('hidden') || wheelModalEl.style.display !== 'none')) {
+                wheelModalEl.classList.add('hidden');
+                wheelModalEl.style.display = 'none';
+            }
             return;
         }
 
@@ -9786,11 +10101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (poolItems.length > 0) {
                 return poolItems.map(el => el.dataset.name);
             }
-            const keys = Object.keys(channelStats);
-            if (keys.length > 0) {
-                return keys.map(k => channelStats[k].displayName || k);
-            }
-            return ['İzleyici 1', 'İzleyici 2', 'İzleyici 3', 'İzleyici 4'];
+            return [];
         }
 
         function drawWheel() {
@@ -9843,23 +10154,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function openModal() {
             wheelPlayers = getPoolPlayers();
+            if (wheelPlayers.length === 0) {
+                // Havuz boşsa takımlardaki mevcut oyuncuları kuraya dahil et
+                const teamPlayers = Array.from(document.querySelectorAll('.team-list .player-item')).map(el => el.dataset.name).filter(Boolean);
+                if (teamPlayers.length > 0) {
+                    wheelPlayers = teamPlayers;
+                } else {
+                    // Havuz boşsa çarkın açılmasını engelleme, şık demo/slot dilimleri göster
+                    wheelPlayers = ['Kura Adayı 1', 'Kura Adayı 2', 'Kura Adayı 3', 'Kura Adayı 4'];
+                    showToast('🎯 Çark hazır! Canlı izleyicileriniz veya test oyuncuları eklendiğinde isimler güncellenecektir.');
+                }
+            }
             selectedWinner = null;
             if (resultBox) resultBox.classList.add('hidden');
             modal.classList.remove('hidden');
+            modal.style.display = 'flex';
             drawWheel();
             playUiSfx('click');
         }
 
         function closeModal() {
             modal.classList.add('hidden');
+            modal.style.display = 'none';
         }
 
-        if (openBtn) openBtn.onclick = openModal;
+        if (openBtn) {
+            openBtn.onclick = openModal;
+            openBtn.addEventListener('click', openModal);
+        }
         document.querySelectorAll('.trigger-lucky-wheel').forEach(b => {
             b.onclick = openModal;
+            b.addEventListener('click', openModal);
         });
         if (closeBtn) closeBtn.onclick = closeModal;
         if (closeFooterBtn) closeFooterBtn.onclick = closeModal;
+
+        const wheelAddTestBtn = document.getElementById('wheelAddTestBtn');
+        if (wheelAddTestBtn) {
+            wheelAddTestBtn.onclick = () => {
+                if (typeof addTestPlayers === 'function') {
+                    addTestPlayers(10);
+                }
+                wheelPlayers = getPoolPlayers();
+                drawWheel();
+                showToast('🎯 10 test izleyicisi eklendi ve çarka yüklendi!');
+            };
+        }
 
         if (spinBtn) {
             spinBtn.onclick = () => {
@@ -9905,12 +10245,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function assignWinnerToTeam(targetTeamNum) {
             if (!selectedWinner) return;
-            const targetList = document.getElementById(`team-${targetTeamNum}`);
-            if (!targetList) return;
+            const maxSize = parseInt(teamSizeSelect?.value || '5', 10);
+            const isTournament = gameModeSelect && gameModeSelect.value === 'tournament';
+            const allTeamLists = Array.from(document.querySelectorAll(isTournament ? 'ul.team-list:not(.progress-team-list)' : '.team-box .team-list'));
+
+            let targetList = null;
+            if (targetTeamNum === 'auto') {
+                targetList = allTeamLists.find(tl => tl.children.length < maxSize);
+                if (!targetList) {
+                    showToast(`⚠️ Tüm takımlar dolu (${maxSize}/${maxSize})! Oyuncu atanamadı.`, true);
+                    return;
+                }
+            } else {
+                targetList = document.getElementById(`team-${targetTeamNum}`) || allTeamLists[targetTeamNum - 1];
+            }
+
+            if (!targetList) {
+                showToast('Hedef takım bulunamadı!', true);
+                return;
+            }
+
+            if (targetList.children.length >= maxSize) {
+                showToast(`⚠️ Seçilen takım dolu (${maxSize}/${maxSize})! Müsait bir takım seçin.`, true);
+                return;
+            }
 
             let playerEl = null;
             if (playerPool) {
                 playerEl = playerPool.querySelector(`.player-item[data-name="${CSS.escape(selectedWinner)}"]`);
+            }
+            if (!playerEl) {
+                // Başka bir takımda varsa oradan taşı
+                playerEl = document.querySelector(`.player-item[data-name="${CSS.escape(selectedWinner)}"]`);
             }
             if (!playerEl) {
                 playerEl = createPlayerElement(selectedWinner);
@@ -9918,27 +10284,30 @@ document.addEventListener('DOMContentLoaded', () => {
             targetList.appendChild(playerEl);
 
             const teamBox = targetList.closest('.team-box') || targetList.closest('.bracket-team-slot') || targetList.parentElement;
+            let teamName = `Takım ${targetTeamNum}`;
             if (teamBox) {
                 const countBadge = teamBox.querySelector('.team-count');
-                const maxSize = parseInt(teamSizeSelect?.value || '5', 10);
                 const currentCount = targetList.children.length;
                 if (countBadge) {
-                    const isTournament = gameModeSelect && gameModeSelect.value === 'tournament';
-                    countBadge.textContent = isTournament ? `${currentCount}/${maxSize}` : `${currentCount}/${maxSize}`;
+                    countBadge.textContent = `${currentCount}/${maxSize}`;
                 }
                 if (currentCount >= maxSize) {
                     teamBox.classList.add('full');
                 } else {
                     teamBox.classList.remove('full');
                 }
+                const nameEl = teamBox.querySelector('.team-name-input') || teamBox.querySelector('.slot-name-input') || teamBox.querySelector('.slot-name-text');
+                if (nameEl) teamName = (nameEl.value || nameEl.textContent).trim();
             }
 
             updatePoolCount();
             updateTeamPowerBar();
-            showToast(`✅ ${selectedWinner} Takım ${targetTeamNum}'e atandı!`);
+            showToast(`✅ ${selectedWinner} ${teamName} kadrosuna atandı!`);
             closeModal();
         }
 
+        const assignAutoBtn = document.getElementById('wheelAssignAutoBtn');
+        if (assignAutoBtn) assignAutoBtn.onclick = () => assignWinnerToTeam('auto');
         if (assignTeam1Btn) assignTeam1Btn.onclick = () => assignWinnerToTeam(1);
         if (assignTeam2Btn) assignTeam2Btn.onclick = () => assignWinnerToTeam(2);
     }
@@ -10087,8 +10456,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // 🚀 TÜM YENİ MODÜLLERİN ARAYÜZ ENTEGRASYONU VE BAŞLATILMASI
     // =========================================================================
+    function initViewerSpeedControls() {
+        const viewerJoinSpeedSlider = document.getElementById('viewerJoinSpeedSlider');
+        const viewerJoinSpeedDisplay = document.getElementById('viewerJoinSpeedDisplay');
+        const resetViewerSpeedBtn = document.getElementById('resetViewerSpeedBtn');
+
+        const savedSpeed = localStorage.getItem('kick_viewer_speed') || '1000';
+        if (viewerJoinSpeedSlider) {
+            viewerJoinSpeedSlider.value = savedSpeed;
+            if (viewerJoinSpeedDisplay) {
+                viewerJoinSpeedDisplay.textContent = `${(parseInt(savedSpeed, 10) / 1000).toFixed(1)} sn`;
+            }
+            viewerJoinSpeedSlider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                localStorage.setItem('kick_viewer_speed', val);
+                if (viewerJoinSpeedDisplay) {
+                    viewerJoinSpeedDisplay.textContent = `${(parseInt(val, 10) / 1000).toFixed(1)} sn`;
+                }
+            });
+        }
+
+        if (resetViewerSpeedBtn) {
+            const doReset = () => {
+                if (viewerJoinSpeedSlider) {
+                    viewerJoinSpeedSlider.value = '1000';
+                }
+                if (viewerJoinSpeedDisplay) {
+                    viewerJoinSpeedDisplay.textContent = '1.0 sn';
+                }
+                localStorage.setItem('kick_viewer_speed', '1000');
+                playUiSfx('click');
+                showToast('⚡ İzleyici akış hızı varsayılana sıfırlandı (1.0 sn).');
+            };
+            resetViewerSpeedBtn.onclick = doReset;
+            resetViewerSpeedBtn.addEventListener('click', doReset);
+        }
+    }
+
     initWatchCrownSlider();
     initWatcherControls();
+    initViewerSpeedControls();
     initLuckyWheelModal();
     initFifaCardModal();
     updateTeamPowerBar();
@@ -10135,6 +10542,156 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof _origHandleTournamentMatchWin === 'function') _origHandleTournamentMatchWin(matchId, slotKey);
         checkAndInitLosers();
     };
+
+    // =========================================================================
+    // 📜 Komutlar & Sohbet Kılavuzu Modalı (Commands Modal Initialization)
+    // =========================================================================
+    const commandsModal = document.getElementById('commandsModal');
+    const openCommandsModalBtn = document.getElementById('openCommandsModalBtn');
+    const closeCommandsModalBtn = document.getElementById('closeCommandsModalBtn');
+    const closeCommandsModalFooterBtn = document.getElementById('closeCommandsModalFooterBtn');
+    const tabPublicCommands = document.getElementById('tabPublicCommands');
+    const tabMehanCommands = document.getElementById('tabMehanCommands');
+    const contentPublicCommands = document.getElementById('contentPublicCommands');
+    const contentMehanCommands = document.getElementById('contentMehanCommands');
+    const mehanCommandsList = document.getElementById('mehanCommandsList');
+
+    window.openCommandsModal = async () => {
+        const modal = document.getElementById('commandsModal') || commandsModal;
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'auto';
+        }
+        if (tabPublicCommands) tabPublicCommands.classList.add('active');
+        if (tabMehanCommands) tabMehanCommands.classList.remove('active');
+        if (contentPublicCommands) contentPublicCommands.style.display = 'flex';
+        if (contentMehanCommands) contentMehanCommands.style.display = 'none';
+
+        if (typeof playUiSfx === 'function') playUiSfx('click');
+        try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 1200);
+            const res = await fetch('/api/local-commands', { signal: ctrl.signal });
+            clearTimeout(timer);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.exists !== false && Array.isArray(data.commands) && data.commands.length > 0) {
+                    if (tabMehanCommands) {
+                        tabMehanCommands.style.display = 'inline-flex';
+                        tabMehanCommands.classList.remove('hidden');
+                    }
+                    if (mehanCommandsList) {
+                        mehanCommandsList.innerHTML = data.commands.map(cmd => {
+                            const parts = cmd.split(' - ');
+                            const code = parts[0] || cmd;
+                            const desc = parts[1] || '';
+                            return `
+                                <div class="mehan-command-entry">
+                                    <code>${code}</code>
+                                    <span class="cmd-desc-txt">${desc}</span>
+                                    <button type="button" class="btn-copy-cmd" onclick="if(window.copyCommandText)window.copyCommandText('${CSS.escape(code)}');" title="Kopyala"><i class="fa-regular fa-copy"></i></button>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                } else {
+                    if (tabMehanCommands) tabMehanCommands.style.display = 'none';
+                }
+            } else {
+                if (tabMehanCommands) tabMehanCommands.style.display = 'none';
+            }
+        } catch (e) {
+            if (tabMehanCommands) tabMehanCommands.style.display = 'none';
+        }
+    };
+    window.openCommands = window.openCommandsModal;
+
+    window.closeCommandsModal = () => {
+        const modal = document.getElementById('commandsModal') || commandsModal;
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+        }
+        if (typeof playUiSfx === 'function') playUiSfx('click');
+    };
+    window.closeCommands = window.closeCommandsModal;
+
+    window.copyCommandText = (cmd) => {
+        if (!cmd) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(cmd).then(() => {
+                showToast(`📋 Komut kopyalandı: ${cmd}`);
+                if (typeof playUiSfx === 'function') playUiSfx('click');
+            }).catch(() => {
+                prompt('Komutu kopyalayın:', cmd);
+            });
+        } else {
+            prompt('Komutu kopyalayın:', cmd);
+        }
+    };
+
+    window.runSimulatedChatCommand = () => {
+        const userInp = document.getElementById('testChatUserInput');
+        const msgInp = document.getElementById('testChatMessageInput');
+        const user = (userInp ? userInp.value.trim() : '') || 'TestKullanici';
+        const msg = (msgInp ? msgInp.value.trim() : '') || '!turnuvagiriş';
+
+        if (typeof window.simulateKickChat === 'function') {
+            window.simulateKickChat(user, msg);
+            showToast(`🚀 Simüle edildi: [${user}] ${msg}`);
+            if (typeof playUiSfx === 'function') playUiSfx('join');
+        } else {
+            showToast('⚠️ Sohbet modülü henüz hazır değil!', true);
+        }
+    };
+
+    // Tüm komut butonları ve etiket tetikleyicileri
+    if (openCommandsModalBtn) {
+        openCommandsModalBtn.onclick = window.openCommandsModal;
+        openCommandsModalBtn.addEventListener('click', window.openCommandsModal);
+    }
+    document.querySelectorAll('.commands-modal-trigger-btn, #poolCommandTag, #poolCaptainCommandTag, #poolPickCommandTag').forEach(el => {
+        el.addEventListener('click', window.openCommandsModal);
+    });
+
+    if (closeCommandsModalBtn) closeCommandsModalBtn.onclick = window.closeCommandsModal;
+    if (closeCommandsModalFooterBtn) closeCommandsModalFooterBtn.onclick = window.closeCommandsModal;
+    if (commandsModal) {
+        commandsModal.addEventListener('click', (e) => {
+            if (e.target === commandsModal) window.closeCommandsModal();
+        });
+    }
+
+    if (tabPublicCommands && tabMehanCommands) {
+        tabPublicCommands.onclick = () => {
+            tabPublicCommands.classList.add('active');
+            tabMehanCommands.classList.remove('active');
+            if (contentPublicCommands) contentPublicCommands.style.display = 'flex';
+            if (contentMehanCommands) contentMehanCommands.style.display = 'none';
+        };
+        tabMehanCommands.onclick = () => {
+            tabMehanCommands.classList.add('active');
+            tabPublicCommands.classList.remove('active');
+            if (contentMehanCommands) contentMehanCommands.style.display = 'flex';
+            if (contentPublicCommands) contentPublicCommands.style.display = 'none';
+        };
+    }
+
+    // 🛡️ Global Sürükle-Bırak Temizliği (Kart Eğriliği & Asılı Kalma Koruması)
+    const cleanupDraggingState = () => {
+        document.body.classList.remove('is-dragging-player');
+        document.querySelectorAll('.player-item.is-dragging').forEach(el => el.classList.remove('is-dragging'));
+    };
+    document.addEventListener('mouseup', cleanupDraggingState);
+    document.addEventListener('pointerup', cleanupDraggingState);
+    document.addEventListener('dragend', cleanupDraggingState);
 });
+
 
 

@@ -1015,7 +1015,8 @@ body {
 .pool-header-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .pool-toggle-btn {
@@ -1039,10 +1040,12 @@ body {
 
 .pool-header {
     background: rgba(13, 17, 26, 0.95);
-    padding: 12px 16px;
+    padding: 10px 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     border-bottom: 1px solid rgba(0, 240, 255, 0.2);
 }
 
@@ -1482,6 +1485,14 @@ body {
 .team-list .player-item {
     background: linear-gradient(135deg, #1a2a3a, #111);
     border-color: var(--secondary-color);
+    min-height: 48px;
+    overflow: hidden;
+    flex-wrap: wrap;
+}
+.player-badges {
+    width: 100%;
+    display: flex;
+    margin-top: 4px;
 }
 
 /* Ghost class for SortableJS */
@@ -7202,17 +7213,26 @@ body.theme-theonlyk1ng {
 .streamer-status-tag {
     font-size: 10px;
     font-weight: 700;
-    color: #53fc18;
+    color: #94a3b8;
     display: flex;
     align-items: center;
     gap: 5px;
     letter-spacing: 0.3px;
     text-transform: uppercase;
+    transition: color 0.3s ease;
+}
+.streamer-status-tag.is-connected {
+    color: #53fc18;
 }
 .streamer-live-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
+    background: #64748b;
+    box-shadow: none;
+    transition: all 0.3s ease;
+}
+.streamer-status-tag.is-connected .streamer-live-dot {
     background: #53fc18;
     box-shadow: 0 0 6px #53fc18;
     animation: neonGreenPulse 1.2s infinite ease-in-out;
@@ -7962,6 +7982,13 @@ body.theme-theonlyk1ng .kick-input-group {
     width: 95px;
 }
 
+.chat-cmd-pill .command-badge {
+    position: static;
+    pointer-events: auto;
+    cursor: pointer;
+    margin-left: 2px;
+}
+
 /* ==========================================================================
    Takımlar Üst Araç Çubuğu & Gruplandırılmış Eylemler
    ========================================================================== */
@@ -8168,12 +8195,12 @@ body.is-dragging-player .bracket-team-slot:hover {
     background: rgba(0, 255, 204, 0.05);
 }
 
-/* Sürüklenen oyuncu kartı küçülmesi, hafif eğilmesi ve neon gölgesi */
+/* Sürüklenen oyuncu kartı: Nizami ölçekleme, hafif neon derinliği ve gölge (ASLA ROTATE/EĞME YOK) */
 .player-item.is-dragging,
 .player-item.sortable-drag {
-    transform: scale(0.93) rotate(2deg) !important;
-    opacity: 0.92 !important;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6), 0 0 18px rgba(0, 240, 255, 0.6) !important;
+    transform: scale(0.98) !important;
+    opacity: 0.95 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 16px rgba(0, 240, 255, 0.6) !important;
     border-color: #00f0ff !important;
     cursor: grabbing !important;
     z-index: 99999 !important;
@@ -8233,4 +8260,372 @@ body.is-dragging-player .bracket-team-slot:hover {
 
 
 
+
+
+/* ==========================================================================
+   ⭐ Ünlü Yayıncı Dönen Neon Çizgi & Rozet Efektleri (Celebrity Streamer Effects)
+   ========================================================================== */
+
+/* Tier 1 (1.000+ Takipçi): Cyan Dönen Neon Çizgi */
+.player-item.celebrity-tier1 {
+    position: relative !important;
+    border-color: #00f0ff !important;
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.5), inset 0 0 6px rgba(0, 240, 255, 0.2) !important;
+    animation: neonPulseCyan 2s infinite alternate !important;
+}
+.player-item.celebrity-tier1::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 9px;
+    padding: 2px;
+    background: conic-gradient(from 0deg, transparent 60%, #00f0ff 85%, #ffffff 95%, #00f0ff 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    animation: rotateBorder 3s linear infinite;
+    z-index: 2;
+}
+
+/* Tier 2 (10.000+ Takipçi): Altın/Gold Dönen Neon Çizgi */
+.player-item.celebrity-tier2 {
+    position: relative !important;
+    border-color: #fbbf24 !important;
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.65), inset 0 0 8px rgba(251, 191, 36, 0.25) !important;
+    animation: neonPulseGold 1.8s infinite alternate !important;
+}
+.player-item.celebrity-tier2::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 9px;
+    padding: 2px;
+    background: conic-gradient(from 0deg, transparent 50%, #fbbf24 80%, #ffffff 92%, #fbbf24 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    animation: rotateBorder 2.2s linear infinite;
+    z-index: 2;
+}
+
+/* Tier 3 (100.000+ Takipçi - Elraenn vb.): Şaşalı Çok Renkli Gökkuşağı Dönen Neon */
+.player-item.celebrity-tier3 {
+    position: relative !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 0 24px rgba(255, 0, 128, 0.7), 0 0 12px rgba(0, 255, 204, 0.6), inset 0 0 10px rgba(255, 215, 0, 0.3) !important;
+    animation: neonPulseRainbow 2.5s infinite linear !important;
+}
+.player-item.celebrity-tier3::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 10px;
+    padding: 2.5px;
+    background: conic-gradient(from 0deg, #ff0055, #ff7700, #ffe600, #00ffcc, #0099ff, #bb00ff, #ff0055);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    animation: rotateBorder 1.8s linear infinite;
+    z-index: 2;
+}
+
+@keyframes rotateBorder {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes neonPulseCyan {
+    from { box-shadow: 0 0 8px rgba(0, 240, 255, 0.4); }
+    to { box-shadow: 0 0 18px rgba(0, 240, 255, 0.8), inset 0 0 8px rgba(0, 240, 255, 0.3); }
+}
+
+@keyframes neonPulseGold {
+    from { box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+    to { box-shadow: 0 0 22px rgba(251, 191, 36, 0.9), inset 0 0 10px rgba(251, 191, 36, 0.4); }
+}
+
+@keyframes neonPulseRainbow {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+/* Ünlü Yayıncı Rozetleri */
+.player-celebrity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.player-celebrity-badge.celebrity-tier1-badge {
+    background: rgba(0, 240, 255, 0.2);
+    border: 1px solid #00f0ff;
+    color: #00f0ff;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+}
+.player-celebrity-badge.celebrity-tier2-badge {
+    background: rgba(251, 191, 36, 0.25);
+    border: 1px solid #fbbf24;
+    color: #fbbf24;
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+.player-celebrity-badge.celebrity-tier3-badge {
+    background: linear-gradient(135deg, rgba(255, 0, 128, 0.3), rgba(0, 255, 204, 0.3));
+    border: 1px solid #ff00ff;
+    color: #fff;
+    text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 12px rgba(255, 0, 128, 0.6);
+}
+
+/* ==========================================================================
+   📐 Oyuncu Kartı Nizami Hizalama & Yükseklik Standardizasyonu (Alignment Fix)
+   ========================================================================== */
+.player-item,
+.team-list .player-item {
+    min-height: 44px !important;
+    height: 44px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    box-sizing: border-box !important;
+    padding: 6px 10px !important;
+    margin-bottom: 6px !important;
+    border-radius: 8px !important;
+    transform: none;
+    overflow: hidden !important;
+}
+
+.player-info-wrap,
+.team-list .player-item .player-info-wrap {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+}
+
+.player-name-text {
+    font-weight: 700;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+    flex-shrink: 0;
+}
+
+.player-rank-chip {
+    flex-shrink: 0;
+}
+
+.player-sub-badge,
+.player-channel-badge,
+.player-celebrity-badge,
+.player-role-badge,
+.player-captain-badge {
+    flex-shrink: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.player-item-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+    margin-left: 6px !important;
+}
+
+/* ==========================================================================
+   📜 Komutlar Paneli & Modal Stilleri
+   ========================================================================== */
+.commands-control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.commands-modal-trigger-btn {
+    height: 38px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.commands-modal-card {
+    max-width: 620px;
+    width: 90%;
+    background: rgba(13, 20, 36, 0.95);
+    border: 1px solid rgba(0, 240, 255, 0.35);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 240, 255, 0.25);
+    backdrop-filter: blur(16px);
+}
+
+.commands-tabs-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+.commands-tab-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a3b8;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.commands-tab-btn:hover {
+    background: rgba(0, 240, 255, 0.1);
+    color: #fff;
+    border-color: rgba(0, 240, 255, 0.4);
+}
+
+.commands-tab-btn.active {
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(0, 128, 255, 0.25));
+    border-color: #00f0ff;
+    color: #00f0ff;
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+}
+
+.commands-tab-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.command-card-item {
+    background: rgba(18, 26, 46, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.2s ease;
+}
+
+.command-card-item:hover {
+    border-color: rgba(0, 240, 255, 0.4);
+    background: rgba(22, 32, 56, 0.85);
+}
+
+.command-code-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.command-code-badge code {
+    background: rgba(0, 240, 255, 0.15);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    color: #00f0ff;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 5px;
+    letter-spacing: 0.5px;
+}
+
+.command-code-badge .alt-badge {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.btn-copy-cmd {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #94a3b8;
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-copy-cmd:hover {
+    background: rgba(0, 240, 255, 0.2);
+    border-color: #00f0ff;
+    color: #00f0ff;
+}
+
+.command-desc {
+    font-size: 12.5px;
+    color: #cbd5e1;
+    line-height: 1.4;
+}
+
+.mod-alert-note {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    color: #fde047;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mehan-commands-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mehan-command-entry {
+    background: rgba(25, 20, 10, 0.6);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #e2e8f0;
+}
+
+.mehan-command-entry code {
+    color: #fbbf24;
+    font-weight: 800;
+    font-size: 13px;
+}
 

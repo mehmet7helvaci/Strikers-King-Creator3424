@@ -934,8 +934,43 @@ Bu güncelleme ile kullanıcı tavsiyeleri ve yayıncı ergonomisi göz önünde
 ✔ Test 29 Passed: Pool Quick Filters & Sorting Logic verified.
 ✔ Test 30 Passed: Compact Footer & Action Toolbar UI Ergonomics verified.
 ✔ Test 31 Passed: Drag-and-Drop Micro-interaction Classes & CSS verified.
+✔ Test 32 Passed: Streamer Status Tag (Offline vs Chat Bağlı) verified.
+✔ Test 33 Passed: Commands Modal & Local-only Moderation commands verified.
+✔ Test 34 Passed: Celebrity Tiers Detection & Rotating Neon Animation Classes verified.
+✔ Test 35 Passed: Robust Randomize & Captain Dice Roll Enhancements verified.
 
 ======================================================
-ALL 31 CORE SYSTEM TESTS PASSED SUCCESSFULLY! (100% OK)
+ALL 35 CORE SYSTEM TESTS PASSED SUCCESSFULLY! (100% OK)
 ======================================================
 ```
+
+---
+
+## 9. Yeni Özellikler & Canlı Yayıncı İyileştirmeleri (Tests 32 - 35)
+
+### 1. Reaktif Yayıncı Durum Rozeti (Streamer Status Tag)
+- Canlı yayında olunmasa bile "Canlı Yayıncı" yazısı gösterilme sorunu çözüldü.
+- Varsayılan olarak ve bağlantı koptuğunda nötr gri renkte ve nabızsız **`Offline`** rozeti gösterilir.
+- Kick WebSocket bağlantısı başarıyla sağlandığında reaktif olarak yeşil neon nabızla **`Chat Bağlı`** rozetine dönüşür.
+
+### 2. Komutlar Paneli & MeH4n Yerel Güvenlik Koruması
+- Geniş yer kaplayan kart yerine kontrol çubuğuna diğer butonlarla nizami ve kompakt **`Komutlar`** butonu eklendi.
+- Koyu neon glassmorphism tarzında sekmeli modal tasarlandı.
+- Genel izleyiciler katılım ve maç komutlarını görürken (`!turnuvagiriş`, `!katıl`, `!kaptan`, `!sec @oyuncu GK`, `/goal`, `/boost`), MeH4n moderatör komutları (`!ban`, `!unban`, `!sıfırla`, `!reset`) yalnızca yerel bilgisayardaki `app/data/local_commands.json` dosyasından okunur.
+- `.gitignore` koruması sayesinde bu moderatör komut dosyası GitHub'a hiçbir şekilde yüklenmez.
+
+### 3. Ünlü Yayıncı Algılama & Dönen Neon Çerçeveler (Celebrity Tiers)
+- Turnuvaya katılan oyuncuların Kick takipçi sayıları Kick API v2 üzerinden (`followers_count`) ve yerel yedek listeyle taranır.
+- **Tier 1 (1.000+ Takipçi):** Cyan neon dönen çizgi çerçeve + `🌟 1K+ Yayıncı` rozeti.
+- **Tier 2 (10.000+ Takipçi):** Altın sarısı neon dönen çizgi çerçeve + `⭐ 10K+ Fenomen` rozeti.
+- **Tier 3 (100.000+ Takipçi - Elraenn vb.):** Çok renkli gökkuşağı dönen neon animasyon + `👑 100K+ Efsane` rozeti + büyük kutlama bildirimi ve konfeti efekti.
+
+### 4. Kura Çek, Rastgele Dağıt & Kaptan Sırası Düzeltmeleri
+- **Rastgele Dağıt:** Havuz boş olsa dahi takımlardaki mevcut oyuncuları toplayıp round-robin (sırayla 1-1) dengeli biçimde takımlara dağıtır.
+- **Zar Kurası (Kaptan Sırası):** Kaptan atanmamış olsa dahi ilk 2 oyuncuyu otomatik kaptan ilan ederek zarı anında atar, kilitlenmeyi önler.
+- **Kura Çek (Çarkıfelek):** Takım limitlerini korur ve hem tek maçta hem turnuva modunda müsait ilk takıma akıllı atama desteği (`Müsait Takıma Ata`) sunar.
+
+### 5. Oyuncu Kartı Çerçeve Hizası Düzeltmesi (3. Görsel Problemi)
+- Sürükleme sırasında kartların eğrilmesine neden olan `rotate(2deg)` CSS kuralı tamamen kaldırıldı.
+- Tüm oyuncu kartlarına eşit `44px` yükseklik, taşmayan rozet yapısı ve `flex-wrap: nowrap` nizami hizalama uygulandı.
+- Fare bırakıldığında asılı kalan sürükleme durumları için global temizleme mekanizması entegre edildi.

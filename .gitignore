@@ -10,3 +10,8 @@ Thumbs.db
 .agents/
 AGENTS.md
 GEMINI.md
+
+# Secret / Local Only Files (Never to be pushed to GitHub)
+app/data/local_commands.json
+local_commands.json
+*.local.json

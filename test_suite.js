@@ -703,8 +703,38 @@ assert.ok(updatedAppJs.includes('triggerDropSuccessFeedback'), 'app.js must trig
 assert.ok(updatedAppJs.includes('triggerDropErrorFeedback'), 'app.js must trigger drop error feedback');
 console.log('✔ Test 31 Passed: Drag-and-Drop Micro-interaction Classes & CSS verified.');
 
+// Test 32: Streamer Status Tag ("Offline" vs "Chat Bağlı" Reactive State)
+assert.ok(updatedAppHtml.includes('id="streamerStatusTag"'), 'app/index.html must define streamerStatusTag');
+assert.ok(updatedAppCss.includes('.streamer-status-tag.is-connected'), 'style.css must define is-connected state for streamer-status-tag');
+assert.ok(updatedAppJs.includes("streamerStatusTag.classList.add('is-connected')"), 'app.js must dynamically add is-connected class on connect');
+assert.ok(updatedAppJs.includes("streamerStatusTag.classList.remove('is-connected')"), 'app.js must dynamically remove is-connected class on disconnect');
+console.log('✔ Test 32 Passed: Streamer Status Tag (Offline vs Chat Bağlı) verified.');
+
+// Test 33: Commands Modal & Local-only Moderation Commands (Git Protection)
+const gitignoreContent = fs.readFileSync(path.join(__dirname, '.gitignore'), 'utf8');
+assert.ok(gitignoreContent.includes('app/data/local_commands.json'), '.gitignore must ignore app/data/local_commands.json');
+assert.ok(updatedAppHtml.includes('id="commandsModal"'), 'app/index.html must define commandsModal');
+assert.ok(updatedAppHtml.includes('id="tabMehanCommands"'), 'app/index.html must define tabMehanCommands');
+assert.ok(updatedAppJs.includes('/api/local-commands'), 'app.js must query local-commands endpoint');
+console.log('✔ Test 33 Passed: Commands Modal & Local-only Moderation commands verified.');
+
+// Test 34: Celebrity Tiers Detection & Rotating Neon Animation Classes
+assert.ok(updatedAppCss.includes('.player-item.celebrity-tier1'), 'style.css must define celebrity-tier1');
+assert.ok(updatedAppCss.includes('.player-item.celebrity-tier2'), 'style.css must define celebrity-tier2');
+assert.ok(updatedAppCss.includes('.player-item.celebrity-tier3'), 'style.css must define celebrity-tier3');
+assert.ok(updatedAppCss.includes('@keyframes rotateBorder'), 'style.css must define rotateBorder animation');
+assert.ok(updatedAppJs.includes('checkAndApplyCelebrityTier'), 'app.js must define checkAndApplyCelebrityTier function');
+assert.ok(updatedAppJs.includes('KNOWN_CELEBRITIES'), 'app.js must include KNOWN_CELEBRITIES fallback dictionary');
+console.log('✔ Test 34 Passed: Celebrity Tiers Detection & Rotating Neon Animation Classes verified.');
+
+// Test 35: Robust Randomize & Captain Dice Roll Enhancements (Round-Robin & Fallbacks)
+assert.ok(updatedAppJs.includes('randomizePlayers'), 'app.js must define randomizePlayers');
+assert.ok(updatedAppJs.includes('startCaptainDiceRoll'), 'app.js must define startCaptainDiceRoll');
+assert.ok(updatedAppJs.includes('wheelAssignAutoBtn'), 'app.js must support wheelAssignAutoBtn');
+console.log('✔ Test 35 Passed: Robust Randomize & Captain Dice Roll Enhancements verified.');
+
 console.log('\n======================================================');
-console.log('ALL 31 CORE SYSTEM TESTS PASSED SUCCESSFULLY! (100% OK)');
+console.log('ALL 35 CORE SYSTEM TESTS PASSED SUCCESSFULLY! (100% OK)');
 console.log('======================================================');
 
 

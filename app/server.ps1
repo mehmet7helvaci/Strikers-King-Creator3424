@@ -348,10 +348,14 @@ while ($listener.IsListening) {
                     $sr.Close()
                     $stream.Close()
                     $resp.Close()
+                    $followersCount = 0
                     if ($rawBody -match '"banner_image"\s*:\s*\{[^}]*"url"\s*:\s*"([^"]+)"') {
                         $bannerUrl = $matches[1].Replace('\/', '/')
                     } elseif ($rawBody -match '"banner"\s*:\s*"([^"]+)"') {
                         $bannerUrl = $matches[1].Replace('\/', '/')
+                    }
+                    if ($rawBody -match '"followers_count"\s*:\s*(\d+)') {
+                        $followersCount = [int]$matches[1]
                     }
                 }
             } catch {}
@@ -360,6 +364,7 @@ while ($listener.IsListening) {
                 success = (-not [string]::IsNullOrEmpty($bannerUrl))
                 channel = $channelName
                 banner = $bannerUrl
+                followersCount = $followersCount
             }
             $jsonResp = $respData | ConvertTo-Json -Compress
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
@@ -1023,6 +1028,21 @@ while ($listener.IsListening) {
         }
 
         # Health check
+        if ($rawUrl.StartsWith("/api/local-commands")) {
+            $localCmdsFile = Join-Path $dataPath "local_commands.json"
+            $jsonResp = "{""exists"":false}"
+            if (Test-Path $localCmdsFile) {
+                $jsonResp = Get-Content $localCmdsFile -Raw -Encoding UTF8
+            }
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
         if ($rawUrl.StartsWith("/api/status")) {
             $jsonResp = "{""status"":""ok"",""port"":$Port}"
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
@@ -1159,6 +1179,9 @@ while ($listener.IsListening) {
             $mime = if ($mimeTypes.ContainsKey($ext)) { $mimeTypes[$ext] } else { "application/octet-stream" }
             $bytes = [System.IO.File]::ReadAllBytes($targetFullPath)
             $response.ContentType = $mime
+            $response.AddHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+            $response.AddHeader("Pragma", "no-cache")
+            $response.AddHeader("Expires", "0")
             $response.ContentLength64 = $bytes.Length
             $response.StatusCode = 200
             $response.OutputStream.Write($bytes, 0, $bytes.Length)
