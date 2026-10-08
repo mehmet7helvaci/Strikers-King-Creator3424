@@ -181,7 +181,7 @@ Uygulamayı 3 farklı şekilde kullanabilirsiniz:
 ### Seçenek A: Google Drive ile İndir (Windows Masaüstü Paketi - Önerilen)
 Windows kullanıcıları için en hızlı ve güvenli indirme yöntemi:
 
-👉 **[Google Drive ile İndir (Windows & Full Paket)](https://drive.google.com/drive/folders/17hDq4yT6n4bXzZ_DRIVE_DOWNLOAD_LINK)**
+👉 **[Google Drive ile İndir (Windows & Full Paket)]([https://drive.google.com/drive/folders/17hDq4yT6n4bXzZ](https://drive.google.com/drive/folders/1ncXAam-sbA1cH8UbiotI4WhAhEuC6d1S?usp=sharing)**
 
 * Virüs taramasından geçmiş, yüksek hızlı bulut indirmesi.
 * Kurulum gerektirmez (Portable). İndirilen klasördeki **`StrickersKingCreator.exe`** veya **`Baslat.bat`** dosyasına çift tıklayarak anında başlatabilirsiniz.
