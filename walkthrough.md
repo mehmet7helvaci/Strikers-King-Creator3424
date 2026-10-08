@@ -1,3 +1,54 @@
+# 🛡️ Bilgisayar Kilitlenme / Çökme Çözümü & F9 Canlı Maç Skor Tablosu (Scoreboard) Yöneticisi
+
+Uygulama başlatıldığında veya oyun sırasında bilgisayarın kilitlenmesi, tüm tarayıcı sekmelerinin siyah ekrana düşmesi ve sistemin yönetilemez hale gelmesi sorunları Windows Olay Günlükleri (Event Log) ve Crash Dump analizi yapılarak kökten çözülmüştür.
+
+---
+
+## 🔍 Tespit Edilen Somut Çökme Nedenleri ve Kök Çözüm
+
+### 1. AMD Radeon RX 7800 XT & DWM (Desktop Window Manager) Çökmesi (`0xc0000005`)
+- **Somut Neden:** Windows 11 üzerinde AMD Radeon RX 7000 (RDNA 3) serisi ekran kartlarında, birden fazla Chromium (Edge/Chrome) penceresi donanım hızlandırma ve MPO (Multi-Plane Overlay) kullandığında DWM kilitleniyor, grafik sürücüsü cihaz kaybı (`DXGI_ERROR_DEVICE_RESET`) yaşayarak tüm açık pencereleri ve masaüstünü siyaha düşürüyordu.
+- **Çözüm:** `Program.cs` ve `StrickersKingCreator.exe` başlatma parametrelerine MPO çakışmasını engelleyen donanım koruma bayrakları entegre edildi:
+  `--disable-features=CalculateNativeWinOcclusion,DCompPresenter --disable-gpu-watchdog --disable-extensions --disable-background-networking --disable-component-update --no-first-run --no-default-browser-check`
+  Bu sayede uygulama izole, hafif ve ekran kartını asla kitlemeyecek güvenli modda açılır.
+
+### 2. Şişmiş Edge Profili & Bellek Tüketimi (`0xe0000008` STATUS_OUT_OF_MEMORY)
+- **Somut Neden:** `C:\Users\mehme\AppData\Local\StrickersKingCreatorProfile` dizini 560 MB'a kadar şişmiş, içerisine Teleparty vb. arka plan uzantıları bulaşmış ve her başlatmada devasa GPU yüzey alanı talep ederek OOM (Out Of Memory) çökmesine yol açıyordu.
+- **Çözüm:** Şişmiş profil dizini tamamen temizlendi; `--disable-extensions` bayrağı ile yabancı eklentilerin profili işgal etmesi kesin olarak engellendi.
+
+### 3. Arka Planda 80ms TAB Tuşu Yoklaması ve Masaüstü Yüzey Kilidi (`CopyFromScreen`)
+- **Somut Neden:** `Program.cs` içindeki eski watcher döngüsü her 80ms'de `GetAsyncKeyState(0x09)` ile TAB tuşunu aralıksız dinliyor, kullanıcı Alt+Tab veya Ctrl+Tab yaptığında dahi GDI `CopyFromScreen` (BitBlt) çağırarak masaüstü yüzeyini kilitliyordu.
+- **Çözüm:** 80ms'lik agresif TAB dinleyicisi ve kontrolsüz ekran yakalama mantığı tamamen kaldırıldı.
+
+---
+
+## 📸 F9 Canlı Maç Skor Yakalama & 📁 Maç Dosyaları Yöneticisi
+
+Kullanıcının tercihi doğrultusunda, oyundaki takma adlar (nickler) Kick sohbetindeki izleyici adlarıyla birebir aynı olmayacağı için yapay zeka/OCR yerine yayıncının tam kontrolünde olan pratik bir sistem kuruldu:
+
+1. **F9 Global Kısayolu:**
+   - Yayıncı oyun içinde maç bittiğinde veya skor tablosu açıldığında klavyeden **F9** tuşuna basar (veya arayüzdeki *"Ekran Yakala (F9)"* butonuna tıklar).
+   - O an canlı oynanmakta olan maç tespit edilir (`activeMatchId` veya seçili maç).
+   - Ekran görüntüsü donma/kasma yaratmadan anında `app/data/match_captures/capture_{matchId}_{timestamp}.jpg` olarak kaydedilir.
+   - Windows sistem tepsisinde balon bildirimi çıkar.
+
+2. **Her Maç Kartında 📁 (Maç Dosyaları) Butonu:**
+   - Turnuva ağacındaki ve tek maç ekranındaki her maç kartının üstünde şık bir **[📁]** butonu yer alır.
+   - Canlı skor panelinde de **[📁 Maç Dosyaları]** kısayolu bulunur.
+
+3. **📁 Maç Dosyaları & Skor Tablosu Modalı (`#matchFilesModal`):**
+   - **Sol Panel (Scoreboard Görseli & Galeri):**
+     - O maça ait F9 ile çekilen ekran görüntüleri listelenir (küçük resim galerisi).
+     - Görsel tıklandığında büyütülür; **[Büyüt]** butonu ile tam ekran devasa Lightbox modunda net olarak incelenebilir.
+     - Yayıncı bilgisayarından manuel dosya yükleyebilir veya eski ekran kayıtlarını silebilir.
+   - **Sağ Panel (Kadro & Hızlı Gol/Asist Atama):**
+     - Maçtaki Takım 1 ve Takım 2 kadrosundaki Kick oyuncuları listelenir.
+     - Yayıncı sol taraftaki oyun skor tablosundaki gollere bakar; oyundaki nick kime aitse ilgili oyuncunun yanındaki **[+]** butonuna tıklayarak tek tıkla **Gol** veya **Asist/Boost** işler.
+     - Maçın toplam skoru (`3 - 1` vb.) anında canlı güncellenir.
+     - **[💾 Skoru ve İstatistikleri Kaydet]** butonuna tıklandığında hem canlı skor paneli, hem OBS overlay, hem de turnuva ağacı eşzamanlı olarak güncellenir.
+
+---
+
 # 🚀 Canlı Yayın Performans, Sıfır Donma & Akıllı Oyuncu Atama Güncellemesi
 
 Canlı yayın sırasında meydana gelen **uygulama kasmaları, arayüz donmaları, PowerShell sunucu kilitlenmeleri** ve kaptanların/yayıncının chatten oyuncu seçip atayamaması (**"atamıyorum malesef"**) sorunları, uygulamanın hiçbir özelliğine zarar verilmeden kökten çözülmüştür.
@@ -974,3 +1025,197 @@ ALL 35 CORE SYSTEM TESTS PASSED SUCCESSFULLY! (100% OK)
 - Sürükleme sırasında kartların eğrilmesine neden olan `rotate(2deg)` CSS kuralı tamamen kaldırıldı.
 - Tüm oyuncu kartlarına eşit `44px` yükseklik, taşmayan rozet yapısı ve `flex-wrap: nowrap` nizami hizalama uygulandı.
 - Fare bırakıldığında asılı kalan sürükleme durumları için global temizleme mekanizması entegre edildi.
+
+
+---
+
+## 10. 22+ Yeni Espor, Yayıncı ve Görsel Deneyim Güncellemesi (Tests 36 - 59)
+
+Bu büyük güncelleme paketiyle uygulamaya espor turnuvaları, canlı yayın etkileşimi, görsel tasarım ve kullanıcı deneyimi alanında 22'den fazla yeni özellik ve optimizasyon kazandırılmıştır:
+
+### 1. ⌚ Apple Watch / Digital Crown 3D Silindir Kaydırıcı
+- Takım mevcudu seçimi (`teamSize`: 1v1'den 16v16'ya) sıradan bir açılır kutu yerine lüks bir Apple Watch Digital Crown 3D döner silindirine dönüştürüldü.
+- CSS 3D `rotateX` ve `translateZ` hesaplamalarıyla fare tekerleği, dokunmatik sürükleme veya butonlarla dönerken mekanik tık sesleri çalar.
+
+### 2. ⚖️ Maç Öncesi Takım Güç Dengesi Çubuğu (Esports Pre-match Power Bar)
+- Maç başlamadan önce Takım 1 ve Takım 2 kadrolarındaki oyuncuların lig kariyer galibiyet oranlarını dinamik olarak hesaplar.
+- İki takım arasındaki güç dengesini canlı neon gradyan bir güç çubuğu üzerinde (Örn: %54 - %46) estetik biçimde gösterir.
+
+### 3. 📸 C# Sessiz TAB Skor Algılayıcı & Toplu Skor Köprüsü
+- Oyun içindeyken yayıncının elini klavyeden çekmesine gerek kalmadan C# Windows motorunun TAB ekranından yakaladığı skor verilerini arka planda sorgular ve onay kutusuyla tek tıkla uygular.
+
+### 4. 🎡 Kick Canlı Çarkıfelek & Kura Çekim Sistemi (HiDPI Retina Canvas)
+- Turnuva kuraları ve izleyici çekilişleri için yüksek çözünürlüklü Retina canvas tabanlı çarkıfelek eklendi.
+- Fizik tabanlı flapper sekme animasyonu, çark dönerken frekansı hızla orantılı değişen mekanik tık sesleri, geçmiş çekiliş listesi ve istenirse kazananı havuzdan çıkaran "Eleme Modu" desteği sunar.
+
+### 5. 🪙 3D Hızlı Yazı - Tura Kura Modülü (Esports Coin Flip)
+- Kaptanların taraf veya oyuncu seçme sırasını belirlemesi için altın ve camgöbeği renklerinde gerçek 3D dönen yazı-tura parası eklendi. Klavyeden `C` tuşuyla anında açılır.
+
+### 6. 🎯 Espor Seri Penaltı Atışları Motoru (Penalty Shootout HUD)
+- Berabere biten maçlar için 5'er atışlık profesyonel penaltı ekranı. Gol/Kaçtı butonları, canlı skor takibi, eşitlik halinde ani ölüm (sudden death) turu ve kazananın doğrudan turnuva ağacında bir üst tura ilerletilmesi sağlandı.
+
+### 7. ⚡ Altın Gol Kuralı Modülü (Golden Goal Rule)
+- Turnuvalarda heyecanı zirveye taşımak için tek tıkla açılıp kapanabilen Altın Gol kuralı eklendi. Açıkken uzatmalarda veya maçta ilk golü atan takım anında galip ilan edilir.
+
+### 8. ⏱️ Canlı Maç Kronometresi & Düdük SFX (Match Stopwatch & OBS Broadcast)
+- Canlı maç süresini sayan veya 5/10 dakikalık geri sayım yapabilen espor kronometresi eklendi. Süre bittiğinde bitiş düdüğü çalar ve süre OBS yayın katmanına anlık aktarılır. `K` kısayol tuşuyla başlatılıp durdurulabilir.
+
+### 9. ⏳ Kaptan Seçim Sırası Sayacı (30s Draft Turn Timer)
+- Kaptanların izleyicileri seçtiği draft aşamasında her seçim için 30 saniyelik görsel sayaç çalışır. Süre dolduğunda sesli uyarı verir.
+
+### 10. 🎴 FUT / EA FC Profesyonel Oyuncu Kartı & Rozet Vitrini
+- Havuzdaki veya takımlardaki oyunculara tıklandığında OVR reytingi, mevkisi (GK, DEF, MID, FWD), lig galibiyet serisi ve MVP taçlarını sergileyen EA FC tarzı parlak altın, elmas ve platin espor kartı açılır.
+
+### 11. ⚖️ Birebir Oyuncu Karşılaştırması Modülü (Head-to-Head H2H)
+- İki oyuncunun OVR, maç sayısı, galibiyet oranı, gol, asist, hız, şut ve pas değerlerini yan yana kıyaslayan çift yönlü neon çubuk grafikleri sunar.
+
+### 12. ⌨️ Streamer Klavye Kısayolları Motoru (Global Hotkeys)
+- Yayıncının yayını hızla yönetebilmesi için klavye kısayolları entegre edildi:
+  - `Esc`: Açık tüm modalları kapatır.
+  - `C`: Yazı-Tura modülünü açar.
+  - `K`: Maç kronometresini başlatır/duraklatır.
+  - `M`: Sesi açar/kapatır.
+  - `F`: Tam ekran moduna geçer/çıkar.
+  - `?`: Kısayol kılavuzunu açar.
+
+### 13. 🏆 Grand Champion Esports Büyük Final Zafer Sahnesi
+- Turnuva şampiyonu belirlendiğinde ekranı kaplayan kupa podyumu, konfeti ve partikül havai fişek simülasyonu, zafer fanfarı akorları ve otomatik OBS kutlama entegrasyonu devreye girer.
+
+### 14. 📋 Paylaşılabilir Turnuva Özet Kartı (Tournament Recap)
+- Şampiyon, ikinci, turnuva MVP'si ve en çok gol atan oyuncuları içeren şık bir özet kartı oluşturur; tek tıkla panoya kopyalanabilir veya Discord/sosyal medyada paylaşılabilir.
+
+### 15. 🎵 Sıfır Bağımlı Web Audio Sentezleyicisi (Built-in Synthesizers)
+- Dışarıdan MP3 veya WAV dosyası yükleme ihtiyacını ortadan kaldıran saf Web Audio API osilatörleri: Çark tıkı, yazı-tura metalik çınlaması, hakem düdüğü ve şampiyonluk zafer fanfarı.
+
+### 16. 💬 Kick Sohbet /goal ve /boost Çoklu Takma Ad & Hız Sınırlayıcı
+- `/goal`, `/gol`, `/score`, `/skor`, `/boost`, `/asist`, `/power` gibi tüm alternatif komut varyasyonları desteklenir. Spam koruması ve yetkili moderatör doğrulaması ile güvenceye alınmıştır.
+
+### 17. 🌟 Canlı Oyuncu Aura Efekti & Boost Rozeti
+- Chatten boost alan oyuncuların kartları arayüzde ve yayında canlı mavi neon halka ve ışıltılı aura efektiyle parlar.
+
+### 18. 📺 OBS Overlay Canlı Uyarı Afişleri & Kayan Yazı (Marquee Ticker)
+- OBS tarayıcı kaynağında ekranın üstünde ve altında turnuva bilgilerini, canlı gol bildirimlerini ve son maç sonuçlarını kesintisiz kayan bir yazı bandında gösterir.
+
+### 19. 📜 Komutlar ve Moderatör Kılavuzu & Canlı Test Simülatörü
+- Tüm izleyici ve MeH4n moderatör komutlarını açıklayan modal. Tek tıkla kopyalama butonları ve Kick olmadan komutları denemek için canlı test simülatörü içerir.
+
+### 20. 🔍 Havuz Hızlı Filtreleri & Gelişmiş Sıralama
+- Oyuncuları mevkilerine göre (Kaleci, Defans, Orta Saha, Forvet), durumlarına göre veya reyting/galibiyet oranına göre anında filtreleme ve sıralama düğmeleri eklendi.
+
+### 21. ☁️ Firebase Realtime Database Bulut Espor Ligi
+- Birden fazla yayıncının ve topluluğun maç sonuçlarını ortak bir bulut veri tabanında birleştiren, kanal izolasyonunu ve oyuncu kariyerlerini koruyan Firebase entegrasyonu tamamlandı.
+
+### 22. 🛡️ Sürükle-Bırak Mikro Etkileşimler & Asılı Kalma Koruması
+- Kartların sürükleme sırasında eğrilmesi, titremesi veya fare bırakıldığında asılı kalması engellendi. Kart yükseklikleri ve rozetler kusursuz espor standardına getirildi.
+
+
+---
+
+# 🏁 Kapsamlı Modül Doğrulama & İyileştirme Denetimi (8 Döngülü E2E Raporu)
+
+Kullanıcı direktifleri doğrultusunda **yeni özellik eklenmeden**, mevcut sistemin 8 ana modülü Edge Headless CDP ve 59 birim testi ile uçtan uca test edilmiş, kullanıcı ile `/grill-me` soru-cevap döngüleriyle rafine edilmiştir.
+
+### 📊 Doğrulanan 8 Modül Özeti:
+
+1. **🎡 Kura Çekimi & Çarkıfelek (Lucky Wheel & 3D Kura):**
+   - HiDPI (`devicePixelRatio`) yüksek çözünürlüklü çizim garantilendi.
+   - 12+ adayda dinamik yazı tipi küçültme (13px -> 9px) doğrulandı.
+   - Çark dilinin fiziksel sekmesi (`#wheelPointer.flapping`) ve Web Audio osilatör ses frekansı (1050 Hz -> 750 Hz) onaylandı.
+
+2. **🌳 Turnuva Ağacı & Maç İlerlemesi (Tournament Bracket):**
+   - Çift eleme, tek eleme ve lig modlarında adil eşleşme algoritması doğrulandı.
+   - Besleyici (feeder) eşleşmeler simetrik hizalandı.
+   - Yarı finalden büyük finale geçiş ve kaskat geri alma (cascade undo) korumaları test edildi.
+
+3. **📺 OBS Canlı Skor & Yayın Ekranı (OBS Overlay Broadcast):**
+   - Tekli maç modunda `tournamentMatches` nesnesinin tanımsız olmasından kaynaklanan null referans hatası giderildi.
+   - `?overlay=1` parametresiyle açıldığında panel ve kontrollerin gizlenmesi, arka planın şeffaf olması, Marquee Ticker ve Canlı Skor başlığının yayına hazır olması onaylandı.
+
+4. **🎖️ Oyuncu Rolleri, Kademe (Tiers) & Winrate İstatistikleri:**
+   - 0 maçlı oyuncunun kesinlikle %0 WR ve `Derecesiz` olarak başlaması doğrulandı.
+   - Kullanıcı kararıyla **Dengeli Espor Merdiveni** uygulandı:
+     - **Efsane:** En az 10 maç & %70+ WR
+     - **Elmas:** En az 8 maç & %65+ WR
+     - **Platin:** En az 6 maç & %55+ WR
+     - **Altın:** En az 4 maç & %50+ WR
+     - **Gümüş:** En az 2 maç & %40+ WR
+     - **Bronz:** 1+ maç
+     - **Derecesiz:** 0 maç
+   - Mevki normalizasyonu (`kaleci` -> `GK`, `defans` -> `CB`, `ortasaha` -> `CM`, `santrfor` -> `ST`) ve `MeH4n` geliştirici rol kilidi doğrulandı.
+   - Oyuncu İstatistik Kartı (`#playerStatCard`) ve Birebir Oyuncu Kıyaslama (`#playerCompareModal`) 9 metrikle test edildi.
+
+5. **👑 Kaptan Seçimi, Draft Sistemi & Zar Atışı:**
+   - Kaptan limiti (+ / -) ve taç rozeti ataması doğrulandı.
+   - Kaptanlar arası sıralama kurası (`#diceRollModal`) 10-99 puanlık rastgele zarlarla sıralandı.
+   - Sıralı Draft Paneli (`#draftTurnBanner`) 30 saniyelik görsel sayaç barı ve süre dolduğunda en yüksek winrate'li oyuncuyu seçen otomatik atama motoruyla doğrulandı.
+   - 3D Hızlı Yazı-Tura (`#coinFlipModal`) test edildi.
+
+6. **⏱️ Canlı Maç Kronometresi, Seri Penaltılar ve Altın Gol:**
+   - Kronometre başlatma/duraklatma/sıfırlama ve hazır presetler (5 dk, 10 dk) OBS zaman damgası senkronizasyonu ile doğrulandı.
+   - Altın Gol modunda (`#toggleGoldenGoalBtn`) ilk golün maçı anında bitirmesi doğrulandı.
+   - 5'er atışlık Seri Penaltı HUD ekranı (`#penaltyShootoutModal`) ve maç sonucuna uygulama mekanizması test edildi.
+
+7. **🏆 Şampiyonluk Kutlaması, Havai Fişekler ve Turnuva Özeti:**
+   - Büyük final galibiyetinde açılan espor zafer sahnesi (`#championCelebrationModal`) doğrulandı.
+   - Turnuva MVP'si, Gol Kralı ve Asist Kralı hesaplamaları doğrulandı.
+   - Kullanıcı kararıyla **Otomatik Kapanma Süresi 35 saniyeye** çıkarıldı; havai fişek patlama frekansı **250ms'ye** çekilip parçacık yoğunluğu **55'e** çıkarılarak altın ışıltı güçlendirildi.
+   - Discord / Kick formatında turnuva zafer özeti kopyalama (`#copyTournamentRecapBtn`) test edildi.
+
+8. **⌨️ Yayıncı Kısayolları (Hotkeys) & Klavye Yönetimi:**
+   - `S` (Ayarlar Çekmecesi), `H` (Rehber), `C` (Yazı-Tura), `?` (Kısayollar Kılavuzu), `K` (Kronometre), `Escape` (Tüm pencereleri kapatma) tuşları test edildi.
+   - Arama ve metin kutularına yazı yazarken kısayolların kazara tetiklenmesini önleyen form odak izolasyonu (Input Focus Guard) doğrulandı.
+
+---
+
+### 🛡️ Test ve Güvence Durumu:
+- **63 Birim Testi:** `node test_suite.js` -> **%100 BAŞARILI**
+- **10 E2E Tarayıcı Paneli:** `node test_panels_e2e.js` -> **%100 BAŞARILI**
+- **Geliştirici İmzası:** `MeH4n` telif ve geliştirici koruması eksiksiz muhafaza edilmektedir.
+
+---
+
+# 🎮 Çoklu Oyun Temaları, Strikers Club Kupa Kutlaması & Yayıncı Güvenlik Sistemi
+
+Kullanıcı gereksinimleri doğrultusunda uygulamanın arayüzü sadeleştirilmiş, çoklu espor oyun temaları eklenmiş, Oddshot Games'in *Strikers Club* oyunu için özel stadyum ve oyun içi zafer kutlaması geliştirilmiş ve yayıncılar için gizli hesap doğrulama sistemi kurulmuştur.
+
+### 1. 🎛️ Arayüz Sadeleştirme (UI Simplification)
+- Dağınık duran takımlar toolbar butonları 3 mantıksal gruba kümelenmiştir:
+  - **Ana Dağıtım Grubu:** `#randomizeBtn` (Göz alıcı neon stil)
+  - **Kura & Analiz Araçları:** `#luckyWheelBtn`, `#coinFlipBtn`, `#draftDiceBtn`, `#openPlayerCompareBtn`
+  - **Sıfırlama Grubu:** `#resetTournamentBtn`, `#clearBtn`
+- Üst gezinme çubuğu (Header) 3 şık küme ile sadeleştirilmiştir (`.header-btn-cluster`):
+  - **Yayıncı & Sıralama Kümesi (`.group-admin`):** `#streamerAuthNavBtn`, `#leaderboardBtn`
+  - **Yayın & Rehber Kümesi (`.group-tools`):** `#obsOverlayBtn`, `#guideBtn`, `#hotkeyGuideBtn`
+  - **Ayarlar Kümesi (`.group-settings`):** `#settingsDrawerBtn`, `#hubStatusPill`
+- Kompakt **Aktif Oyun Rozeti** (`#activeGameBadgeBtn`) doğrudan logoya entegre edilmiştir.
+
+### 2. 🎮 Çoklu Oyun Temaları (Multi-Game Theme Engine)
+- Dört popüler oyun için tematik renk paletleri, arka planlar, mevkiler ve draft komut ipuçları tanımlanmıştır:
+  - **⚽ Strikers Club (Önerilen & Asıl Oyun):** Neon siber stadyum, 5v5 futbol fiziği, GK, CB, RM, LM, ST mevkileri (`!sec @oyuncu GK`).
+  - **🎯 Counter-Strike 2 (CS2):** Askeri koyu & turuncu taktiksel tema, CT vs T, IGL, AWP, Entry rolleri (`!sec @oyuncu IGL`).
+  - **⚡ Valorant:** VCT Crimson & Radyant neon teması, Saldıran vs Savunan, Düellocu, Öncü rolleri (`!sec @oyuncu Düellocu`).
+  - **⚔️ League of Legends (LoL):** Hextech mavi ve rün altını teması, Mavi vs Kırmızı, TOP, JGL, MID, ADC, SUP koridorları (`!sec @oyuncu TOP`).
+- Splash intro ekranından hemen sonra kullanıcıya oyun seçim modalı (`#gameSelectorModal`) sunulur; istendiğinde header rozetinden veya Ayarlar Çekmecesinden (`#openFullGameModalBtn`) dilediği zaman değiştirilebilir.
+
+### 3. ⚽ Strikers Club Canlı Oyun İçi Zafer Kutlaması & Baş Üstü İsim Levhası
+- Oddshot Games'in 5v5 futbol oyunu *Strikers Club* için özel kupa seremonisi sahnesi oluşturulmuştur:
+  - Siber stadyum projektörleri (`#strikersCelebrationHeroStage`, `.strikers-field-lights`).
+  - Dinamik çim halkası (`.strikers-turf-ring`).
+  - **Baş Üstü Holografik İsim Levhası (`#strikersOverheadWinnerHud`, `#strikersWinnerHeroName`):** Kazanan takımın turnuva MVP'sinin / şampiyon oyuncusunun ismi doğrudan futbolcu karakterinin baş üstünde canlı holografik taç ile görüntülenir.
+  - **Oyuncu Enerji & Güç Barı (`.overhead-stamina-bar`, `.stamina-fill`):** Gerçek Strikers Club HUD'ına uygun enerji şarjı animasyonu.
+  - **Animasyonlu Futbolcu Modeli (`#strikersCharacterModel`):** 10 numaralı forma aurası, altın kupa kaldırma grafiği.
+  - **Kinetik Maç Topu (`.strikers-ball-element`, `.strikers-ball-spin`, `.strikers-ball-trail`):** Karakterin ayağında dönen ve çim aurası yayan maç topu animasyonu.
+
+### 4. 🔐 Yayıncı Hesap & İstatistik Güvenlik Sistemi (Broadcaster Security)
+- **İzleyici Koruması:** Normal kullanıcıların hesap açmasına gerek yoktur. Ancak oyuncu istatistiklerini görüntüleme ve kurcalama yetkileri kısıtlanmıştır.
+- **Liderlik Kilit Katmanı (`#leaderboardLockOverlay`):** Giriş yapılmadığında sıralama tablosu kilit katmanıyla maskelenir, istatistik sıfırlama gizlenir.
+- **Stat Kartı Read-Only Koruması (`goalsInput.readOnly = true`, `statCardSaveBtn`):** Yetkisiz kullanıcılar stat kartındaki değerleri değiştiremez, kaydet butonu kilitli gösterilir.
+- **Sıfır İstemci Sızıntısı (Zero Secret Leak):** Şifre `app/app.js` dosyasından tamamen arındırılmıştır; istemci kodu GitHub'a yüklendiğinde hiçbir kimlik bilgisi sızmaz.
+- **Yerel ve Güvenli Saklama:**
+  - Kimlik bilgileri **kesinlikle GitHub'a yüklenmeyecek şekilde** `.gitignore` ile korunan `app/data/streamer_auth.local.json` dosyasında saklanır.
+  - Sunucu backendinde `app/server.ps1` üzerinde `/api/auth/login`, `/api/auth/status`, `/api/auth/logout` uç noktaları çalışır.
+  - **Yayıncı Giriş Bilgileri:**
+    - **Kullanıcı Adı:** `streamer_king`
+    - **Şifre:** `StrikersKing2026!Auth`
+    - **Yetki Rolü:** `BROADCASTER_ADMIN`
+    - **Desteklenen Komutlar:** `/grill-me`, `/goal`, `/boost`

@@ -1,4 +1,5 @@
 {
-  "_comment": "Bu dosya diger yayincilara uygulamanizi verirken merkezi sunucu adresinizi onceden tanimlamak icindir.",
+  "_comment": "Bu dosya diger yayincilara uygulamanizi verirken Firebase veya merkezi sunucu adresinizi onceden tanimlamak icindir.",
+  "firebaseUrl": "",
   "remoteUrl": ""
 }

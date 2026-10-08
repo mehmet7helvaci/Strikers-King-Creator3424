@@ -1,3 +1,15 @@
+// 🚀 Early OBS Overlay Mode activation (Prevents flash of dashboard UI on broadcast)
+(function earlyObsOverlayCheck() {
+    try {
+        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+            const p = new URLSearchParams(window.location.search);
+            if (p.get('overlay') === '1' || window.location.hash.indexOf('overlay') !== -1 || window.obsstudio !== undefined || (navigator.userAgent && (navigator.userAgent.indexOf('OBS') !== -1 || navigator.userAgent.indexOf('obs-browser') !== -1))) {
+                document.documentElement.classList.add('obs-overlay-mode');
+            }
+        }
+    } catch (e) {}
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // Web Audio API - Multi-Theme Audio Engine & SFX Manager
@@ -509,10 +521,108 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Galibiyet anında coşkulu seyirci tezahüratı
                 playCrowdCheerSfx('high');
+            } else if (type === 'coin') {
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.12);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                osc.connect(gain);
+                gain.connect(sfxGainNode);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'tick') {
+                playWheelTickSound();
+            } else if (type === 'fanfare') {
+                playCelebrationFanfare();
+            } else if (type === 'buzzer') {
+                playBuzzerSfx();
             }
         } catch (e) {
             console.warn('UI SFX error:', e);
         }
+    }
+
+    function playWheelTickSound(pitch = 950) {
+        if (isOverlayModeActive()) return;
+        if (!sfxEnabled || sfxVolume <= 0) return;
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        try {
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(pitch, now);
+            osc.frequency.exponentialRampToValueAtTime(180, now + 0.025);
+            gain.gain.setValueAtTime(Math.max(0.001, sfxVolume * 0.16), now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.03);
+        } catch(e) {}
+    }
+
+    function playCelebrationFanfare() {
+        if (isOverlayModeActive()) return;
+        if (!sfxEnabled || sfxVolume <= 0) return;
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        try {
+            const now = ctx.currentTime;
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(Math.max(0.001, sfxVolume * 0.32), now);
+            masterGain.connect(ctx.destination);
+
+            const chords = [
+                { t: 0.00, notes: [261.63, 329.63, 392.00], d: 0.22 },
+                { t: 0.26, notes: [261.63, 329.63, 392.00], d: 0.18 },
+                { t: 0.48, notes: [261.63, 329.63, 392.00], d: 0.18 },
+                { t: 0.72, notes: [349.23, 440.00, 523.25], d: 0.42 },
+                { t: 1.20, notes: [392.00, 493.88, 587.33], d: 0.42 },
+                { t: 1.68, notes: [523.25, 659.25, 783.99, 1046.50], d: 1.50 }
+            ];
+
+            chords.forEach(ch => {
+                ch.notes.forEach(f => {
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(f, now + ch.t);
+                    g.gain.setValueAtTime(0.001, now + ch.t);
+                    g.gain.linearRampToValueAtTime(0.25 / ch.notes.length, now + ch.t + 0.04);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + ch.t + ch.d);
+                    osc.connect(g);
+                    g.connect(masterGain);
+                    osc.start(now + ch.t);
+                    osc.stop(now + ch.t + ch.d + 0.05);
+                });
+            });
+        } catch(e) {}
+    }
+
+    function playBuzzerSfx() {
+        if (isOverlayModeActive()) return;
+        if (!sfxEnabled || sfxVolume <= 0) return;
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        try {
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.setValueAtTime(120, now + 0.35);
+            gain.gain.setValueAtTime(Math.max(0.001, sfxVolume * 0.35), now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.9);
+        } catch(e) {}
     }
 
     // 3. Demirin Betona Çarpma Sesi (Iron on Concrete Impact Sound)
@@ -630,6 +740,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     playBackgroundMusic();
                 } catch (e) {}
+
+                // Başlangıçta introdan sonra oyun seçimini sor
+                if (!isOverlayModeActive() && typeof window.openGameSelectorModal === 'function') {
+                    setTimeout(() => {
+                        window.openGameSelectorModal();
+                    }, 400);
+                }
             };
             const splashTimer = setTimeout(dismissSplash, 3200);
             splashScreen.addEventListener('click', () => {
@@ -694,6 +811,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerMetadataMap = new Map();
     let currentPoolTab = 'all'; // 'all' | 'subs'
     let currentPoolSortState = 'none'; // 'none' | 'az' | 'za' | 'sub'
+
+    // ⏱️ Canlı Maç Skor & Boost Takibi (Tüm modüller için erken başlatma)
+    let liveMatchScores = {};
+    window.liveMatchScores = liveMatchScores;
+    window.getLiveMatchScores = () => liveMatchScores;
 
     // 👑 Kaptan Sistemi DOM Elemanları
     const captainLimitMinusBtn = document.getElementById('captainLimitMinusBtn');
@@ -1987,6 +2109,18 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         badge.appendChild(obsBtn);
 
+        const filesBtn = document.createElement('button');
+        filesBtn.className = 'match-files-btn';
+        filesBtn.title = 'Maç Dosyaları & Skor Tablosu (📁)';
+        filesBtn.innerHTML = '<i class="fa-solid fa-folder-open"></i> 📁';
+        filesBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof openMatchFilesModal === 'function') {
+                openMatchFilesModal(match.id, match.name || `Maç ${match.id}`);
+            }
+        };
+        badge.appendChild(filesBtn);
+
         // Karşılaşma Taşıma Tutamağı (Yalnızca ilk tur maçlarında aynı turdaki maçlarla yer değiştirmek için)
         const isInitialMatch = !match.sourceA;
         if (isInitialMatch && match.teamA && match.teamA.teamNum !== undefined) {
@@ -2671,6 +2805,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderChampionPodium({ name: winnerTeamName, players: winnerPlayers });
             awardTournamentBadges(winnerTeamName, winnerPlayers, loserTeamName, loserPlayers);
             triggerConfettiCelebration();
+            triggerGrandChampionCelebration({ name: winnerTeamName, players: winnerPlayers });
             showTournamentScoreboard();
             showToast(`👑 TEBRİKLER! ${winnerTeamName.toUpperCase()} BÜYÜK FİNALİ KAZANARAK TURNUVA ŞAMPİYONU OLDU! 🎉`);
 
@@ -2750,6 +2885,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (match.round === 'final') {
             renderChampionPodium(null);
+            closeGrandChampionCelebration();
         }
 
         match.winner = null;
@@ -2781,6 +2917,276 @@ document.addEventListener('DOMContentLoaded', () => {
             pill.innerHTML = `<strong>${pName}</strong> <small>(%${detail.winRate.toFixed(0)})</small>`;
             champRosterEl.appendChild(pill);
         });
+    }
+
+    // =========================================================================
+    // 🏆 ESPOR BÜYÜK FİNAL ŞAMPİYONLUK ZAFER SAHNESİ MOTORU
+    // =========================================================================
+    let grandChampionCelebrationTimer = null;
+    let celebrationFireworksAnimationId = null;
+
+    function startCelebrationFireworks() {
+        const canvas = document.getElementById('championFireworksCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.parentElement ? canvas.parentElement.offsetWidth : window.innerWidth;
+        canvas.height = canvas.parentElement ? canvas.parentElement.offsetHeight : window.innerHeight;
+
+        let particles = [];
+        const colors = ['#ffd700', '#00f0ff', '#ff007f', '#10b981', '#ffffff', '#a855f7'];
+
+        function createBurst(x, y) {
+            const pCount = 55;
+            for (let i = 0; i < pCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 4 + 1.5,
+                    alpha: 1,
+                    decay: Math.random() * 0.018 + 0.012
+                });
+            }
+        }
+
+        let lastBurstTime = 0;
+        function loop(time) {
+            const modal = document.getElementById('championCelebrationModal');
+            if (!modal || modal.classList.contains('hidden')) {
+                particles = [];
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+
+            if (time - lastBurstTime > 250) {
+                lastBurstTime = time;
+                const bx = Math.random() * (canvas.width * 0.8) + (canvas.width * 0.1);
+                const by = Math.random() * (canvas.height * 0.5) + (canvas.height * 0.1);
+                createBurst(bx, by);
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.08;
+                p.alpha -= p.decay;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            celebrationFireworksAnimationId = requestAnimationFrame(loop);
+        }
+
+        if (celebrationFireworksAnimationId) cancelAnimationFrame(celebrationFireworksAnimationId);
+        celebrationFireworksAnimationId = requestAnimationFrame(loop);
+    }
+
+    function stopCelebrationFireworks() {
+        if (celebrationFireworksAnimationId) {
+            cancelAnimationFrame(celebrationFireworksAnimationId);
+            celebrationFireworksAnimationId = null;
+        }
+        const canvas = document.getElementById('championFireworksCanvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    function triggerGrandChampionCelebration(champ, isFromRemote = false) {
+        if (!champ || !champ.name) return;
+
+        const modal = document.getElementById('championCelebrationModal');
+        const teamNameEl = document.getElementById('stageChampionTeamName');
+        const rosterEl = document.getElementById('stageChampionRoster');
+        const timerText = document.getElementById('stageAutoTimerText');
+        const closeBtn = document.getElementById('closeChampionStageBtn');
+        const copyRecapBtn = document.getElementById('copyTournamentRecapBtn');
+
+        if (!modal || !teamNameEl || !rosterEl) return;
+
+        teamNameEl.textContent = champ.name;
+        rosterEl.innerHTML = '';
+
+        if (Array.isArray(champ.players) && champ.players.length > 0) {
+            champ.players.forEach(pName => {
+                const pill = document.createElement('div');
+                pill.className = 'stage-player-pill';
+                const detail = (typeof getPlayerStats === 'function') ? getPlayerStats(pName) : { winRate: 0 };
+                const wr = detail && typeof detail.winRate === 'number' ? detail.winRate : 0;
+                pill.innerHTML = `<i class="fa-solid fa-medal player-medal"></i> <span>${pName}</span> <span class="player-rate">(%${wr.toFixed(0)})</span>`;
+                rosterEl.appendChild(pill);
+            });
+        }
+
+        // Turnuva Onur Kürsüsü: Gol Kralı, Asist Kralı, MVP Hesaplama
+        let bestScorer = { name: '-', goals: 0 };
+        let bestAssist = { name: '-', assists: 0 };
+        let bestMvp = { name: '-', score: 0 };
+        const statAccumulator = {};
+
+        if (typeof liveMatchScores !== 'undefined' && liveMatchScores) {
+            Object.keys(liveMatchScores).forEach(k => {
+                const item = liveMatchScores[k];
+                const g = Number(item.goals) || 0;
+                const a = Number(item.assists) || 0;
+                const mvpScore = (g * 2) + a;
+                statAccumulator[k] = { name: k, goals: g, assists: a, score: mvpScore };
+            });
+        }
+        if (typeof tournamentMatches !== 'undefined' && tournamentMatches) {
+            Object.values(tournamentMatches).forEach(m => {
+                if (m && Array.isArray(m.playerUpdates)) {
+                    m.playerUpdates.forEach(pu => {
+                        const k = (pu.name || '').trim().toLowerCase();
+                        if (!k) return;
+                        if (!statAccumulator[k]) statAccumulator[k] = { name: pu.name, goals: 0, assists: 0, score: 0 };
+                        statAccumulator[k].goals += (Number(pu.goals) || 0);
+                        statAccumulator[k].assists += (Number(pu.assists) || 0);
+                        statAccumulator[k].score += ((Number(pu.goals) || 0) * 2) + (Number(pu.assists) || 0);
+                    });
+                }
+            });
+        }
+
+        Object.values(statAccumulator).forEach(st => {
+            if (st.goals > bestScorer.goals) bestScorer = { name: st.name, goals: st.goals };
+            if (st.assists > bestAssist.assists) bestAssist = { name: st.name, assists: st.assists };
+            if (st.score > bestMvp.score) bestMvp = { name: st.name, score: st.score };
+        });
+
+        const mvpEl = document.getElementById('stageMvpName');
+        const scorerEl = document.getElementById('stageScorerName');
+        const assistEl = document.getElementById('stageAssistName');
+        if (mvpEl) mvpEl.textContent = bestMvp.name !== '-' ? `${bestMvp.name} (${bestMvp.score} P)` : (champ.players?.[0] ? `${champ.players[0]} (MVP)` : '-');
+        if (scorerEl) scorerEl.textContent = bestScorer.name !== '-' ? `${bestScorer.name} (${bestScorer.goals} G)` : '-';
+        if (assistEl) assistEl.textContent = bestAssist.name !== '-' ? `${bestAssist.name} (${bestAssist.assists} A)` : '-';
+
+        // Strikers Club Canlı Oyun İçi Zafer Sahnesi & Baş Üstü Holografik İsim Levhası
+        const strikersHeroStage = document.getElementById('strikersCelebrationHeroStage');
+        const strikersWinnerNameEl = document.getElementById('strikersWinnerHeroName');
+        if (strikersWinnerNameEl) {
+            const rawHeroName = (bestMvp.name && bestMvp.name !== '-') ? bestMvp.name : (champ.players?.[0] || 'Şampiyon');
+            strikersWinnerNameEl.textContent = rawHeroName;
+        }
+        if (strikersHeroStage) {
+            strikersHeroStage.classList.remove('hidden');
+        }
+
+        // Zafer Özeti Panosu Kopyalama (Discord / Kick Formatı)
+        if (copyRecapBtn) {
+            copyRecapBtn.onclick = () => {
+                const teamName = champ.name;
+                const roster = (champ.players || []).join(', ');
+                const mvpName = (mvpEl?.textContent || '-');
+                const scorerName = (scorerEl?.textContent || '-');
+                const assistName = (assistEl?.textContent || '-');
+                const recapText = `🏆 **STRIKERS KING CREATOR - ESPOR TURNUVA ŞAMPİYONU** 🏆\n` +
+                                  `🥇 **Şampiyon:** ${teamName}\n` +
+                                  `👥 **Kadro:** ${roster}\n` +
+                                  `🌟 **Turnuva MVP'si:** ${mvpName}\n` +
+                                  `⚽ **Gol Kralı:** ${scorerName}\n` +
+                                  `🪄 **Asist Kralı:** ${assistName}\n` +
+                                  `👑 Tebrikler ${teamName}! #StrikersKingCreator #MeH4n`;
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(recapText).then(() => {
+                        showToast('📋 Turnuva zafer özeti panoya kopyalandı! Discord/Kick sohbetine yapıştırabilirsiniz.', false);
+                        copyRecapBtn.innerHTML = '<i class="fa-solid fa-check"></i> Kopyalandı!';
+                        setTimeout(() => {
+                            copyRecapBtn.innerHTML = '<i class="fa-solid fa-clipboard-check"></i> Turnuva Özetini Kopyala';
+                        }, 2500);
+                    }).catch(() => {
+                        prompt('Turnuva Özetini Kopyalayın:', recapText);
+                    });
+                } else {
+                    prompt('Turnuva Özetini Kopyalayın:', recapText);
+                }
+            };
+        }
+
+        modal.classList.remove('hidden');
+
+        if (typeof triggerConfettiCelebration === 'function') {
+            triggerConfettiCelebration();
+        }
+        if (typeof playCelebrationFanfare === 'function') {
+            playCelebrationFanfare();
+        } else if (typeof playUiSfx === 'function') {
+            playUiSfx('win');
+        }
+
+        startCelebrationFireworks();
+
+        // 35 saniye zaman ayarlı geri sayım
+        if (grandChampionCelebrationTimer) {
+            clearInterval(grandChampionCelebrationTimer);
+            grandChampionCelebrationTimer = null;
+        }
+
+        let remainingSec = 35;
+        if (timerText) timerText.textContent = `${remainingSec} sn sonra otomatik kapanacak`;
+
+        grandChampionCelebrationTimer = setInterval(() => {
+            remainingSec--;
+            if (timerText) timerText.textContent = `${remainingSec} sn sonra otomatik kapanacak`;
+            if (remainingSec <= 0) {
+                closeGrandChampionCelebration();
+            }
+        }, 1000);
+
+        if (closeBtn) {
+            closeBtn.onclick = () => closeGrandChampionCelebration();
+        }
+
+        modal.onclick = (e) => {
+            if (e.target === modal) closeGrandChampionCelebration();
+        };
+
+        // OBS ve tüm diğer ekranlara eşzamanlı bildirim gönder
+        if (!isFromRemote && typeof obsSyncChannel !== 'undefined') {
+            obsSyncChannel.postMessage({
+                type: 'champion_celebration_open',
+                champ: champ
+            });
+        }
+    }
+
+    function closeGrandChampionCelebration(isFromRemote = false) {
+        const modal = document.getElementById('championCelebrationModal');
+        if (modal) modal.classList.add('hidden');
+
+        stopCelebrationFireworks();
+
+        if (grandChampionCelebrationTimer) {
+            clearInterval(grandChampionCelebrationTimer);
+            grandChampionCelebrationTimer = null;
+        }
+
+        if (!isFromRemote && typeof obsSyncChannel !== 'undefined') {
+            obsSyncChannel.postMessage({
+                type: 'champion_celebration_close'
+            });
+        }
     }
 
     function moveTeamPlayersToPool() {
@@ -3170,19 +3576,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (total === 0) {
             return { title: 'Derecesiz', icon: 'fa-solid fa-shield-halved', className: 'rank-unranked' };
         }
-        if (total >= 5 && winRate >= 75) {
+        if (total >= 10 && winRate >= 70) {
             return { title: 'Efsane', icon: 'fa-solid fa-crown', className: 'rank-champion' };
         }
-        if (total >= 4 && winRate >= 65) {
+        if (total >= 8 && winRate >= 65) {
             return { title: 'Elmas', icon: 'fa-solid fa-gem', className: 'rank-diamond' };
         }
-        if (total >= 3 && winRate >= 55) {
+        if (total >= 6 && winRate >= 55) {
             return { title: 'Platin', icon: 'fa-solid fa-medal', className: 'rank-platinum' };
         }
-        if (total >= 2 && winRate >= 45) {
+        if (total >= 4 && winRate >= 50) {
             return { title: 'Altın', icon: 'fa-solid fa-trophy', className: 'rank-gold' };
         }
-        if (total >= 1 && winRate >= 35) {
+        if (total >= 2 && winRate >= 40) {
             return { title: 'Gümüş', icon: 'fa-solid fa-award', className: 'rank-silver' };
         }
         return { title: 'Bronz', icon: 'fa-solid fa-shield', className: 'rank-bronze' };
@@ -4468,6 +4874,88 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1100);
     }
 
+    let draftTimerInterval = null;
+    let draftRemainingSec = 30;
+
+    function resetDraftTimer() {
+        if (draftTimerInterval) {
+            clearInterval(draftTimerInterval);
+            draftTimerInterval = null;
+        }
+        draftRemainingSec = 30;
+        updateDraftTimerDisplay();
+        draftTimerInterval = setInterval(() => {
+            if (!draftModeActive) {
+                stopDraftTimer();
+                return;
+            }
+            draftRemainingSec--;
+            updateDraftTimerDisplay();
+            if (draftRemainingSec <= 5 && draftRemainingSec > 0) {
+                playUiSfx('click');
+            }
+            if (draftRemainingSec <= 0) {
+                clearInterval(draftTimerInterval);
+                draftTimerInterval = null;
+                draftAutoPickPlayer();
+            }
+        }, 1000);
+    }
+
+    function updateDraftTimerDisplay() {
+        const fill = document.getElementById('draftTimerBarFill');
+        const text = document.getElementById('draftTimerText');
+        if (fill) {
+            const pct = Math.max(0, Math.min(100, (draftRemainingSec / 30) * 100));
+            fill.style.width = `${pct}%`;
+            if (draftRemainingSec <= 5) fill.classList.add('warning');
+            else fill.classList.remove('warning');
+        }
+        if (text) text.textContent = `${draftRemainingSec}s`;
+    }
+
+    function stopDraftTimer() {
+        if (draftTimerInterval) {
+            clearInterval(draftTimerInterval);
+            draftTimerInterval = null;
+        }
+    }
+
+    function draftAutoPickPlayer() {
+        if (!draftModeActive || !currentDraftOrder || currentDraftOrder.length === 0) return;
+        const poolItems = playerPool ? Array.from(playerPool.querySelectorAll('.player-item')) : [];
+        if (poolItems.length === 0) {
+            endDraftTurnMode(true);
+            return;
+        }
+
+        let bestEl = poolItems[0];
+        let bestWr = -1;
+        poolItems.forEach(el => {
+            const pName = el.dataset.name || '';
+            const stats = (typeof getPlayerStats === 'function') ? getPlayerStats(pName) : { winRate: 0 };
+            const wr = stats?.winRate || 0;
+            if (wr > bestWr) {
+                bestWr = wr;
+                bestEl = el;
+            }
+        });
+
+        const activeCap = currentDraftOrder[currentDraftIndex];
+        if (!activeCap) return;
+        const list = activeCap.teamList || findCaptainTeamList(activeCap.name);
+        if (!list) return;
+
+        const picked = executeCaptainPick(activeCap.name, bestEl.dataset.name, list);
+        if (!picked) {
+            list.appendChild(bestEl);
+            updatePoolCount();
+        }
+        showToast(`🤖 [Süre Doldu / Oto-Seçim] ${bestEl.dataset.name} -> ${activeCap.teamName} kadrosuna atandı!`);
+        updateTeamPowerBar();
+        advanceDraftTurn();
+    }
+
     function startDraftTurnMode() {
         if (!currentDraftOrder || currentDraftOrder.length === 0) {
             currentDraftOrder = getEligibleCaptainsForDraft();
@@ -4486,7 +4974,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const banner = document.getElementById('draftTurnBanner');
         if (banner) banner.classList.remove('hidden');
 
+        const draftAutoPickBtn = document.getElementById('draftAutoPickBtn');
+        if (draftAutoPickBtn) draftAutoPickBtn.onclick = draftAutoPickPlayer;
+
         updateDraftTurnUI();
+        resetDraftTimer();
         playUiSfx('start');
 
         const activeCap = currentDraftOrder[currentDraftIndex];
@@ -4590,6 +5082,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentDraftIndex = nextIndex;
         updateDraftTurnUI();
+        resetDraftTimer();
         playUiSfx('click');
 
         const activeCap = currentDraftOrder[currentDraftIndex];
@@ -4598,6 +5091,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function endDraftTurnMode(completed = false) {
         draftModeActive = false;
+        stopDraftTimer();
         const banner = document.getElementById('draftTurnBanner');
         if (banner) banner.classList.add('hidden');
 
@@ -5348,6 +5842,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const atomicMatchPacket = {
             matchId: 'match_' + Date.now(),
             timestamp: Date.now(),
+            type: 'MATCH_RECORDED',
             streamer: currentChannel || 'Yayıncı',
             channel: currentChannel || 'genel',
             winnerTitle: pendingMatch.winnerTitle,
@@ -5442,6 +5937,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!leaderboardModal) return;
         leaderboardModal.classList.remove('hidden');
         leaderboardModal.style.display = 'flex';
+
+        // Yayıncı Yetki Kontrolü: Normal izleyiciler istatistiklere erişemez / müdahale edemez
+        const lockOverlay = document.getElementById('leaderboardLockOverlay');
+        const resetBtn = document.getElementById('resetChannelStatsBtn');
+        const isAuthed = (typeof isBroadcasterAuthenticated === 'function') ? isBroadcasterAuthenticated() : false;
+
+        if (lockOverlay) {
+            if (isAuthed) {
+                lockOverlay.classList.add('hidden');
+                lockOverlay.style.display = 'none';
+            } else {
+                lockOverlay.classList.remove('hidden');
+                lockOverlay.style.display = 'flex';
+            }
+        }
+
+        if (resetBtn) {
+            resetBtn.style.display = isAuthed ? 'inline-flex' : 'none';
+        }
+
         try {
             renderLeaderboard();
         } catch (e) {
@@ -5994,8 +6509,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateActiveChannelsUI();
                 const streamerTag = document.getElementById('streamerStatusTag');
                 if (streamerTag) {
+                    streamerTag.classList.add('is-connected');
                     streamerTag.innerHTML = '<span class="streamer-live-dot" style="background-color: #53fc18;" id="streamerStatusDot"></span> Chat Bağlı';
                 }
+                // Bağlantı koptuktan sonra geri geldiğinde aktif kanalları tazele
+                activeChannels.forEach((item, chKey) => {
+                    if (!item.subscription || item.subscription.state === 'failed') {
+                        try {
+                            item.subscription = pusher.subscribe(item.subChannelName);
+                            item.subscription.bind('App\\Events\\ChatMessageEvent', function(data) {
+                                handleKickChatMessage(data, chKey);
+                            });
+                        } catch (e) {}
+                    }
+                });
             });
 
             pusher.connection.bind('connecting', () => {
@@ -6014,6 +6541,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (streamerTag) {
                     streamerTag.classList.remove('is-connected');
                     streamerTag.innerHTML = '<span class="streamer-live-dot" id="streamerStatusDot"></span> Offline';
+                }
+
+                // Otomatik yeniden bağlanma koruması (Bağlantı kopması durumunda sayfayı yenilemeye gerek kalmaz)
+                if (activeChannels.size > 0) {
+                    setTimeout(() => {
+                        try {
+                            if (pusher && (pusher.connection.state === 'disconnected' || pusher.connection.state === 'unavailable')) {
+                                pusher.connect();
+                            }
+                        } catch(e) {}
+                    }, 2500);
+                }
+            });
+
+            pusher.connection.bind('unavailable', () => {
+                console.warn('Pusher ağına erişilemiyor, otomatik yeniden denenecek...');
+                if (activeChannels.size > 0) {
+                    setTimeout(() => {
+                        try {
+                            if (pusher && pusher.connection.state !== 'connected') {
+                                pusher.connect();
+                            }
+                        } catch(e) {}
+                    }, 3000);
                 }
             });
 
@@ -6507,14 +7058,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // ⚽⚡ 4. Canlı Gol ve Boost/Asist Komutları (/goal, /boost, /gol, /asist)
-        const isGoalCmd = ['/goal', '!goal', '/gol', '!gol'].includes(firstToken);
-        const isBoostCmd = ['/boost', '!boost', '/asist', '!asist'].includes(firstToken);
+        // ⚽⚡ 4. Canlı Gol ve Boost/Asist Komutları (/goal, /boost, /gol, /asist, /score, /skor, /power, /fire)
+        const isGoalCmd = ['/goal', '!goal', '/gol', '!gol', '/score', '!skor', '!score'].includes(firstToken);
+        const isBoostCmd = ['/boost', '!boost', '/bost', '!bost', '/asist', '!asist', '/fire', '!fire', '/power', '!power'].includes(firstToken);
 
         if (isGoalCmd || isBoostCmd) {
-            if (!isWatcherActive) {
+            const hasPlayersInTeams = document.querySelectorAll('.team-list .player-item').length > 0;
+            const hasActiveScores = typeof liveMatchScores !== 'undefined' && Object.keys(liveMatchScores).length > 0;
+            if (!isWatcherActive && !hasPlayersInTeams && !hasActiveScores) {
                 return;
             }
+
+            const senderKey = (username || '').toLowerCase();
+            const nowTime = Date.now();
+            if (!window._chatCmdLastUsed) window._chatCmdLastUsed = new Map();
+            const lastUsed = window._chatCmdLastUsed.get(senderKey) || 0;
+            if (nowTime - lastUsed < 3000) {
+                return; // Anti-spam 3s rate-limit
+            }
+            window._chatCmdLastUsed.set(senderKey, nowTime);
 
             const tokens = rawContent.split(/\s+/);
             let targetUser = '';
@@ -6529,14 +7091,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Takımlarda veya canlı skor tablosunda eşleşen oyuncuyu bul
             let matchedName = null;
+            let matchedEl = null;
             if (typeof liveMatchScores !== 'undefined' && liveMatchScores[targetKey]) {
                 matchedName = targetUser;
-            } else {
-                const teamPlayers = document.querySelectorAll('.team-list .player-item');
-                for (const pel of teamPlayers) {
+            }
+            const teamPlayers = document.querySelectorAll('.team-list .player-item');
+            for (const pel of teamPlayers) {
+                const pName = pel.dataset.name || '';
+                if (pName.trim().toLowerCase() === targetKey) {
+                    matchedName = pName;
+                    matchedEl = pel;
+                    break;
+                }
+            }
+            if (!matchedName && playerPool) {
+                for (const pel of playerPool.querySelectorAll('.player-item')) {
                     const pName = pel.dataset.name || '';
                     if (pName.trim().toLowerCase() === targetKey) {
                         matchedName = pName;
+                        matchedEl = pel;
                         break;
                     }
                 }
@@ -6544,18 +7117,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (matchedName) {
                 const cleanKey = matchedName.trim().toLowerCase();
+                let detectedTeam = 1;
+                if (matchedEl) {
+                    const tList = matchedEl.closest('.team-list');
+                    if (tList) {
+                        if (tList.id === 'team-2') detectedTeam = 2;
+                        else if (tList.id === 'team-1') detectedTeam = 1;
+                        else {
+                            const parsed = parseInt((tList.id || '').replace('team-', ''), 10);
+                            if (!isNaN(parsed) && parsed > 0) detectedTeam = parsed;
+                            else {
+                                const allLists = Array.from(document.querySelectorAll('.team-list'));
+                                const idx = allLists.indexOf(tList);
+                                if (idx !== -1) detectedTeam = idx + 1;
+                            }
+                        }
+                    }
+                }
+
                 if (!liveMatchScores[cleanKey]) {
-                    liveMatchScores[cleanKey] = { goals: 0, assists: 0, team: 1 };
+                    liveMatchScores[cleanKey] = { goals: 0, assists: 0, boosts: 0, team: detectedTeam };
+                } else if (matchedEl && matchedEl.closest('.team-list')) {
+                    liveMatchScores[cleanKey].team = detectedTeam;
                 }
 
                 if (isGoalCmd) {
                     liveMatchScores[cleanKey].goals = (liveMatchScores[cleanKey].goals || 0) + 1;
                     showToast(`⚽ [Kick Chat] ${matchedName} gol attı! (${liveMatchScores[cleanKey].goals} Gol)`, false);
                     playUiSfx('join');
+
+                    if (typeof obsSyncChannel !== 'undefined') {
+                        obsSyncChannel.postMessage({
+                            type: 'obs_goal_alert',
+                            player: matchedName,
+                            goals: liveMatchScores[cleanKey].goals
+                        });
+                    }
+                    showObsGoalAlert({
+                        player: matchedName,
+                        goals: liveMatchScores[cleanKey].goals
+                    });
+
+                    if (window._isGoldenGoalActive) {
+                        showToast(`⚡ [ALTIN GOL] ${matchedName} altın golü attı! Maç galibi belirlendi!`, false);
+                        playCelebrationFanfare();
+                    }
                 } else {
                     liveMatchScores[cleanKey].assists = (liveMatchScores[cleanKey].assists || 0) + 1;
-                    showToast(`⚡ [Kick Chat] ${matchedName} asist/boost yaptı! (${liveMatchScores[cleanKey].assists} Asist)`, false);
+                    liveMatchScores[cleanKey].boosts = (liveMatchScores[cleanKey].boosts || 0) + 1;
+                    showToast(`⚡ [Kick Chat] ${matchedName} izleyici desteği / boost aldı! (+1 Boost)`, false);
                     playUiSfx('click');
+
+                    if (matchedEl) {
+                        matchedEl.classList.add('is-boosted');
+                        let badge = matchedEl.querySelector('.player-boost-badge');
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'player-boost-badge';
+                            matchedEl.appendChild(badge);
+                        }
+                        const curBoost = (parseInt(matchedEl.dataset.boostCount || '0', 10)) + 1;
+                        matchedEl.dataset.boostCount = curBoost;
+                        badge.innerHTML = `<i class="fa-solid fa-bolt"></i> ${curBoost}`;
+                    }
+
+                    if (typeof obsSyncChannel !== 'undefined') {
+                        obsSyncChannel.postMessage({
+                            type: 'obs_boost_alert',
+                            player: matchedName,
+                            boosts: liveMatchScores[cleanKey].boosts
+                        });
+                    }
+                    showObsBoostAlert({
+                        player: matchedName,
+                        boosts: liveMatchScores[cleanKey].boosts
+                    });
                 }
 
                 renderLiveScorePanel();
@@ -6577,6 +7213,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    window.handleKickChatMessage = handleKickChatMessage;
+    window.simulateKickChat = (username, content) => {
+        handleKickChatMessage({
+            sender: { username: username },
+            content: content
+        });
+    };
 
     function openKickModal(channel) {
         if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();
@@ -7097,13 +7741,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const goalsInput = document.getElementById('statCardGoalsInput');
         const assistsInput = document.getElementById('statCardAssistsInput');
         const savesInput = document.getElementById('statCardSavesInput');
+        const isAuthActive = (typeof isBroadcasterAuthenticated === 'function') && isBroadcasterAuthenticated();
 
-        if (goalsInput) goalsInput.value = stat.goals || 0;
-        if (assistsInput) assistsInput.value = stat.assists || 0;
-        if (savesInput) savesInput.value = stat.saves || 0;
+        if (goalsInput) {
+            goalsInput.value = stat.goals || 0;
+            goalsInput.readOnly = !isAuthActive;
+            goalsInput.title = isAuthActive ? 'Gol sayısını düzenle' : 'Yalnızca yetkili yayıncılar düzenleyebilir';
+        }
+        if (assistsInput) {
+            assistsInput.value = stat.assists || 0;
+            assistsInput.readOnly = !isAuthActive;
+            assistsInput.title = isAuthActive ? 'Asist sayısını düzenle' : 'Yalnızca yetkili yayıncılar düzenleyebilir';
+        }
+        if (savesInput) {
+            savesInput.value = stat.saves || 0;
+            savesInput.readOnly = !isAuthActive;
+            savesInput.title = isAuthActive ? 'Kurtarış sayısını düzenle' : 'Yalnızca yetkili yayıncılar düzenleyebilir';
+        }
 
         // İstatistik Güncelleme Fonksiyonu
         function applyStatValue(statType, rawVal, triggerEl) {
+            if (typeof isBroadcasterAuthenticated === 'function' && !isBroadcasterAuthenticated()) {
+                if (typeof showToast === 'function') {
+                    showToast('İstatistikleri düzenlemek için Yayıncı Girişi yapmalısınız!', true);
+                }
+                if (typeof window.openStreamerAuthModal === 'function') {
+                    window.openStreamerAuthModal();
+                }
+                if (statType === 'goals' && goalsInput) goalsInput.value = stat.goals || 0;
+                else if (statType === 'assists' && assistsInput) assistsInput.value = stat.assists || 0;
+                else if (statType === 'saves' && savesInput) savesInput.value = stat.saves || 0;
+                return;
+            }
+
             let val = parseInt(rawVal, 10);
             if (isNaN(val) || val < 0) val = 0;
             if (val > 9999) val = 9999;
@@ -7182,9 +7852,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // Kaydet & Kapat butonu
         const saveBtn = document.getElementById('statCardSaveBtn');
         if (saveBtn) {
+            if (!isAuthActive) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Kapat (Yetki Gerekir)';
+                saveBtn.title = 'Yayıncı Girişi olmadan istatistik kaydedilemez';
+            } else {
+                saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Kaydet & Kapat';
+                saveBtn.title = 'İstatistik değişikliklerini kaydet';
+            }
             saveBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (typeof isBroadcasterAuthenticated === 'function' && !isBroadcasterAuthenticated()) {
+                    card.classList.add('hidden');
+                    return;
+                }
                 playUiSfx('click');
                 saveChannelStats();
                 refreshAllPlayerElements();
@@ -7500,6 +8181,44 @@ document.addEventListener('DOMContentLoaded', () => {
         return html;
     }
 
+    function showObsGoalAlert(data) {
+        if (!data || !data.player) return;
+        const banner = document.getElementById('obsGoalBanner');
+        const nameEl = document.getElementById('obsGoalPlayerName');
+        const subEl = document.getElementById('obsGoalTeamName');
+        if (banner && nameEl) {
+            nameEl.textContent = data.player;
+            if (subEl) subEl.textContent = `${data.goals || 1}. Gol!`;
+            banner.classList.remove('hidden');
+            banner.classList.add('visible');
+            clearTimeout(window._obsGoalBannerTimer);
+            window._obsGoalBannerTimer = setTimeout(() => {
+                banner.classList.remove('visible');
+                banner.classList.add('hidden');
+            }, 4000);
+        }
+    }
+
+    function showObsBoostAlert(data) {
+        if (!data || !data.player) return;
+        const banner = document.getElementById('obsBoostBanner');
+        const nameEl = document.getElementById('obsBoostPlayerName');
+        const subEl = document.getElementById('obsBoostCountText');
+        if (banner && nameEl) {
+            nameEl.textContent = data.player;
+            if (subEl) subEl.textContent = `+${data.boosts || 1} Moral & Taraftar Şarjı!`;
+            banner.classList.remove('hidden');
+            banner.classList.add('visible');
+            clearTimeout(window._obsBoostBannerTimer);
+            window._obsBoostBannerTimer = setTimeout(() => {
+                banner.classList.remove('visible');
+                banner.classList.add('hidden');
+            }, 4000);
+        }
+    }
+    window.showObsGoalAlert = showObsGoalAlert;
+    window.showObsBoostAlert = showObsBoostAlert;
+
     function initOverlayMode() {
         const params = new URLSearchParams(window.location.search);
         const isOverlayParam = (
@@ -7515,6 +8234,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.documentElement.classList.add('obs-overlay-mode');
         if (document.body) document.body.classList.add('obs-overlay-mode');
+
+        const ticker = document.getElementById('obsMarqueeTicker');
+        if (ticker) ticker.classList.remove('hidden');
 
         // URL parametresi ile geçersiz kılma desteği
         if (params.get('scale')) {
@@ -7599,6 +8321,21 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (e.data.type === 'update_pool_count') {
                 const countBadge = document.getElementById('obsPoolCountDisplay');
                 if (countBadge) countBadge.textContent = e.data.count;
+            } else if (e.data.type === 'champion_celebration_open') {
+                if (typeof triggerGrandChampionCelebration === 'function') {
+                    triggerGrandChampionCelebration(e.data.champ, true);
+                }
+            } else if (e.data.type === 'champion_celebration_close') {
+                if (typeof closeGrandChampionCelebration === 'function') {
+                    closeGrandChampionCelebration(true);
+                }
+            } else if (e.data.type === 'obs_goal_alert') {
+                showObsGoalAlert(e.data);
+            } else if (e.data.type === 'obs_boost_alert') {
+                showObsBoostAlert(e.data);
+            } else if (e.data.type === 'obs_timer_update') {
+                const timerEl = document.getElementById('obsLiveTimerDisplay');
+                if (timerEl) timerEl.textContent = e.data.time || '00:00';
             }
         };
 
@@ -7641,6 +8378,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return true;
     }
+    window.initOverlayMode = initOverlayMode;
 
     function applyLiveMatchToOverlay() {
         const activeId = obsConfig.activeMatchId;
@@ -7684,13 +8422,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2 Takımlı / Tek Maç modu için de kontrol et
         const teamBoxes = document.querySelectorAll('.team-box');
-        if (teamBoxes.length === 2 && activeId === 'single_match') {
-            teamBoxes.forEach(box => box.classList.add('active-live-match'));
+        if (activeId === 'single_match') {
+            if (teamBoxes.length > 0) {
+                teamBoxes.forEach(box => box.classList.add('active-live-match'));
+            }
             const t1 = document.querySelector('#team1Box .team-header input');
             const t2 = document.querySelector('#team2Box .team-header input');
             activeMatchName = 'Tek Maç';
-            activeTeamA = t1 ? t1.value.trim() : 'Takım 1';
-            activeTeamB = t2 ? t2.value.trim() : 'Takım 2';
+            activeTeamA = (t1 && t1.value.trim()) ? t1.value.trim() : 'Takım 1';
+            activeTeamB = (t2 && t2.value.trim()) ? t2.value.trim() : 'Takım 2';
         }
 
         // OBS Üst Bar Canlı Maç Ticker'ı Güncelle
@@ -7705,6 +8445,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+    window.applyLiveMatchToOverlay = applyLiveMatchToOverlay;
+    window.setOverlayLiveMatch = function(id) {
+        obsConfig.activeMatchId = id;
+        applyLiveMatchToOverlay();
+    };
 
     const isOverlay = initOverlayMode();
 
@@ -7846,14 +8591,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!skipBroadcast) {
                 if (matchId) {
-                    const matchObj = typeof tournamentMatches !== 'undefined' ? tournamentMatches[matchId] : null;
-                    const mName = matchObj ? matchObj.name : matchId;
+                    const matchObj = (typeof tournamentMatches !== 'undefined' && tournamentMatches) ? tournamentMatches[matchId] : null;
+                    const mName = matchObj ? matchObj.name : (matchId === 'single_match' ? 'Tek Maç' : matchId);
                     showToast('🔴 Canlı Maç Yayında: ' + mName);
                 } else {
                     showToast('⚪ Canlı maç vurgusu kapatıldı');
                 }
                 updateObsLinkAndBroadcast();
             }
+            applyLiveMatchToOverlay();
         }
         window.setActiveLiveMatch = setActiveLiveMatch;
 
@@ -8836,6 +9582,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT';
         
         if (e.key === 'Escape') {
+            const champStage = document.getElementById('championCelebrationModal');
+            if (champStage && !champStage.classList.contains('hidden')) {
+                closeGrandChampionCelebration();
+                return;
+            }
             if (isGuideActive) closeGuide();
             if (comprehensiveGuideModal && (!comprehensiveGuideModal.classList.contains('hidden') || comprehensiveGuideModal.style.display !== 'none')) closeComprehensiveGuide();
             if (settingsDrawer && settingsDrawer.classList.contains('open')) closeSettingsDrawer();
@@ -8864,6 +9615,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (isInput) return;
+
+        if (e.key === ' ' || e.code === 'Space') {
+            const champStage = document.getElementById('championCelebrationModal');
+            if (champStage && !champStage.classList.contains('hidden')) {
+                e.preventDefault();
+                closeGrandChampionCelebration();
+                return;
+            }
+        }
 
         if (e.key === 'h' || e.key === 'H') {
             if (isGuideActive) {
@@ -8899,13 +9659,24 @@ document.addEventListener('DOMContentLoaded', () => {
     window.setMusicTheme = setMusicTheme;
     window.playWhistleSfx = playWhistleSfx;
     window.playGoalHornSfx = playGoalHornSfx;
+    window.getPlayerStats = getPlayerStats;
+    window.calculateRank = calculateRank;
+    window.normalizeRole = normalizeRole;
+    window.setPlayerRole = setPlayerRole;
+    window.addPlayerToPool = addPlayerToPool;
+    window.addPlayer = addPlayerToPool;
+    window.showPlayerStatCard = showPlayerStatCard;
+    window.triggerGrandChampionCelebration = triggerGrandChampionCelebration;
+    window.closeGrandChampionCelebration = closeGrandChampionCelebration;
 
     // =========================================================================
     // Ortak Veri Merkezi (Data Hub) ve Gerçek Zamanlı Senkronizasyon Modülü
     // =========================================================================
     const HubClient = {
-        mode: 'offline', // 'host' | 'client' | 'offline'
+        mode: 'offline', // 'firebase' | 'host' | 'client' | 'offline'
         baseUrl: '',
+        firebaseUrl: '',
+        firebaseEventSource: null,
         lastEventId: 0,
         pollTimer: null,
         isConnected: false,
@@ -8915,27 +9686,39 @@ document.addEventListener('DOMContentLoaded', () => {
         async init() {
             this.bindEvents();
 
-            // 1. Kaydedilmiş uzak sunucu URL'si var mı kontrol et
+            // 0. Öncelikli Kontrol: Firebase Realtime Database Bulut Ligi
+            const savedFirebaseUrl = localStorage.getItem('kick_strikers_firebase_url');
+            if (savedFirebaseUrl) {
+                const fbOk = await this.connectFirebase(savedFirebaseUrl, false);
+                if (fbOk) return;
+            }
+
+            // 1. hub_config.json kontrol et
+            try {
+                const res = await fetch('./hub_config.json', { cache: 'no-store' });
+                if (res.ok) {
+                    const cfg = await res.json();
+                    if (cfg && cfg.firebaseUrl) {
+                        const fbOk = await this.connectFirebase(cfg.firebaseUrl, false);
+                        if (fbOk) return;
+                    }
+                    if (cfg && cfg.remoteUrl) {
+                        const clOk = await this.connectAsClient(cfg.remoteUrl, false);
+                        if (clOk) return;
+                    }
+                }
+            } catch (e) {}
+
+            // 2. Kaydedilmiş uzak sunucu URL'si var mı kontrol et
             const savedRemoteUrl = localStorage.getItem('kick_strikers_hub_remote_url');
             if (savedRemoteUrl) {
                 const ok = await this.connectAsClient(savedRemoteUrl, false);
                 if (ok) return;
             }
 
-            // 2. Eğer yerel sunucu (host) çalışıyorsa otomatik host olarak bağlan
+            // 3. Eğer yerel sunucu (host) çalışıyorsa otomatik host olarak bağlan
             const hostOk = await this.checkLocalHost();
             if (hostOk) return;
-
-            // 3. hub_config.json varsa kontrol et
-            try {
-                const res = await fetch('./hub_config.json', { cache: 'no-store' });
-                if (res.ok) {
-                    const cfg = await res.json();
-                    if (cfg && cfg.remoteUrl) {
-                        await this.connectAsClient(cfg.remoteUrl, false);
-                    }
-                }
-            } catch (e) {}
         },
 
         async checkLocalHost() {
@@ -9007,6 +9790,174 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updatePill('offline', 'Yerel');
             this.updateClientStatusCard(false, '', 0);
             showToast('Merkezi Veri Havuzu bağlantısı kesildi. (Yerel moda geçildi)');
+        },
+
+        async connectFirebase(url, notify = true) {
+            if (!url) return false;
+            url = url.trim().replace(/\/+$/, '');
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            if (!url.includes('.firebaseio.com') && !url.includes('firebasedatabase.app')) {
+                url = url + '.firebaseio.com';
+            }
+
+            const tStart = Date.now();
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4500);
+                const testRes = await fetch(`${url}/league/global.json?shallow=true`, {
+                    signal: controller.signal,
+                    cache: 'no-store'
+                });
+                clearTimeout(timeoutId);
+
+                if (testRes.ok) {
+                    this.ping = Date.now() - tStart;
+                    this.mode = 'firebase';
+                    this.firebaseUrl = url;
+                    this.isConnected = true;
+                    localStorage.setItem('kick_strikers_firebase_url', url);
+
+                    // Sunucu çalışıyorsa hub_config.json dosyasına da yaz
+                    fetch(`${getApiBase()}/api/hub/config`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ firebaseUrl: url, remoteUrl: '' })
+                    }).catch(() => {});
+
+                    this.updatePill('firebase', 'Bulut Ligi Aktif');
+                    this.updateFirebaseStatusCard(true, url);
+
+                    await this.pullFirebaseLeagueData();
+                    this.startFirebaseEventListener();
+
+                    if (notify) {
+                        showToast('🔥 Google Firebase Bulut Espor Ligine başarıyla bağlanıldı!', false);
+                        if (typeof playUiSfx === 'function') playUiSfx('join');
+                    }
+                    return true;
+                }
+            } catch (err) {
+                console.warn('Firebase bağlantı hatası:', err);
+            }
+
+            if (notify) {
+                showToast('Firebase veritabanına bağlanılamadı! Lütfen bağlantı adresinizi kontrol edin.', true);
+            }
+            this.updateFirebaseStatusCard(false, url);
+            return false;
+        },
+
+        disconnectFirebase() {
+            if (this.firebaseEventSource) {
+                try { this.firebaseEventSource.close(); } catch(e) {}
+                this.firebaseEventSource = null;
+            }
+            this.mode = 'offline';
+            this.firebaseUrl = '';
+            this.isConnected = false;
+            localStorage.removeItem('kick_strikers_firebase_url');
+
+            // hub_config.json içini temizle
+            fetch(`${getApiBase()}/api/hub/config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firebaseUrl: '', remoteUrl: '' })
+            }).catch(() => {});
+
+            this.updatePill('offline', 'Yerel');
+            this.updateFirebaseStatusCard(false, '');
+            showToast('Bulut Espor Ligi bağlantısı kesildi. (Yerel moda geçildi)');
+        },
+
+        updateFirebaseStatusCard(connected, url) {
+            const dot = document.getElementById('firebasePulseDot');
+            const statusText = document.getElementById('firebaseStatusText');
+            const urlInput = document.getElementById('firebaseUrlInput');
+            const saveBtn = document.getElementById('saveFirebaseBtn');
+            const disconnectBtn = document.getElementById('disconnectFirebaseBtn');
+            const pingSpan = document.getElementById('firebasePingText');
+            const syncCountSpan = document.getElementById('firebaseSyncCount');
+
+            if (urlInput && url && !urlInput.value) {
+                urlInput.value = url;
+            }
+
+            if (connected) {
+                if (dot) dot.className = 'pulse-dot green';
+                if (statusText) statusText.textContent = '7/24 Bulut Ligi Aktif (Canlı Senkronize)';
+                if (saveBtn) saveBtn.classList.add('hidden');
+                if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+                if (pingSpan) pingSpan.textContent = `${this.ping} ms`;
+                if (syncCountSpan) syncCountSpan.textContent = Object.keys(globalCareerStats || {}).length;
+            } else {
+                if (dot) dot.className = 'pulse-dot gray';
+                if (statusText) statusText.textContent = 'Yapılandırma Bekleniyor (Yerel Mod)';
+                if (saveBtn) saveBtn.classList.remove('hidden');
+                if (disconnectBtn) disconnectBtn.classList.add('hidden');
+                if (pingSpan) pingSpan.textContent = '-';
+            }
+        },
+
+        async pullFirebaseLeagueData() {
+            if (!this.firebaseUrl) return;
+            try {
+                const res = await fetch(`${this.firebaseUrl}/league/global.json`, { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && typeof data === 'object') {
+                        Object.keys(data).forEach(k => {
+                            if (!globalCareerStats[k]) {
+                                globalCareerStats[k] = data[k];
+                            } else {
+                                globalCareerStats[k].wins = Math.max(globalCareerStats[k].wins || 0, data[k].wins || 0);
+                                globalCareerStats[k].goals = Math.max(globalCareerStats[k].goals || 0, data[k].goals || 0);
+                                globalCareerStats[k].assists = Math.max(globalCareerStats[k].assists || 0, data[k].assists || 0);
+                                globalCareerStats[k].saves = Math.max(globalCareerStats[k].saves || 0, data[k].saves || 0);
+                                globalCareerStats[k].losses = Math.max(globalCareerStats[k].losses || 0, data[k].losses || 0);
+                                globalCareerStats[k].mvpCount = Math.max(globalCareerStats[k].mvpCount || 0, data[k].mvpCount || 0);
+                                globalCareerStats[k].displayName = data[k].displayName || globalCareerStats[k].displayName;
+                            }
+                        });
+                        localStorage.setItem('kick_strikers_global_career', JSON.stringify(globalCareerStats));
+                        saveChannelStats();
+                        refreshAllPlayerElements();
+                        renderLeaderboard();
+                    }
+                }
+            } catch (e) {
+                console.warn('Firebase ilk yükleme hatası:', e);
+            }
+        },
+
+        startFirebaseEventListener() {
+            if (this.firebaseEventSource) {
+                try { this.firebaseEventSource.close(); } catch(e) {}
+                this.firebaseEventSource = null;
+            }
+            if (!this.firebaseUrl) return;
+
+            try {
+                this.firebaseEventSource = new EventSource(`${this.firebaseUrl}/events.json`);
+                this.firebaseEventSource.addEventListener('put', (e) => {
+                    try {
+                        const payload = JSON.parse(e.data);
+                        if (payload && payload.data) {
+                            const d = payload.data;
+                            if (d.matchId) {
+                                this.handleEvent(d);
+                            } else if (typeof d === 'object') {
+                                Object.values(d).forEach(item => {
+                                    if (item && item.matchId) this.handleEvent(item);
+                                });
+                            }
+                        }
+                    } catch (err) {}
+                });
+            } catch (err) {
+                console.warn('Firebase EventSource dinleme hatası:', err);
+            }
         },
 
         updatePill(type, text) {
@@ -9301,6 +10252,38 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         async submitMatchResult(payload) {
+            // 1. Firebase Modu Aktifse doğrudan Firebase'e yaz
+            if (this.mode === 'firebase' && this.firebaseUrl) {
+                try {
+                    const matchUrl = `${this.firebaseUrl}/events/${payload.matchId}.json`;
+                    const leagueUrl = `${this.firebaseUrl}/league/global.json`;
+
+                    fetch(matchUrl, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    }).catch(e => console.warn('Firebase maç kayıt hatası:', e));
+
+                    fetch(leagueUrl, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(globalCareerStats)
+                    }).catch(e => console.warn('Firebase lig kayıt hatası:', e));
+
+                    // Yerel sunucu da varsa yedek olarak yaz
+                    fetch(`${getApiBase()}/api/hub/match-result`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    }).catch(() => {});
+
+                    return true;
+                } catch(e) {
+                    console.error('Firebase maç iletme hatası:', e);
+                }
+            }
+
+            // 2. Normal Yerel / Uzak Sunucu Modu
             const targetUrl = this.baseUrl || getApiBase() || 'http://localhost:18888';
             try {
                 const res = await fetch(`${targetUrl}/api/hub/match-result`, {
@@ -9392,10 +10375,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const hubModal = document.getElementById('hubModal');
             const closeHubModalBtn = document.getElementById('closeHubModalBtn');
             const closeHubModalFooterBtn = document.getElementById('closeHubModalFooterBtn');
+            const hubTabFirebaseBtn = document.getElementById('hubTabFirebaseBtn');
             const hubTabHostBtn = document.getElementById('hubTabHostBtn');
             const hubTabClientBtn = document.getElementById('hubTabClientBtn');
+            const hubFirebasePanel = document.getElementById('hubFirebasePanel');
             const hubHostPanel = document.getElementById('hubHostPanel');
             const hubClientPanel = document.getElementById('hubClientPanel');
+            const firebaseUrlInput = document.getElementById('firebaseUrlInput');
+            const saveFirebaseBtn = document.getElementById('saveFirebaseBtn');
+            const disconnectFirebaseBtn = document.getElementById('disconnectFirebaseBtn');
             const startTunnelBtn = document.getElementById('startTunnelBtn');
             const stopTunnelBtn = document.getElementById('stopTunnelBtn');
             const refreshHubStatusBtn = document.getElementById('refreshHubStatusBtn');
@@ -9410,7 +10398,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 dataHubBtn.addEventListener('click', () => {
                     if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();
                     hubModal.classList.remove('hidden');
-                    if (this.mode === 'host' || !this.mode || this.mode === 'offline') {
+
+                    const savedFb = localStorage.getItem('kick_strikers_firebase_url');
+                    if (savedFb && firebaseUrlInput) {
+                        firebaseUrlInput.value = savedFb;
+                    }
+                    if (this.mode === 'firebase') {
+                        this.updateFirebaseStatusCard(true, this.firebaseUrl);
+                    } else if (this.mode === 'host' || !this.mode || this.mode === 'offline') {
                         this.refreshHostDashboard();
                     }
                     const savedUrl = localStorage.getItem('kick_strikers_hub_remote_url');
@@ -9424,19 +10419,48 @@ document.addEventListener('DOMContentLoaded', () => {
             if (closeHubModalBtn) closeHubModalBtn.addEventListener('click', closeHub);
             if (closeHubModalFooterBtn) closeHubModalFooterBtn.addEventListener('click', closeHub);
 
-            if (hubTabHostBtn && hubTabClientBtn && hubHostPanel && hubClientPanel) {
-                hubTabHostBtn.addEventListener('click', () => {
+            const switchHubTab = (tab) => {
+                [hubTabFirebaseBtn, hubTabHostBtn, hubTabClientBtn].forEach(b => b && b.classList.remove('active'));
+                [hubFirebasePanel, hubHostPanel, hubClientPanel].forEach(p => p && p.classList.remove('active'));
+
+                if (tab === 'firebase' && hubTabFirebaseBtn && hubFirebasePanel) {
+                    hubTabFirebaseBtn.classList.add('active');
+                    hubFirebasePanel.classList.add('active');
+                    if (this.mode === 'firebase') {
+                        this.updateFirebaseStatusCard(true, this.firebaseUrl);
+                    }
+                } else if (tab === 'host' && hubTabHostBtn && hubHostPanel) {
                     hubTabHostBtn.classList.add('active');
-                    hubTabClientBtn.classList.remove('active');
                     hubHostPanel.classList.add('active');
-                    hubClientPanel.classList.remove('active');
                     this.refreshHostDashboard();
-                });
-                hubTabClientBtn.addEventListener('click', () => {
+                } else if (tab === 'client' && hubTabClientBtn && hubClientPanel) {
                     hubTabClientBtn.classList.add('active');
-                    hubTabHostBtn.classList.remove('active');
                     hubClientPanel.classList.add('active');
-                    hubHostPanel.classList.remove('active');
+                }
+            };
+
+            if (hubTabFirebaseBtn) hubTabFirebaseBtn.addEventListener('click', () => switchHubTab('firebase'));
+            if (hubTabHostBtn) hubTabHostBtn.addEventListener('click', () => switchHubTab('host'));
+            if (hubTabClientBtn) hubTabClientBtn.addEventListener('click', () => switchHubTab('client'));
+
+            if (saveFirebaseBtn && firebaseUrlInput) {
+                saveFirebaseBtn.addEventListener('click', async () => {
+                    const val = firebaseUrlInput.value.trim();
+                    if (!val) {
+                        showToast('Lütfen geçerli bir Firebase veritabanı adresi girin.', true);
+                        return;
+                    }
+                    saveFirebaseBtn.disabled = true;
+                    saveFirebaseBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Bağlanılıyor...';
+                    await this.connectFirebase(val, true);
+                    saveFirebaseBtn.disabled = false;
+                    saveFirebaseBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Buluta Bağlan';
+                });
+            }
+
+            if (disconnectFirebaseBtn) {
+                disconnectFirebaseBtn.addEventListener('click', () => {
+                    this.disconnectFirebase();
                 });
             }
 
@@ -9747,6 +10771,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const t1Name = (t1Box?.querySelector('.team-name-input') || t1Box?.querySelector('.slot-name-input') || t1Box?.querySelector('input[type="text"]'))?.value || 'Takım 1';
         const t2Name = (t2Box?.querySelector('.team-name-input') || t2Box?.querySelector('.slot-name-input') || t2Box?.querySelector('input[type="text"]'))?.value || 'Takım 2';
 
+        const fill1 = document.getElementById('powerBarFill1');
+        const fill2 = document.getElementById('powerBarFill2');
+        const label1 = document.getElementById('powerTeam1Label');
+        const label2 = document.getElementById('powerTeam2Label');
+
         if (fill1) fill1.style.width = `${pct1}%`;
         if (fill2) fill2.style.width = `${pct2}%`;
         if (label1) label1.innerHTML = `<i class="fa-solid fa-shield"></i> ${t1Name}: %${pct1}`;
@@ -9756,7 +10785,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // ⏱️ 3. CANLI MAÇ SKOR DÜZENLEME PANELİ & CANLI VERİ
     // =========================================================================
-    let liveMatchScores = {};
+    window.liveMatchScores = liveMatchScores;
 
     function toggleLiveScorePanel() {
         const panel = document.getElementById('matchLiveScorePanel');
@@ -9834,6 +10863,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 goalVal.textContent = liveMatchScores[key].goals;
                 updateLiveScoreTotals();
                 playUiSfx('click');
+
+                if (typeof obsSyncChannel !== 'undefined') {
+                    obsSyncChannel.postMessage({
+                        type: 'obs_goal_alert',
+                        player: pName,
+                        goals: liveMatchScores[key].goals
+                    });
+                }
+                showObsGoalAlert({ player: pName, goals: liveMatchScores[key].goals });
+
+                if (window._isGoldenGoalActive) {
+                    showToast(`⚡ [ALTIN GOL] ${pName} altın golü attı! Maç galibi belirlendi!`, false);
+                    playCelebrationFanfare();
+                }
             };
             row.querySelector('.assist-minus').onclick = () => {
                 if (liveMatchScores[key].assists > 0) {
@@ -9848,6 +10891,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 assistVal.textContent = liveMatchScores[key].assists;
                 updateLiveScoreTotals();
                 playUiSfx('click');
+
+                if (typeof obsSyncChannel !== 'undefined') {
+                    obsSyncChannel.postMessage({
+                        type: 'obs_boost_alert',
+                        player: pName,
+                        boosts: liveMatchScores[key].assists
+                    });
+                }
+                showObsBoostAlert({ player: pName, boosts: liveMatchScores[key].assists });
             };
 
             return row;
@@ -9993,8 +11045,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 lastWatcherTs = ev.timestamp;
                             }
 
-                            if (ev.type === 'tab_capture') {
-                                showToast('📸 Oyun içi TAB Skor Tablosu yakalandı! Canlı Skor panelinden teyit edebilirsiniz.', false);
+                            if (ev.type === 'tab_capture' || ev.type === 'match_capture') {
+                                showToast('📸 Oyun içi Skor Tablosu yakalandı! Canlı Skor veya Maç Dosyalarından (📁) inceleyebilirsiniz.', false);
                                 playUiSfx('click');
 
                                 const statusEl = document.getElementById('lastTabCaptureStatus');
@@ -10006,6 +11058,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const viewBtn = document.getElementById('viewTabCaptureBtn');
                                 if (viewBtn) {
                                     viewBtn.classList.remove('hidden');
+                                }
+                                if (typeof window.fetchAndRenderMatchFiles === 'function') {
+                                    window.fetchAndRenderMatchFiles();
                                 }
                                 const panel = document.getElementById('matchLiveScorePanel');
                                 if (panel && panel.classList.contains('hidden')) {
@@ -10069,6 +11124,526 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
+    // 📁 4.1 MAÇ DOSYALARI & SCOREBOARD EKRAN YAKALAMA MOTORU (F9 KISAYOLU)
+    // =========================================================================
+    let currentMatchFilesId = null;
+    let currentMatchFilesData = [];
+    let currentActiveFileIndex = 0;
+
+    function getActiveMatchId() {
+        if (typeof obsConfig !== 'undefined' && obsConfig && obsConfig.activeMatchId) {
+            return obsConfig.activeMatchId;
+        }
+        const liveCard = document.querySelector('.bracket-match-card.active-live-match');
+        if (liveCard && liveCard.dataset.matchId) {
+            return liveCard.dataset.matchId;
+        }
+        return 'single_match';
+    }
+    window.getActiveMatchId = getActiveMatchId;
+
+    async function triggerMatchCapture(matchId) {
+        const mId = matchId || currentMatchFilesId || getActiveMatchId();
+        const origin = (window.location.origin && window.location.origin.includes('http')) ? window.location.origin : 'http://localhost:18888';
+        
+        showToast('📸 Ekran görüntüsü yakalanıyor...', false);
+        playUiSfx('click');
+
+        try {
+            const res = await fetch(`${origin}/api/match/trigger-capture`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matchId: mId })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.success) {
+                    showToast(`📸 Ekran yakalandı! (${data.file ? data.file.filename : 'capture.jpg'})`, false);
+                    playUiSfx('join');
+
+                    const statusEl = document.getElementById('lastTabCaptureStatus');
+                    if (statusEl) {
+                        const timeStr = new Date().toLocaleTimeString();
+                        statusEl.textContent = `Yakalandı (${timeStr})`;
+                        statusEl.style.color = '#00ffcc';
+                    }
+
+                    const viewBtn = document.getElementById('viewTabCaptureBtn');
+                    if (viewBtn) viewBtn.classList.remove('hidden');
+
+                    const modal = document.getElementById('matchFilesModal');
+                    if (modal && !modal.classList.contains('hidden')) {
+                        fetchAndRenderMatchFiles(currentMatchFilesId || mId);
+                    }
+                    return data.file;
+                }
+            }
+        } catch (err) {
+            console.error('Capture trigger error:', err);
+        }
+        showToast('⚠️ Ekran yakalanamadı. Uygulamanın veya sunucunun çalıştığından emin olun.', 3000);
+        return null;
+    }
+    window.triggerMatchCapture = triggerMatchCapture;
+
+    async function fetchAndRenderMatchFiles(matchId) {
+        const mId = matchId || currentMatchFilesId || 'single_match';
+        const origin = (window.location.origin && window.location.origin.includes('http')) ? window.location.origin : 'http://localhost:18888';
+
+        const emptyState = document.getElementById('matchCaptureEmptyState');
+        const activeView = document.getElementById('matchCaptureActiveView');
+        const activeImg = document.getElementById('matchCaptureActiveImg');
+        const activeName = document.getElementById('matchCaptureActiveName');
+        const thumbContainer = document.getElementById('matchFilesThumbnails');
+        const countBadge = document.getElementById('liveMatchFilesCountBadge');
+
+        try {
+            const res = await fetch(`${origin}/api/match/files?matchId=${encodeURIComponent(mId)}`);
+            if (res.ok) {
+                const data = await res.json();
+                currentMatchFilesData = (data && data.files) ? data.files : [];
+                
+                if (countBadge) {
+                    countBadge.textContent = currentMatchFilesData.length;
+                }
+
+                if (currentMatchFilesData.length === 0) {
+                    if (emptyState) emptyState.classList.remove('hidden');
+                    if (activeView) activeView.classList.add('hidden');
+                    if (thumbContainer) thumbContainer.innerHTML = '';
+                    return;
+                }
+
+                if (emptyState) emptyState.classList.add('hidden');
+                if (activeView) activeView.classList.remove('hidden');
+
+                if (currentActiveFileIndex >= currentMatchFilesData.length) {
+                    currentActiveFileIndex = 0;
+                }
+                const activeFile = currentMatchFilesData[currentActiveFileIndex];
+                if (activeImg) activeImg.src = activeFile.url + '?t=' + Date.now();
+                if (activeName) activeName.textContent = activeFile.filename;
+
+                if (thumbContainer) {
+                    thumbContainer.innerHTML = '';
+                    currentMatchFilesData.forEach((f, idx) => {
+                        const item = document.createElement('div');
+                        item.className = `match-thumb-item ${idx === currentActiveFileIndex ? 'active' : ''}`;
+                        item.title = `${f.filename} (${f.timeStr || ''})`;
+                        item.innerHTML = `
+                            <img src="${f.url}" alt="${f.filename}" loading="lazy" />
+                            <span class="match-thumb-time">${f.timeStr || ''}</span>
+                        `;
+                        item.onclick = () => {
+                            currentActiveFileIndex = idx;
+                            document.querySelectorAll('.match-thumb-item').forEach(el => el.classList.remove('active'));
+                            item.classList.add('active');
+                            if (activeImg) activeImg.src = f.url + '?t=' + Date.now();
+                            if (activeName) activeName.textContent = f.filename;
+                            playUiSfx('click');
+                        };
+                        thumbContainer.appendChild(item);
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Fetch match files error:', err);
+        }
+    }
+    window.fetchAndRenderMatchFiles = fetchAndRenderMatchFiles;
+
+    function renderMatchFilesRoster(matchId) {
+        const mId = matchId || currentMatchFilesId || 'single_match';
+        const team1NameEl = document.getElementById('matchFilesTeam1Name');
+        const team2NameEl = document.getElementById('matchFilesTeam2Name');
+        const team1Container = document.getElementById('matchFilesTeam1Players');
+        const team2Container = document.getElementById('matchFilesTeam2Players');
+        const scoreBadge = document.getElementById('matchFilesScoreBadge');
+        const team1GoalsEl = document.getElementById('matchFilesTeam1Goals');
+        const team2GoalsEl = document.getElementById('matchFilesTeam2Goals');
+
+        if (!team1Container || !team2Container) return;
+        team1Container.innerHTML = '';
+        team2Container.innerHTML = '';
+
+        let t1Name = 'Takım 1';
+        let t2Name = 'Takım 2';
+        let t1Players = [];
+        let t2Players = [];
+
+        // 1. Turnuva Maçı ise bilgileri tournamentMatches'dan çek
+        if (typeof tournamentMatches !== 'undefined' && tournamentMatches && tournamentMatches[mId]) {
+            const tm = tournamentMatches[mId];
+            if (tm.teamA) {
+                t1Name = tm.teamA.name || (tm.teamA.teamNum ? `Takım ${tm.teamA.teamNum}` : 'Takım 1');
+                if (Array.isArray(tm.teamA.players)) t1Players = tm.teamA.players;
+            }
+            if (tm.teamB) {
+                t2Name = tm.teamB.name || (tm.teamB.teamNum ? `Takım ${tm.teamB.teamNum}` : 'Takım 2');
+                if (Array.isArray(tm.teamB.players)) t2Players = tm.teamB.players;
+            }
+        }
+
+        // 2. Eğer oyuncu yoksa Tek Maç / Ana Sayfadaki kutulardan al
+        if (t1Players.length === 0 && t2Players.length === 0) {
+            const t1Box = document.getElementById('team1Box');
+            const t2Box = document.getElementById('team2Box');
+            if (t1Box) {
+                const inp = t1Box.querySelector('.team-name-input');
+                if (inp && inp.value.trim()) t1Name = inp.value.trim();
+                const items = t1Box.querySelectorAll('.player-item');
+                items.forEach(it => {
+                    const n = it.dataset.name || it.querySelector('.player-name')?.textContent?.trim();
+                    if (n) t1Players.push({ name: n });
+                });
+            }
+            if (t2Box) {
+                const inp = t2Box.querySelector('.team-name-input');
+                if (inp && inp.value.trim()) t2Name = inp.value.trim();
+                const items = t2Box.querySelectorAll('.player-item');
+                items.forEach(it => {
+                    const n = it.dataset.name || it.querySelector('.player-name')?.textContent?.trim();
+                    if (n) t2Players.push({ name: n });
+                });
+            }
+        }
+
+        if (team1NameEl) team1NameEl.textContent = t1Name;
+        if (team2NameEl) team2NameEl.textContent = t2Name;
+
+        function updateRosterTotals() {
+            let t1G = 0;
+            let t2G = 0;
+            t1Players.forEach(p => {
+                const pName = typeof p === 'string' ? p : p.name;
+                const k = pName.trim().toLowerCase();
+                if (liveMatchScores[k]) t1G += (liveMatchScores[k].goals || 0);
+            });
+            t2Players.forEach(p => {
+                const pName = typeof p === 'string' ? p : p.name;
+                const k = pName.trim().toLowerCase();
+                if (liveMatchScores[k]) t2G += (liveMatchScores[k].goals || 0);
+            });
+            if (scoreBadge) scoreBadge.textContent = `${t1G} - ${t2G}`;
+            if (team1GoalsEl) team1GoalsEl.textContent = `${t1G} Gol`;
+            if (team2GoalsEl) team2GoalsEl.textContent = `${t2G} Gol`;
+            updateLiveScoreTotals();
+        }
+
+        function createRosterRow(p, teamNum) {
+            const pName = typeof p === 'string' ? p : p.name;
+            const k = pName.trim().toLowerCase();
+            if (!liveMatchScores[k]) {
+                liveMatchScores[k] = { goals: 0, assists: 0, team: teamNum };
+            }
+            const row = document.createElement('div');
+            row.className = 'match-roster-player-row';
+            row.innerHTML = `
+                <span class="match-roster-player-name" title="${pName}">${pName}</span>
+                <div class="match-roster-player-controls">
+                    <div class="match-roster-stepper" title="Gol">
+                        <span class="s-icon"><i class="fa-solid fa-futbol"></i></span>
+                        <button type="button" class="btn-g-min"><i class="fa-solid fa-minus"></i></button>
+                        <span class="s-val g-val">${liveMatchScores[k].goals}</span>
+                        <button type="button" class="btn-g-pls"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="match-roster-stepper" title="Asist">
+                        <span class="s-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                        <button type="button" class="btn-a-min"><i class="fa-solid fa-minus"></i></button>
+                        <span class="s-val a-val">${liveMatchScores[k].assists}</span>
+                        <button type="button" class="btn-a-pls"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            `;
+            const gVal = row.querySelector('.g-val');
+            const aVal = row.querySelector('.a-val');
+
+            row.querySelector('.btn-g-min').onclick = () => {
+                if (liveMatchScores[k].goals > 0) {
+                    liveMatchScores[k].goals--;
+                    gVal.textContent = liveMatchScores[k].goals;
+                    updateRosterTotals();
+                    playUiSfx('click');
+                }
+            };
+            row.querySelector('.btn-g-pls').onclick = () => {
+                liveMatchScores[k].goals++;
+                gVal.textContent = liveMatchScores[k].goals;
+                updateRosterTotals();
+                playUiSfx('click');
+                if (typeof obsSyncChannel !== 'undefined') {
+                    obsSyncChannel.postMessage({ type: 'obs_goal_alert', player: pName, goals: liveMatchScores[k].goals });
+                }
+                showObsGoalAlert({ player: pName, goals: liveMatchScores[k].goals });
+            };
+            row.querySelector('.btn-a-min').onclick = () => {
+                if (liveMatchScores[k].assists > 0) {
+                    liveMatchScores[k].assists--;
+                    aVal.textContent = liveMatchScores[k].assists;
+                    updateRosterTotals();
+                    playUiSfx('click');
+                }
+            };
+            row.querySelector('.btn-a-pls').onclick = () => {
+                liveMatchScores[k].assists++;
+                aVal.textContent = liveMatchScores[k].assists;
+                updateRosterTotals();
+                playUiSfx('click');
+                if (typeof obsSyncChannel !== 'undefined') {
+                    obsSyncChannel.postMessage({ type: 'obs_boost_alert', player: pName, boosts: liveMatchScores[k].assists });
+                }
+                showObsBoostAlert({ player: pName, boosts: liveMatchScores[k].assists });
+            };
+
+            return row;
+        }
+
+        if (t1Players.length === 0) {
+            team1Container.innerHTML = '<div class="live-empty">Kadroda oyuncu yok</div>';
+        } else {
+            t1Players.forEach(p => team1Container.appendChild(createRosterRow(p, 1)));
+        }
+
+        if (t2Players.length === 0) {
+            team2Container.innerHTML = '<div class="live-empty">Kadroda oyuncu yok</div>';
+        } else {
+            t2Players.forEach(p => team2Container.appendChild(createRosterRow(p, 2)));
+        }
+
+        updateRosterTotals();
+    }
+
+    function openMatchFilesModal(matchId, matchName) {
+        currentMatchFilesId = matchId || getActiveMatchId();
+        currentActiveFileIndex = 0;
+
+        const modal = document.getElementById('matchFilesModal');
+        const titleEl = document.getElementById('matchFilesModalTitle');
+        const subEl = document.getElementById('matchFilesModalSubtitle');
+
+        if (titleEl) {
+            titleEl.textContent = `${matchName || 'Maç'} Dosyaları & Skor Tablosu`;
+        }
+        if (subEl) {
+            subEl.textContent = `Maç ID: ${currentMatchFilesId} • F9 veya Yakala butonu ile ekran kaydı ekleyin`;
+        }
+
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+
+        fetchAndRenderMatchFiles(currentMatchFilesId);
+        renderMatchFilesRoster(currentMatchFilesId);
+        playUiSfx('click');
+    }
+    window.openMatchFilesModal = openMatchFilesModal;
+
+    function initMatchFilesEngine() {
+        const modal = document.getElementById('matchFilesModal');
+        const closeBtn = document.getElementById('closeMatchFilesModalBtn');
+        const closeFooterBtn = document.getElementById('closeMatchFilesModalFooterBtn');
+        const captureNowBtn = document.getElementById('matchFilesCaptureNowBtn');
+        const refreshBtn = document.getElementById('matchFilesRefreshBtn');
+        const uploadInput = document.getElementById('matchFilesUploadInput');
+        const zoomBtn = document.getElementById('matchCaptureZoomBtn');
+        const deleteBtn = document.getElementById('matchCaptureDeleteBtn');
+        const saveScoreBtn = document.getElementById('matchFilesSaveScoreBtn');
+        const resetScoreBtn = document.getElementById('matchFilesResetScoresBtn');
+
+        // Lightbox
+        const lightboxModal = document.getElementById('matchLightboxModal');
+        const lightboxImg = document.getElementById('matchLightboxImg');
+        const closeLightboxBtn = document.getElementById('closeMatchLightboxBtn');
+
+        function closeModal() {
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        }
+
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (closeFooterBtn) closeFooterBtn.onclick = closeModal;
+
+        if (captureNowBtn) {
+            captureNowBtn.onclick = () => {
+                triggerMatchCapture(currentMatchFilesId);
+            };
+        }
+
+        if (refreshBtn) {
+            refreshBtn.onclick = () => {
+                playUiSfx('click');
+                fetchAndRenderMatchFiles(currentMatchFilesId);
+                renderMatchFilesRoster(currentMatchFilesId);
+            };
+        }
+
+        // Dosya Yükle (Upload)
+        if (uploadInput) {
+            uploadInput.onchange = (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = async (evt) => {
+                    const b64 = evt.target.result;
+                    const origin = (window.location.origin && window.location.origin.includes('http')) ? window.location.origin : 'http://localhost:18888';
+                    try {
+                        const res = await fetch(`${origin}/api/match/capture`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                matchId: currentMatchFilesId || getActiveMatchId(),
+                                imageBase64: b64
+                            })
+                        });
+                        if (res.ok) {
+                            showToast('📁 Skor tablosu görseli maça yüklendi!', false);
+                            playUiSfx('join');
+                            fetchAndRenderMatchFiles(currentMatchFilesId);
+                        }
+                    } catch (err) {
+                        showToast('Görsel yüklenemedi.', 3000);
+                    }
+                };
+                reader.readAsDataURL(file);
+                uploadInput.value = '';
+            };
+        }
+
+        // Görsel Büyüt / Lightbox
+        if (zoomBtn) {
+            zoomBtn.onclick = () => {
+                const activeImg = document.getElementById('matchCaptureActiveImg');
+                if (activeImg && activeImg.src && lightboxModal && lightboxImg) {
+                    lightboxImg.src = activeImg.src;
+                    lightboxModal.classList.remove('hidden');
+                    lightboxModal.style.display = 'flex';
+                    playUiSfx('click');
+                }
+            };
+        }
+
+        function closeLightbox() {
+            if (lightboxModal) {
+                lightboxModal.classList.add('hidden');
+                lightboxModal.style.display = 'none';
+            }
+        }
+        if (closeLightboxBtn) closeLightboxBtn.onclick = closeLightbox;
+        if (lightboxModal) {
+            lightboxModal.onclick = (e) => {
+                if (e.target === lightboxModal) closeLightbox();
+            };
+        }
+
+        // Görsel Sil
+        if (deleteBtn) {
+            deleteBtn.onclick = async () => {
+                if (currentMatchFilesData.length === 0) return;
+                const activeFile = currentMatchFilesData[currentActiveFileIndex];
+                if (!activeFile) return;
+
+                if (!confirm(`"${activeFile.filename}" dosyasını silmek istediğinize emin misiniz?`)) return;
+
+                const origin = (window.location.origin && window.location.origin.includes('http')) ? window.location.origin : 'http://localhost:18888';
+                try {
+                    const res = await fetch(`${origin}/api/match/delete-file`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ filename: activeFile.filename })
+                    });
+                    if (res.ok) {
+                        showToast('🗑️ Görsel silindi.');
+                        currentActiveFileIndex = 0;
+                        fetchAndRenderMatchFiles(currentMatchFilesId);
+                    }
+                } catch(e) {}
+            };
+        }
+
+        // Skoru Kaydet Butonu
+        if (saveScoreBtn) {
+            saveScoreBtn.onclick = () => {
+                playUiSfx('click');
+                renderLiveScorePanel();
+                if (typeof updateTeamPowerBar === 'function') updateTeamPowerBar();
+
+                // Turnuva maçı ise maç skorunu ve kazananını güncelle
+                if (typeof tournamentMatches !== 'undefined' && tournamentMatches && tournamentMatches[currentMatchFilesId]) {
+                    const tm = tournamentMatches[currentMatchFilesId];
+                    let t1G = 0;
+                    let t2G = 0;
+                    if (tm.teamA && Array.isArray(tm.teamA.players)) {
+                        tm.teamA.players.forEach(p => {
+                            const k = (typeof p === 'string' ? p : p.name).trim().toLowerCase();
+                            if (liveMatchScores[k]) t1G += (liveMatchScores[k].goals || 0);
+                        });
+                    }
+                    if (tm.teamB && Array.isArray(tm.teamB.players)) {
+                        tm.teamB.players.forEach(p => {
+                            const k = (typeof p === 'string' ? p : p.name).trim().toLowerCase();
+                            if (liveMatchScores[k]) t2G += (liveMatchScores[k].goals || 0);
+                        });
+                    }
+                    tm.scoreA = t1G;
+                    tm.scoreB = t2G;
+                    if (typeof saveTournamentToLocalStorage === 'function') saveTournamentToLocalStorage();
+                    if (typeof renderTournamentBracket === 'function') renderTournamentBracket();
+                }
+
+                showToast('💾 Maç skoru ve istatistikleri başarıyla işlendi!', false);
+                playUiSfx('join');
+            };
+        }
+
+        // Skorları Sıfırla
+        if (resetScoreBtn) {
+            resetScoreBtn.onclick = () => {
+                if (!confirm('Bu maçtaki oyuncuların gol ve asist sayılarını sıfırlamak istiyor musunuz?')) return;
+                const mId = currentMatchFilesId || 'single_match';
+                let pList = [];
+                if (typeof tournamentMatches !== 'undefined' && tournamentMatches && tournamentMatches[mId]) {
+                    const tm = tournamentMatches[mId];
+                    if (tm.teamA?.players) pList = pList.concat(tm.teamA.players);
+                    if (tm.teamB?.players) pList = pList.concat(tm.teamB.players);
+                } else {
+                    document.querySelectorAll('.player-item').forEach(it => {
+                        const n = it.dataset.name || it.querySelector('.player-name')?.textContent?.trim();
+                        if (n) pList.push(n);
+                    });
+                }
+                pList.forEach(p => {
+                    const k = (typeof p === 'string' ? p : p.name).trim().toLowerCase();
+                    if (liveMatchScores[k]) {
+                        liveMatchScores[k].goals = 0;
+                        liveMatchScores[k].assists = 0;
+                    }
+                });
+                renderMatchFilesRoster(mId);
+                renderLiveScorePanel();
+                showToast('Skorlar sıfırlandı.');
+            };
+        }
+
+        // Live Score Panelindeki Butonlar
+        const liveCaptureBtn = document.getElementById('liveScoreCaptureBtn');
+        if (liveCaptureBtn) {
+            liveCaptureBtn.onclick = () => triggerMatchCapture(getActiveMatchId());
+        }
+
+        const openLiveFilesBtn = document.getElementById('openLiveMatchFilesBtn');
+        if (openLiveFilesBtn) {
+            openLiveFilesBtn.onclick = () => {
+                openMatchFilesModal(getActiveMatchId(), 'Canlı Maç');
+            };
+        }
+    }
+    window.initMatchFilesEngine = initMatchFilesEngine;
+
+    // =========================================================================
     // 🎡 5. KICK CANLI ÇARKIFELEK / KURA ÇEKİM SİSTEMİ
     // =========================================================================
     function initLuckyWheelModal() {
@@ -10104,15 +11679,47 @@ document.addEventListener('DOMContentLoaded', () => {
             return [];
         }
 
+        const pointerEl = document.getElementById('wheelPointer') || document.querySelector('.wheel-pointer');
+        let flapTimer = null;
+        function flapPointer() {
+            if (!pointerEl) return;
+            pointerEl.classList.add('flapping');
+            if (flapTimer) clearTimeout(flapTimer);
+            flapTimer = setTimeout(() => {
+                if (pointerEl) pointerEl.classList.remove('flapping');
+            }, 45);
+        }
+
         function drawWheel() {
             const count = wheelPlayers.length;
             if (count === 0) return;
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = (canvas.width / 2) - 10;
+
+            // HiDPI (Retina / 2K / 4K / OBS Canvas) jilet gibi keskinlik ölçeklendirmesi
+            const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+            const displaySize = 380;
+            const targetPixelWidth = Math.round(displaySize * dpr);
+            const targetPixelHeight = Math.round(displaySize * dpr);
+
+            if (canvas.width !== targetPixelWidth || canvas.height !== targetPixelHeight) {
+                canvas.width = targetPixelWidth;
+                canvas.height = targetPixelHeight;
+            }
+
+            ctx.save();
+            ctx.scale(dpr, dpr);
+
+            const centerX = displaySize / 2;
+            const centerY = displaySize / 2;
+            const radius = (displaySize / 2) - 10;
             const arc = (2 * Math.PI) / count;
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, displaySize, displaySize);
+
+            // Dilim sayısına göre akıllı responsive font boyutu
+            let fontSize = 13;
+            if (count > 24) fontSize = 9;
+            else if (count > 16) fontSize = 11;
+            else if (count > 10) fontSize = 12;
 
             for (let i = 0; i < count; i++) {
                 const angle = currentAngle + (i * arc);
@@ -10122,6 +11729,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.arc(centerX, centerY, radius, angle, angle + arc);
                 ctx.lineTo(centerX, centerY);
                 ctx.fill();
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.6)';
+                ctx.lineWidth = 1.5;
                 ctx.stroke();
 
                 ctx.save();
@@ -10129,14 +11738,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.rotate(angle + (arc / 2));
                 ctx.textAlign = 'right';
                 ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 13px Inter, sans-serif';
-                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+                ctx.shadowColor = 'rgba(0,0,0,0.85)';
                 ctx.shadowBlur = 4;
-                const displayName = wheelPlayers[i].length > 12 ? wheelPlayers[i].slice(0, 11) + '..' : wheelPlayers[i];
-                ctx.fillText(displayName, radius - 20, 5);
+                const maxLen = count > 20 ? 10 : 13;
+                const displayName = wheelPlayers[i].length > maxLen ? wheelPlayers[i].slice(0, maxLen - 1) + '..' : wheelPlayers[i];
+                ctx.fillText(displayName, radius - 18, fontSize / 3);
                 ctx.restore();
             }
 
+            // Çark orta göbeği & neon altın Kick amblemi
             ctx.beginPath();
             ctx.arc(centerX, centerY, 28, 0, 2 * Math.PI);
             ctx.fillStyle = '#1e293b';
@@ -10150,6 +11761,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('KICK', centerX, centerY);
+
+            ctx.restore();
         }
 
         function openModal() {
@@ -10170,6 +11783,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.classList.remove('hidden');
             modal.style.display = 'flex';
             drawWheel();
+            renderWheelHistory();
             playUiSfx('click');
         }
 
@@ -10201,6 +11815,25 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
+        const eliminationToggle = document.getElementById('wheelEliminationToggle');
+        let wheelHistory = [];
+
+        function renderWheelHistory() {
+            const list = document.getElementById('wheelHistoryList');
+            if (!list) return;
+            if (wheelHistory.length === 0) {
+                list.innerHTML = '<span class="empty-hint">Henüz kura çekilmedi</span>';
+                return;
+            }
+            list.innerHTML = wheelHistory.slice(0, 8).map((item, idx) => `
+                <div class="wheel-history-item">
+                    <span class="hist-idx">#${idx + 1}</span>
+                    <span class="hist-name">${item.name}</span>
+                    <span class="hist-time">${item.time}</span>
+                </div>
+            `).join('');
+        }
+
         if (spinBtn) {
             spinBtn.onclick = () => {
                 if (isSpinning || wheelPlayers.length === 0) return;
@@ -10212,6 +11845,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const startTime = performance.now();
                 const totalRotations = (Math.PI * 2 * (6 + Math.floor(Math.random() * 5))) + (Math.random() * Math.PI * 2);
                 const initialAngle = currentAngle;
+                let lastTickAngle = currentAngle;
+                let lastTickTime = 0;
 
                 function animate(time) {
                     const elapsed = time - startTime;
@@ -10220,13 +11855,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentAngle = initialAngle + (totalRotations * ease);
                     drawWheel();
 
+                    const count = wheelPlayers.length;
+                    const arc = (2 * Math.PI) / (count || 1);
+                    if (Math.abs(currentAngle - lastTickAngle) >= arc) {
+                        lastTickAngle = currentAngle;
+                        const nowMs = performance.now();
+                        // Ses ve animasyon throttle: Max ~35-40 tik/sn, ses tamponunu korur
+                        if (nowMs - lastTickTime >= 26) {
+                            lastTickTime = nowMs;
+                            const dynamicPitch = Math.round(1050 - (progress * 280));
+                            playWheelTickSound(dynamicPitch);
+                            flapPointer();
+                        }
+                    }
+
                     if (progress < 1) {
                         requestAnimationFrame(animate);
                     } else {
                         isSpinning = false;
                         spinBtn.disabled = false;
-                        const count = wheelPlayers.length;
-                        const arc = (2 * Math.PI) / count;
+                        if (pointerEl) pointerEl.classList.remove('flapping');
                         const normalizedAngle = (2 * Math.PI - (currentAngle % (2 * Math.PI))) % (2 * Math.PI);
                         const pointerAngle = (normalizedAngle + (3 * Math.PI / 2)) % (2 * Math.PI);
                         const winnerIdx = Math.floor(pointerAngle / arc) % count;
@@ -10234,6 +11882,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         if (winnerDisplay) winnerDisplay.textContent = selectedWinner;
                         if (resultBox) resultBox.classList.remove('hidden');
+
+                        // Kura geçmişine kaydet
+                        const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        wheelHistory.unshift({ name: selectedWinner, time: timeStr });
+                        renderWheelHistory();
+
+                        // Eliminasyon Modu Kontrolü
+                        if (eliminationToggle && eliminationToggle.checked && wheelPlayers.length > 1) {
+                            wheelPlayers = wheelPlayers.filter(p => p !== selectedWinner);
+                            drawWheel();
+                            showToast(`🎯 [Eliminasyon] ${selectedWinner} kura havuzundan çıkarıldı.`);
+                        }
+
                         playUiSfx('win');
                         if (typeof triggerConfettiCelebration === 'function') triggerConfettiCelebration();
                         showToast(`🎯 Çarkıfelek Kazananı: ${selectedWinner}!`, false);
@@ -10493,11 +12154,588 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // =========================================================================
+    // 🪙 7. 3D HIZLI YAZI - TURA KURA MODÜLÜ (Coin Flip)
+    // =========================================================================
+    function initCoinFlipModal() {
+        const modal = document.getElementById('coinFlipModal');
+        const openBtn = document.getElementById('coinFlipBtn');
+        const closeBtn = document.getElementById('closeCoinFlipBtn');
+        const flipBtn = document.getElementById('flipCoinBtn');
+        const coinEl = document.getElementById('coin3dElement');
+        const resultBox = document.getElementById('coinResultBox');
+        const resultBadge = document.getElementById('coinResultBadge');
+        const resultDesc = document.getElementById('coinResultDesc');
+
+        if (!modal) return;
+        const closeModal = () => modal.classList.add('hidden');
+        const openModal = () => {
+            modal.classList.remove('hidden');
+            if (resultBox) resultBox.classList.add('hidden');
+            if (coinEl) {
+                coinEl.classList.remove('flipToHeads', 'flipToTails');
+            }
+            playUiSfx('click');
+        };
+
+        if (openBtn) openBtn.onclick = openModal;
+        if (closeBtn) closeBtn.onclick = closeModal;
+        modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+        if (flipBtn && coinEl) {
+            flipBtn.onclick = () => {
+                flipBtn.disabled = true;
+                if (resultBox) resultBox.classList.add('hidden');
+                coinEl.classList.remove('flipToHeads', 'flipToTails');
+
+                void coinEl.offsetWidth; // Reflow
+
+                const isHeads = Math.random() < 0.5;
+                const animClass = isHeads ? 'flipToHeads' : 'flipToTails';
+                coinEl.classList.add(animClass);
+
+                playUiSfx('coin');
+
+                setTimeout(() => {
+                    flipBtn.disabled = false;
+                    if (resultBadge && resultDesc) {
+                        if (isHeads) {
+                            resultBadge.textContent = 'YAZI ÇIKTI!';
+                            resultBadge.style.color = '#fbbf24';
+                            resultDesc.textContent = "İlk oyuncu seçimi veya top başlama hakkı Takım 1'in!";
+                        } else {
+                            resultBadge.textContent = 'TURA ÇIKTI!';
+                            resultBadge.style.color = '#00f0ff';
+                            resultDesc.textContent = "İlk oyuncu seçimi veya top başlama hakkı Takım 2'nin!";
+                        }
+                    }
+                    if (resultBox) resultBox.classList.remove('hidden');
+                    playUiSfx('win');
+                    showToast(`🪙 Kura Sonucu: ${isHeads ? 'YAZI (Takım 1)' : 'TURA (Takım 2)'}!`);
+                }, 1350);
+            };
+        }
+    }
+
+    // =========================================================================
+    // 🎯 8. SERİ PENALTI ATIŞLARI MOTORU (Esports Penalty Shootout)
+    // =========================================================================
+    let penaltyShootoutState = {
+        t1Name: 'Takım 1',
+        t2Name: 'Takım 2',
+        t1Kicks: [],
+        t2Kicks: [],
+        winner: null
+    };
+
+    function openPenaltyShootoutModal(t1Name, t2Name) {
+        const modal = document.getElementById('penaltyShootoutModal');
+        if (!modal) return;
+
+        const t1Box = document.getElementById('team1Box');
+        const t2Box = document.getElementById('team2Box');
+        penaltyShootoutState.t1Name = t1Name || t1Box?.querySelector('.team-name-input')?.value || 'Takım 1';
+        penaltyShootoutState.t2Name = t2Name || t2Box?.querySelector('.team-name-input')?.value || 'Takım 2';
+        penaltyShootoutState.t1Kicks = [];
+        penaltyShootoutState.t2Kicks = [];
+        penaltyShootoutState.winner = null;
+
+        const name1El = document.getElementById('penaltyTeam1Name');
+        const name2El = document.getElementById('penaltyTeam2Name');
+        if (name1El) name1El.textContent = penaltyShootoutState.t1Name;
+        if (name2El) name2El.textContent = penaltyShootoutState.t2Name;
+
+        renderPenaltyShootout();
+        modal.classList.remove('hidden');
+        playUiSfx('start');
+    }
+    window.openPenaltyShootoutModal = openPenaltyShootoutModal;
+
+    function renderPenaltyShootout() {
+        const s1El = document.getElementById('penaltyTeam1Score');
+        const s2El = document.getElementById('penaltyTeam2Score');
+        const dots1El = document.getElementById('penaltyTeam1Dots');
+        const dots2El = document.getElementById('penaltyTeam2Dots');
+        const statusEl = document.getElementById('penaltyStatusBar');
+        const applyBtn = document.getElementById('applyPenaltyWinnerBtn');
+
+        const t1Goals = penaltyShootoutState.t1Kicks.filter(k => k === 1).length;
+        const t2Goals = penaltyShootoutState.t2Kicks.filter(k => k === 1).length;
+
+        if (s1El) s1El.textContent = t1Goals;
+        if (s2El) s2El.textContent = t2Goals;
+
+        const totalSlots = Math.max(5, Math.max(penaltyShootoutState.t1Kicks.length, penaltyShootoutState.t2Kicks.length));
+
+        if (dots1El) {
+            dots1El.innerHTML = '';
+            for (let i = 0; i < totalSlots; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'penalty-dot';
+                if (i < penaltyShootoutState.t1Kicks.length) {
+                    dot.classList.add(penaltyShootoutState.t1Kicks[i] === 1 ? 'goal' : 'miss');
+                }
+                dots1El.appendChild(dot);
+            }
+        }
+
+        if (dots2El) {
+            dots2El.innerHTML = '';
+            for (let i = 0; i < totalSlots; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'penalty-dot';
+                if (i < penaltyShootoutState.t2Kicks.length) {
+                    dot.classList.add(penaltyShootoutState.t2Kicks[i] === 1 ? 'goal' : 'miss');
+                }
+                dots2El.appendChild(dot);
+            }
+        }
+
+        const k1 = penaltyShootoutState.t1Kicks.length;
+        const k2 = penaltyShootoutState.t2Kicks.length;
+        let isDone = false;
+
+        if (k1 >= 5 && k2 >= 5 && k1 === k2) {
+            if (t1Goals !== t2Goals) {
+                isDone = true;
+                penaltyShootoutState.winner = t1Goals > t2Goals ? 1 : 2;
+            }
+        }
+
+        const t1GoalBtn = document.getElementById('penaltyT1GoalBtn');
+        const t1MissBtn = document.getElementById('penaltyT1MissBtn');
+        const t2GoalBtn = document.getElementById('penaltyT2GoalBtn');
+        const t2MissBtn = document.getElementById('penaltyT2MissBtn');
+
+        if (isDone) {
+            if (t1GoalBtn) t1GoalBtn.disabled = true;
+            if (t1MissBtn) t1MissBtn.disabled = true;
+            if (t2GoalBtn) t2GoalBtn.disabled = true;
+            if (t2MissBtn) t2MissBtn.disabled = true;
+            const winName = penaltyShootoutState.winner === 1 ? penaltyShootoutState.t1Name : penaltyShootoutState.t2Name;
+            if (statusEl) {
+                statusEl.innerHTML = `🏆 <strong style="color: #ffd700;">${winName}</strong> Seri Penaltılarda Kazandı! (${t1Goals} - ${t2Goals})`;
+            }
+            if (applyBtn) applyBtn.classList.remove('hidden');
+        } else {
+            const isT1Turn = k1 <= k2;
+            if (t1GoalBtn) t1GoalBtn.disabled = !isT1Turn;
+            if (t1MissBtn) t1MissBtn.disabled = !isT1Turn;
+            if (t2GoalBtn) t2GoalBtn.disabled = isT1Turn;
+            if (t2MissBtn) t2MissBtn.disabled = isT1Turn;
+            if (statusEl) {
+                const nextTeam = isT1Turn ? penaltyShootoutState.t1Name : penaltyShootoutState.t2Name;
+                statusEl.textContent = `Sıradaki atıcı: ${nextTeam} (Atış ${Math.max(k1, k2) + 1})`;
+            }
+            if (applyBtn) applyBtn.classList.add('hidden');
+        }
+    }
+
+    function initPenaltyShootoutModal() {
+        const modal = document.getElementById('penaltyShootoutModal');
+        const openBtn = document.getElementById('openPenaltyShootoutBtn');
+        const closeBtn = document.getElementById('closePenaltyModalBtn');
+        const t1GoalBtn = document.getElementById('penaltyT1GoalBtn');
+        const t1MissBtn = document.getElementById('penaltyT1MissBtn');
+        const t2GoalBtn = document.getElementById('penaltyT2GoalBtn');
+        const t2MissBtn = document.getElementById('penaltyT2MissBtn');
+        const resetBtn = document.getElementById('resetPenaltyBtn');
+        const applyBtn = document.getElementById('applyPenaltyWinnerBtn');
+
+        if (!modal) return;
+        const closeModal = () => modal.classList.add('hidden');
+
+        if (openBtn) openBtn.onclick = () => openPenaltyShootoutModal();
+        if (closeBtn) closeBtn.onclick = closeModal;
+        modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+        if (t1GoalBtn) {
+            t1GoalBtn.onclick = () => {
+                penaltyShootoutState.t1Kicks.push(1);
+                playCrowdCheerSfx('mid');
+                renderPenaltyShootout();
+            };
+        }
+        if (t1MissBtn) {
+            t1MissBtn.onclick = () => {
+                penaltyShootoutState.t1Kicks.push(0);
+                playIronOnConcreteSound('hard');
+                renderPenaltyShootout();
+            };
+        }
+        if (t2GoalBtn) {
+            t2GoalBtn.onclick = () => {
+                penaltyShootoutState.t2Kicks.push(1);
+                playCrowdCheerSfx('mid');
+                renderPenaltyShootout();
+            };
+        }
+        if (t2MissBtn) {
+            t2MissBtn.onclick = () => {
+                penaltyShootoutState.t2Kicks.push(0);
+                playIronOnConcreteSound('hard');
+                renderPenaltyShootout();
+            };
+        }
+
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                penaltyShootoutState.t1Kicks = [];
+                penaltyShootoutState.t2Kicks = [];
+                penaltyShootoutState.winner = null;
+                renderPenaltyShootout();
+                playUiSfx('click');
+            };
+        }
+
+        if (applyBtn) {
+            applyBtn.onclick = () => {
+                if (!penaltyShootoutState.winner) return;
+                const winNum = penaltyShootoutState.winner;
+                const tTitle = winNum === 1 ? penaltyShootoutState.t1Name : penaltyShootoutState.t2Name;
+                const winList = document.getElementById(`team-${winNum}`);
+                closeModal();
+                if (winList) {
+                    handleTeamWinClick(winNum, tTitle, winList);
+                }
+                showToast(`🏆 ${tTitle} penaltı galibiyeti maç sonucuna işlendi!`);
+            };
+        }
+    }
+
+    // =========================================================================
+    // ⚡ 9. ALTIN GOL KURALI MODÜLÜ (Golden Goal)
+    // =========================================================================
+    function initGoldenGoal() {
+        const toggleBtn = document.getElementById('toggleGoldenGoalBtn');
+        const statusEl = document.getElementById('goldenGoalStatusText');
+        if (!toggleBtn) return;
+
+        toggleBtn.onclick = () => {
+            window._isGoldenGoalActive = !window._isGoldenGoalActive;
+            if (statusEl) {
+                statusEl.textContent = window._isGoldenGoalActive ? 'AÇIK' : 'Kapalı';
+                statusEl.style.color = window._isGoldenGoalActive ? '#ffd700' : 'inherit';
+                statusEl.style.fontWeight = window._isGoldenGoalActive ? 'bold' : 'normal';
+            }
+            playUiSfx('click');
+            showToast(window._isGoldenGoalActive 
+                ? '⚡ Altın Gol Kuralı Devrede! İlk golü atan maçı anında kazanır!' 
+                : 'Altın Gol kuralı kapatıldı.');
+        };
+    }
+
+    // =========================================================================
+    // ⏱️ 10. CANLI MAÇ KRONOMETRESİ MOTORU (Match Stopwatch HUD & OBS Sync)
+    // =========================================================================
+    let matchStopwatchSec = 0;
+    let matchStopwatchInterval = null;
+    let matchStopwatchIsCountdown = false;
+
+    function formatStopwatchTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateMatchStopwatchUI() {
+        const display = document.getElementById('matchStopwatchDisplay');
+        const timeStr = formatStopwatchTime(matchStopwatchSec);
+        if (display) display.textContent = timeStr;
+
+        if (typeof obsSyncChannel !== 'undefined') {
+            obsSyncChannel.postMessage({
+                type: 'obs_timer_update',
+                time: timeStr,
+                isRunning: !!matchStopwatchInterval
+            });
+        }
+    }
+
+    function toggleMatchStopwatch() {
+        const startBtn = document.getElementById('startMatchTimerBtn');
+        if (matchStopwatchInterval) {
+            clearInterval(matchStopwatchInterval);
+            matchStopwatchInterval = null;
+            if (startBtn) startBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            playUiSfx('click');
+        } else {
+            if (startBtn) startBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            playUiSfx('start');
+            matchStopwatchInterval = setInterval(() => {
+                if (matchStopwatchIsCountdown) {
+                    if (matchStopwatchSec > 0) {
+                        matchStopwatchSec--;
+                        updateMatchStopwatchUI();
+                        if (matchStopwatchSec === 0) {
+                            clearInterval(matchStopwatchInterval);
+                            matchStopwatchInterval = null;
+                            if (startBtn) startBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+                            playBuzzerSfx();
+                            showToast('⏰ Maç Süresi Doldu! (Düdük Çaldı)');
+                        }
+                    }
+                } else {
+                    matchStopwatchSec++;
+                    updateMatchStopwatchUI();
+                }
+            }, 1000);
+        }
+        updateMatchStopwatchUI();
+    }
+
+    function initMatchStopwatch() {
+        const startBtn = document.getElementById('startMatchTimerBtn');
+        const resetBtn = document.getElementById('resetMatchTimerBtn');
+        const p5Btn = document.getElementById('preset5MinBtn');
+        const p10Btn = document.getElementById('preset10MinBtn');
+
+        if (startBtn) startBtn.onclick = toggleMatchStopwatch;
+
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                if (matchStopwatchInterval) {
+                    clearInterval(matchStopwatchInterval);
+                    matchStopwatchInterval = null;
+                }
+                matchStopwatchSec = 0;
+                matchStopwatchIsCountdown = false;
+                if (startBtn) startBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+                updateMatchStopwatchUI();
+                playUiSfx('click');
+            };
+        }
+
+        if (p5Btn) {
+            p5Btn.onclick = () => {
+                matchStopwatchSec = 300;
+                matchStopwatchIsCountdown = true;
+                updateMatchStopwatchUI();
+                playUiSfx('click');
+                showToast('⏱️ Süre 5 dakikaya ayarlandı (Geri sayım).');
+            };
+        }
+
+        if (p10Btn) {
+            p10Btn.onclick = () => {
+                matchStopwatchSec = 600;
+                matchStopwatchIsCountdown = true;
+                updateMatchStopwatchUI();
+                playUiSfx('click');
+                showToast('⏱️ Süre 10 dakikaya ayarlandı (Geri sayım).');
+            };
+        }
+    }
+
+    // =========================================================================
+    // ⚖️ 11. BİREBİR OYUNCU KARŞILAŞTIRMASI MODÜLÜ (Head-to-Head H2H)
+    // =========================================================================
+    function initPlayerCompareModal() {
+        const modal = document.getElementById('playerCompareModal');
+        const openBtn = document.getElementById('openPlayerCompareBtn');
+        const closeBtn = document.getElementById('closeCompareModalBtn');
+        const sel1 = document.getElementById('comparePlayer1Select');
+        const sel2 = document.getElementById('comparePlayer2Select');
+        const container = document.getElementById('compareStatsContainer');
+
+        if (!modal) return;
+        const closeModal = () => modal.classList.add('hidden');
+
+        function populateSelects() {
+            const names = new Set();
+            if (typeof channelStats !== 'undefined') {
+                Object.keys(channelStats).forEach(k => names.add(channelStats[k].displayName || k));
+            }
+            document.querySelectorAll('.player-item').forEach(el => {
+                if (el.dataset.name) names.add(el.dataset.name.trim());
+            });
+
+            const sorted = Array.from(names).sort();
+            [sel1, sel2].forEach((sel, sIdx) => {
+                if (!sel) return;
+                const prev = sel.value;
+                sel.innerHTML = '<option value="">Oyuncu Seçin...</option>';
+                sorted.forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    sel.appendChild(opt);
+                });
+                if (prev && sorted.includes(prev)) sel.value = prev;
+                else if (sorted.length > sIdx) sel.value = sorted[sIdx];
+            });
+        }
+
+        function renderComparison() {
+            if (!container || !sel1 || !sel2) return;
+            const p1 = sel1.value;
+            const p2 = sel2.value;
+
+            if (!p1 || !p2) {
+                container.innerHTML = '<div class="compare-empty-hint">Karşılaştırmak istediğiniz iki oyuncuyu seçin.</div>';
+                return;
+            }
+
+            const s1 = calculateFifaStats(p1);
+            const s2 = calculateFifaStats(p2);
+
+            const metrics = [
+                { label: 'GENEL REYTİNG (OVR)', v1: s1.ovr, v2: s2.ovr, max: 99 },
+                { label: 'TOPLAM MAÇ', v1: s1.total, v2: s2.total, max: Math.max(s1.total, s2.total, 1) },
+                { label: 'GALİBİYET ORANI (%)', v1: Math.round(s1.winRate), v2: Math.round(s2.winRate), max: 100 },
+                { label: 'GOL SAYISI', v1: s1.goals, v2: s2.goals, max: Math.max(s1.goals, s2.goals, 1) },
+                { label: 'ASİST SAYISI', v1: s1.assists, v2: s2.assists, max: Math.max(s1.assists, s2.assists, 1) },
+                { label: 'HIZ (PAC)', v1: s1.pac, v2: s2.pac, max: 99 },
+                { label: 'ŞUT (SHO)', v1: s1.sho, v2: s2.sho, max: 99 },
+                { label: 'PAS (PAS)', v1: s1.pas, v2: s2.pas, max: 99 },
+                { label: 'GALİBİYET SERİSİ', v1: s1.streak, v2: s2.streak, max: Math.max(s1.streak, s2.streak, 1) }
+            ];
+
+            let html = `
+                <div class="h2h-header-cards">
+                    <div class="h2h-player-card">
+                        <div class="h2h-card-ovr">${s1.ovr}</div>
+                        <div class="h2h-card-name">${s1.displayName}</div>
+                        <div class="h2h-card-sub">${s1.role} &bull; %${Math.round(s1.winRate)} WR</div>
+                    </div>
+                    <div class="h2h-vs-circle">VS</div>
+                    <div class="h2h-player-card">
+                        <div class="h2h-card-ovr">${s2.ovr}</div>
+                        <div class="h2h-card-name">${s2.displayName}</div>
+                        <div class="h2h-card-sub">${s2.role} &bull; %${Math.round(s2.winRate)} WR</div>
+                    </div>
+                </div>
+                <div class="h2h-metrics-list">
+            `;
+
+            metrics.forEach(m => {
+                let p1Pct = 50;
+                let p2Pct = 50;
+                if ((m.v1 + m.v2) > 0) {
+                    p1Pct = Math.round((m.v1 / (m.v1 + m.v2)) * 100);
+                    p2Pct = 100 - p1Pct;
+                }
+                const p1Win = m.v1 > m.v2;
+                const p2Win = m.v2 > m.v1;
+
+                html += `
+                    <div class="h2h-stat-row">
+                        <div class="h2h-val-left ${p1Win ? 'winner' : ''}">${m.v1}</div>
+                        <div class="h2h-meter-wrap">
+                            <div class="h2h-bar-left" style="width: ${p1Pct}%;"></div>
+                            <div class="h2h-stat-label">${m.label}</div>
+                            <div class="h2h-bar-right" style="width: ${p2Pct}%;"></div>
+                        </div>
+                        <div class="h2h-val-right ${p2Win ? 'winner' : ''}">${m.v2}</div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        if (openBtn) {
+            openBtn.onclick = () => {
+                populateSelects();
+                renderComparison();
+                modal.classList.remove('hidden');
+                playUiSfx('click');
+            };
+        }
+        if (closeBtn) closeBtn.onclick = closeModal;
+        modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+        if (sel1) sel1.onchange = renderComparison;
+        if (sel2) sel2.onchange = renderComparison;
+    }
+
+    // =========================================================================
+    // ⌨️ 12. STREAMER KLAVYE KISAYOLLARI (Hotkeys Engine)
+    // =========================================================================
+    function initStreamerHotkeys() {
+        const guideModal = document.getElementById('hotkeyModal');
+        const guideBtn = document.getElementById('hotkeyGuideBtn');
+        const closeGuideBtn = document.getElementById('closeHotkeyModalBtn');
+
+        if (guideBtn && guideModal) {
+            guideBtn.onclick = () => {
+                guideModal.classList.remove('hidden');
+                playUiSfx('click');
+            };
+        }
+        if (closeGuideBtn && guideModal) {
+            closeGuideBtn.onclick = () => guideModal.classList.add('hidden');
+        }
+        if (guideModal) {
+            guideModal.onclick = (e) => { if (e.target === guideModal) guideModal.classList.add('hidden'); };
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const tag = (document.activeElement?.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable) {
+                return;
+            }
+
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => {
+                    m.classList.add('hidden');
+                    m.style.display = 'none';
+                });
+                if (typeof closeGrandChampionCelebration === 'function') closeGrandChampionCelebration();
+                if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();
+                return;
+            }
+
+            const k = e.key.toLowerCase();
+            if (k === 'c') {
+                const coinModal = document.getElementById('coinFlipModal');
+                if (coinModal) {
+                    if (coinModal.classList.contains('hidden')) {
+                        const openBtn = document.getElementById('coinFlipBtn');
+                        if (openBtn) openBtn.click();
+                        else coinModal.classList.remove('hidden');
+                    } else {
+                        coinModal.classList.add('hidden');
+                    }
+                }
+            } else if (k === 'k') {
+                toggleMatchStopwatch();
+            } else if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+                if (guideModal) {
+                    guideModal.classList.toggle('hidden');
+                    playUiSfx('click');
+                }
+            } else if (k === 'm') {
+                const muteBtn = document.getElementById('soundToggleBtn');
+                if (muteBtn) muteBtn.click();
+            } else if (k === 'f') {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                } else {
+                    document.exitFullscreen().catch(() => {});
+                }
+            } else if (e.key === 'F9') {
+                e.preventDefault();
+                if (typeof triggerMatchCapture === 'function') {
+                    triggerMatchCapture();
+                }
+            }
+        });
+    }
+
     initWatchCrownSlider();
     initWatcherControls();
+    initMatchFilesEngine();
     initViewerSpeedControls();
     initLuckyWheelModal();
     initFifaCardModal();
+    initCoinFlipModal();
+    initPenaltyShootoutModal();
+    initGoldenGoal();
+    initMatchStopwatch();
+    initPlayerCompareModal();
+    initStreamerHotkeys();
     updateTeamPowerBar();
 
     const qsToggleBtn = document.getElementById('quickScorePanelToggleBtn');
@@ -10520,6 +12758,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let winNum = 1;
             let tTitle = t1Title;
             if (t1G === t2G) {
+                const penaltyModal = document.getElementById('penaltyShootoutModal');
+                if (penaltyModal) {
+                    openPenaltyShootoutModal(t1Title, t2Title);
+                    return;
+                }
                 const pickT1 = confirm(`Skorlar eşit (${t1G} - ${t2G})!\n[Tamam]: ${t1Title} Kazandı\n[İptal]: ${t2Title} Kazandı`);
                 winNum = pickT1 ? 1 : 2;
                 tTitle = winNum === 1 ? t1Title : t2Title;
@@ -10537,6 +12780,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Hub Modülünü Başlat
     HubClient.init();
+    window.hubClient = HubClient;
+    window.HubClient = HubClient;
 
     window.handleTournamentMatchWin = function(matchId, slotKey) {
         if (typeof _origHandleTournamentMatchWin === 'function') _origHandleTournamentMatchWin(matchId, slotKey);
@@ -10683,6 +12928,526 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // =========================================================================
+    // 🎮 13. OYUN & TEMA YÖNETİM MOTORU (Multi-Game Theme Engine)
+    // =========================================================================
+    const GAME_THEMES = {
+        strikers: {
+            id: 'strikers',
+            name: 'Strikers Club',
+            icon: 'fa-futbol',
+            genre: '5v5 Fizik Tabanlı Futbol Esporu (Oddshot Games)',
+            themeClass: 'game-theme-strikers',
+            badgeColor: '#00f0ff',
+            roles: ['GK (Kaleci)', 'CB (Defans)', 'RM (Sağ Kanat)', 'LM (Sol Kanat)', 'ST (Forvet)']
+        },
+        cs2: {
+            id: 'cs2',
+            name: 'Counter-Strike 2',
+            icon: 'fa-crosshairs',
+            genre: 'Taktiksel Espor FPS (Valve)',
+            themeClass: 'game-theme-cs2',
+            badgeColor: '#ff9a00',
+            roles: ['IGL (Kaptan)', 'AWP (Keskin Nişancı)', 'Entry (Giriş)', 'Rifler', 'Support']
+        },
+        valorant: {
+            id: 'valorant',
+            name: 'Valorant',
+            icon: 'fa-bolt',
+            genre: 'Radyant Taktiksel Nişancı (Riot Games)',
+            themeClass: 'game-theme-valorant',
+            badgeColor: '#ff4655',
+            roles: ['Düellocu', 'Öncü', 'Kontrol Uzmanı', 'Gözcü', 'Flex']
+        },
+        lol: {
+            id: 'lol',
+            name: 'League of Legends',
+            icon: 'fa-shield-halved',
+            genre: 'Sihirdar Vadisi MOBA (Riot Games)',
+            themeClass: 'game-theme-lol',
+            badgeColor: '#c8aa6e',
+            roles: ['TOP (Üst)', 'JGL (Orman)', 'MID (Orta)', 'ADC (Alt Nişancı)', 'SUP (Destek)']
+        }
+    };
+
+    let activeGameThemeId = 'strikers';
+
+    function setGameTheme(gameId, announce = true) {
+        if (!GAME_THEMES[gameId]) gameId = 'strikers';
+        activeGameThemeId = gameId;
+        const cfg = GAME_THEMES[gameId];
+
+        try {
+            localStorage.setItem('strikers_selected_game', gameId);
+        } catch (e) {}
+
+        // Body ve root class güncellemeleri
+        ['game-theme-strikers', 'game-theme-cs2', 'game-theme-valorant', 'game-theme-lol'].forEach(c => {
+            document.body.classList.remove(c);
+            document.documentElement.classList.remove(c);
+        });
+        document.body.classList.add(cfg.themeClass);
+        document.documentElement.classList.add(cfg.themeClass);
+        document.documentElement.setAttribute('data-game-theme', gameId);
+
+        // Header Rozeti
+        const activeIcon = document.getElementById('activeGameIcon');
+        const activeLabel = document.getElementById('activeGameLabel');
+        if (activeIcon) {
+            activeIcon.className = `fa-solid ${cfg.icon}`;
+        }
+        if (activeLabel) {
+            activeLabel.textContent = cfg.name;
+        }
+
+        // Modal Kart Aktiflikleri
+        document.querySelectorAll('.game-pick-card').forEach(card => {
+            const isTarget = (card.dataset.game === gameId);
+            card.classList.toggle('active', isTarget);
+            const btn = card.querySelector('.btn-select-game');
+            if (btn) {
+                if (isTarget) {
+                    btn.className = 'btn primary-btn btn-select-game';
+                    btn.innerHTML = `<i class="fa-solid fa-check"></i> ${cfg.name} Seçili`;
+                } else {
+                    btn.className = 'btn secondary-btn btn-select-game';
+                    const targetCfg = GAME_THEMES[card.dataset.game] || {};
+                    btn.textContent = `${targetCfg.name || card.dataset.game} Seç`;
+                }
+            }
+        });
+
+        // Çekmece Radyo Butonları ve Kartları
+        document.querySelectorAll('input[name="drawerGameChoice"]').forEach(radio => {
+            radio.checked = (radio.value === gameId);
+        });
+        document.querySelectorAll('.theme-selector-grid .theme-card').forEach(card => {
+            card.classList.toggle('active', card.dataset.game === gameId);
+        });
+
+        // Mevki ve Draft Komut İpuçlarını Oyuna Göre Güncelle
+        try {
+            const pickCmdDisplay = document.getElementById('poolPickCommandDisplay');
+            const draftCodeHint = document.querySelector('.draft-turn-banner .turn-code-hint code');
+            const draftRoleHint = document.querySelector('.draft-turn-banner .turn-code-hint small');
+            if (cfg && cfg.roles && cfg.roles.length > 0) {
+                const primaryRole = cfg.roles[0].split(' ')[0];
+                const otherRoles = cfg.roles.slice(1).map(r => r.split(' ')[0]).join(', ');
+                if (pickCmdDisplay) pickCmdDisplay.textContent = `!sec @oyuncu ${primaryRole}`;
+                if (draftCodeHint) draftCodeHint.textContent = `!sec @oyuncu ${primaryRole}`;
+                if (draftRoleHint) draftRoleHint.textContent = `(veya ${otherRoles})`;
+            }
+        } catch(e) {}
+
+        if (announce && typeof showToast === 'function') {
+            showToast(`🎮 Oyun Teması: ${cfg.name} olarak ayarlandı.`, false);
+        }
+
+        try {
+            window.dispatchEvent(new CustomEvent('gamethemechange', { detail: cfg }));
+        } catch (e) {}
+    }
+
+    function openGameSelectorModal() {
+        const modal = document.getElementById('gameSelectorModal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        playUiSfx('click');
+    }
+
+    function closeGameSelectorModal() {
+        const modal = document.getElementById('gameSelectorModal');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+
+    function initGameThemeEngine() {
+        const savedGame = (function() {
+            try { return localStorage.getItem('strikers_selected_game'); } catch(e) { return null; }
+        })() || 'strikers';
+
+        setGameTheme(savedGame, false);
+
+        const badgeBtn = document.getElementById('activeGameBadgeBtn');
+        const closeBtn = document.getElementById('closeGameSelectorModalBtn');
+        const confirmBtn = document.getElementById('confirmGameSelectionBtn');
+        const drawerShortcutBtn = document.getElementById('drawerGameSelectorShortcutBtn');
+        const openFullModalBtn = document.getElementById('openFullGameModalBtn');
+        const modal = document.getElementById('gameSelectorModal');
+
+        if (badgeBtn) {
+            badgeBtn.onclick = () => {
+                openGameSelectorModal();
+            };
+        }
+
+        if (drawerShortcutBtn) {
+            drawerShortcutBtn.onclick = () => {
+                if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();
+                openGameSelectorModal();
+            };
+        }
+
+        if (openFullModalBtn) {
+            openFullModalBtn.onclick = () => {
+                if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();
+                openGameSelectorModal();
+            };
+        }
+
+        if (closeBtn) closeBtn.onclick = closeGameSelectorModal;
+
+        if (confirmBtn) {
+            confirmBtn.onclick = () => {
+                closeGameSelectorModal();
+                playUiSfx('success');
+            };
+        }
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeGameSelectorModal();
+            });
+        }
+
+        // Oyun Kartlarına ve Butonlarına Tıklama
+        document.querySelectorAll('.game-pick-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const game = card.dataset.game;
+                if (!game) return;
+                setGameTheme(game, true);
+                playUiSfx('click');
+            });
+        });
+
+        document.querySelectorAll('.btn-select-game').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const game = btn.dataset.game;
+                if (game) {
+                    setGameTheme(game, true);
+                    closeGameSelectorModal();
+                    playUiSfx('success');
+                }
+            });
+        });
+
+        // Çekmece İçindeki Radyo Seçimleri
+        document.querySelectorAll('input[name="drawerGameChoice"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.checked) {
+                    setGameTheme(radio.value, true);
+                    playUiSfx('click');
+                }
+            });
+        });
+
+        document.querySelectorAll('.theme-selector-grid .theme-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const game = card.dataset.game;
+                if (game) {
+                    setGameTheme(game, true);
+                    playUiSfx('click');
+                }
+            });
+        });
+
+        window.openGameSelectorModal = openGameSelectorModal;
+        window.closeGameSelectorModal = closeGameSelectorModal;
+        window.setGameTheme = setGameTheme;
+        window.getGameTheme = () => activeGameThemeId;
+    }
+
+    // =========================================================================
+    // 🛡️ 14. YAYINCI GÜVENLİK & İSTATİSTİK YETKİ MOTORU (Broadcaster Auth Engine)
+    // =========================================================================
+    let broadcasterSession = null;
+
+    function isBroadcasterAuthenticated() {
+        return !!(broadcasterSession && broadcasterSession.token);
+    }
+
+    function updateStreamerAuthUI() {
+        const isAuthed = isBroadcasterAuthenticated();
+        const navBtn = document.getElementById('streamerAuthNavBtn');
+        const navIcon = document.getElementById('streamerAuthIcon');
+        const navLabel = document.getElementById('streamerAuthLabel');
+        const loginForm = document.getElementById('streamerLoginForm');
+        const activeBox = document.getElementById('streamerActiveSessionBox');
+        const activeName = document.getElementById('activeStreamerDisplayName');
+        const activeRole = document.getElementById('activeStreamerRoleTag');
+        const lockOverlay = document.getElementById('leaderboardLockOverlay');
+        const resetStatsBtn = document.getElementById('resetChannelStatsBtn');
+
+        if (navBtn) {
+            navBtn.classList.toggle('authenticated', isAuthed);
+            navBtn.title = isAuthed ? 'Yayıncı Oturumu Açık (Tıkla: Yönetim Paneli)' : 'Yayıncı Girişi & İstatistik Yetkisi';
+        }
+        if (navIcon) {
+            navIcon.className = isAuthed ? 'fa-solid fa-crown' : 'fa-solid fa-lock';
+            navIcon.style.color = isAuthed ? '#ffd700' : '';
+        }
+        if (navLabel) {
+            navLabel.textContent = isAuthed ? (broadcasterSession.username || 'Yayıncı') : 'Yayıncı Girişi';
+        }
+
+        if (loginForm) loginForm.classList.toggle('hidden', isAuthed);
+        if (activeBox) activeBox.classList.toggle('hidden', !isAuthed);
+
+        if (isAuthed && broadcasterSession) {
+            if (activeName) activeName.textContent = broadcasterSession.displayName || broadcasterSession.username || 'Yayıncı';
+            if (activeRole) activeRole.textContent = broadcasterSession.role || 'BROADCASTER_ADMIN';
+        }
+
+        if (lockOverlay) {
+            if (isAuthed) {
+                lockOverlay.classList.add('hidden');
+                lockOverlay.style.display = 'none';
+            } else {
+                lockOverlay.classList.remove('hidden');
+                lockOverlay.style.display = 'flex';
+            }
+        }
+
+        if (resetStatsBtn) {
+            resetStatsBtn.style.display = isAuthed ? 'inline-flex' : 'none';
+        }
+    }
+
+    function openStreamerAuthModal() {
+        const modal = document.getElementById('streamerAuthModal');
+        if (!modal) return;
+        updateStreamerAuthUI();
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        playUiSfx('click');
+
+        if (!isBroadcasterAuthenticated()) {
+            const userIn = document.getElementById('streamerAuthUsername');
+            if (userIn) setTimeout(() => userIn.focus(), 100);
+        }
+    }
+
+    function closeStreamerAuthModal() {
+        const modal = document.getElementById('streamerAuthModal');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        const msg = document.getElementById('streamerAuthStatusMsg');
+        if (msg) msg.classList.add('hidden');
+    }
+
+    async function submitStreamerLogin() {
+        const userIn = document.getElementById('streamerAuthUsername');
+        const passIn = document.getElementById('streamerAuthPassword');
+        const statusMsg = document.getElementById('streamerAuthStatusMsg');
+
+        const uVal = (userIn ? userIn.value : '').trim();
+        const pVal = passIn ? passIn.value : '';
+
+        if (!uVal || !pVal) {
+            if (statusMsg) {
+                statusMsg.textContent = 'Lütfen kullanıcı adı ve güvenlik şifresini girin.';
+                statusMsg.className = 'auth-status-msg error';
+                statusMsg.classList.remove('hidden');
+            }
+            playUiSfx('buzzer');
+            return;
+        }
+
+        let loginSuccess = false;
+        let sessionData = null;
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: uVal, password: pVal })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.success) {
+                    loginSuccess = true;
+                    sessionData = data;
+                } else if (data && data.message) {
+                    if (statusMsg) {
+                        statusMsg.textContent = data.message;
+                        statusMsg.className = 'auth-status-msg error';
+                        statusMsg.classList.remove('hidden');
+                    }
+                }
+            } else if (res.status === 404) {
+                // Sunucu API rotası yoksa (statik yerel sunucu), yalnızca bu bilgisayarda bulunan gitignored yerel dosyayı dene
+                try {
+                    const localRes = await fetch('data/streamer_auth.local.json');
+                    if (localRes.ok) {
+                        const localAuth = await localRes.json();
+                        if (localAuth && localAuth.username && localAuth.password) {
+                            if (localAuth.username.toLowerCase() === uVal.toLowerCase() && localAuth.password === pVal) {
+                                loginSuccess = true;
+                                sessionData = {
+                                    success: true,
+                                    token: 'local_broadcaster_' + Date.now(),
+                                    username: localAuth.username,
+                                    displayName: localAuth.displayName || 'Yayıncı',
+                                    role: localAuth.role || 'BROADCASTER_ADMIN'
+                                };
+                            }
+                        }
+                    }
+                } catch (err) {}
+            }
+        } catch (e) {
+            // Sunucu çevrimdışıysa yerel gitignored kimlik dosyasını dene (kesinlikle kod içine şifre yazılmaz)
+            try {
+                const localRes = await fetch('data/streamer_auth.local.json');
+                if (localRes.ok) {
+                    const localAuth = await localRes.json();
+                    if (localAuth && localAuth.username && localAuth.password) {
+                        if (localAuth.username.toLowerCase() === uVal.toLowerCase() && localAuth.password === pVal) {
+                            loginSuccess = true;
+                            sessionData = {
+                                success: true,
+                                token: 'local_broadcaster_' + Date.now(),
+                                username: localAuth.username,
+                                displayName: localAuth.displayName || 'Yayıncı',
+                                role: localAuth.role || 'BROADCASTER_ADMIN'
+                            };
+                        }
+                    }
+                }
+            } catch (err) {}
+        }
+
+        if (!loginSuccess) {
+            if (statusMsg && statusMsg.classList.contains('hidden')) {
+                statusMsg.textContent = 'Hatalı kullanıcı adı veya şifre! (Yalnızca yetkili yayıncılar erişebilir)';
+                statusMsg.className = 'auth-status-msg error';
+                statusMsg.classList.remove('hidden');
+            }
+            playUiSfx('buzzer');
+            return;
+        }
+
+        if (loginSuccess && sessionData) {
+            broadcasterSession = sessionData;
+            try {
+                sessionStorage.setItem('streamer_auth_token', sessionData.token);
+                sessionStorage.setItem('streamer_auth_user', JSON.stringify(sessionData));
+            } catch (e) {}
+
+            updateStreamerAuthUI();
+            if (passIn) passIn.value = '';
+            if (statusMsg) statusMsg.classList.add('hidden');
+
+            closeStreamerAuthModal();
+            playUiSfx('success');
+            showToast('👑 Yayıncı oturumu başarıyla açıldı! İstatistik erişimi sağlandı.', false);
+
+            if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+                renderLeaderboard();
+            }
+        }
+    }
+
+    async function submitStreamerLogout() {
+        const token = broadcasterSession ? broadcasterSession.token : null;
+        if (token) {
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'X-Auth-Token': token }
+                });
+            } catch (e) {}
+        }
+
+        broadcasterSession = null;
+        try {
+            sessionStorage.removeItem('streamer_auth_token');
+            sessionStorage.removeItem('streamer_auth_user');
+        } catch (e) {}
+
+        updateStreamerAuthUI();
+        closeStreamerAuthModal();
+        playUiSfx('click');
+        showToast('🔒 Yayıncı oturumu kapatıldı. İzleyici moduna geçildi.', false);
+    }
+
+    function initStreamerAuthEngine() {
+        try {
+            const savedToken = sessionStorage.getItem('streamer_auth_token');
+            const savedUser = sessionStorage.getItem('streamer_auth_user');
+            if (savedToken && savedUser) {
+                broadcasterSession = JSON.parse(savedUser);
+            }
+        } catch (e) {}
+
+        updateStreamerAuthUI();
+
+        const navBtn = document.getElementById('streamerAuthNavBtn');
+        const drawerShortcutBtn = document.getElementById('drawerAuthShortcutBtn');
+        const closeBtn = document.getElementById('closeStreamerAuthModalBtn');
+        const cancelBtn = document.getElementById('streamerAuthCancelBtn');
+        const submitBtn = document.getElementById('streamerAuthSubmitBtn');
+        const logoutBtn = document.getElementById('streamerLogoutBtn');
+        const passIn = document.getElementById('streamerAuthPassword');
+        const openFromLbBtn = document.getElementById('openLoginFromLeaderboardBtn');
+        const modal = document.getElementById('streamerAuthModal');
+
+        if (navBtn) navBtn.onclick = openStreamerAuthModal;
+        if (drawerShortcutBtn) {
+            drawerShortcutBtn.onclick = () => {
+                if (typeof closeSettingsDrawer === 'function') closeSettingsDrawer();
+                openStreamerAuthModal();
+            };
+        }
+        if (openFromLbBtn) openFromLbBtn.onclick = openStreamerAuthModal;
+        if (closeBtn) closeBtn.onclick = closeStreamerAuthModal;
+        if (cancelBtn) cancelBtn.onclick = closeStreamerAuthModal;
+        if (submitBtn) submitBtn.onclick = submitStreamerLogin;
+        if (logoutBtn) logoutBtn.onclick = submitStreamerLogout;
+
+        const userIn = document.getElementById('streamerAuthUsername');
+        if (userIn) {
+            userIn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (passIn && !passIn.value) passIn.focus();
+                    else submitStreamerLogin();
+                }
+            });
+        }
+
+        if (passIn) {
+            passIn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') submitStreamerLogin();
+            });
+        }
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeStreamerAuthModal();
+            });
+        }
+
+        window.isBroadcasterAuthenticated = isBroadcasterAuthenticated;
+        window.openStreamerAuthModal = openStreamerAuthModal;
+        window.closeStreamerAuthModal = closeStreamerAuthModal;
+        window.performStreamerLogin = (u, p) => {
+            const uEl = document.getElementById('streamerAuthUsername');
+            const pEl = document.getElementById('streamerAuthPassword');
+            if (uEl) uEl.value = u;
+            if (pEl) pEl.value = p;
+            return submitStreamerLogin();
+        };
+        window.performStreamerLogout = submitStreamerLogout;
+    }
+
+    // Motorları Başlat
+    initGameThemeEngine();
+    initStreamerAuthEngine();
+
     // 🛡️ Global Sürükle-Bırak Temizliği (Kart Eğriliği & Asılı Kalma Koruması)
     const cleanupDraggingState = () => {
         document.body.classList.remove('is-dragging-player');
@@ -10691,6 +13456,123 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('mouseup', cleanupDraggingState);
     document.addEventListener('pointerup', cleanupDraggingState);
     document.addEventListener('dragend', cleanupDraggingState);
+
+    // =========================================================================
+    // 🛡️ NATIVE DESKTOP APP EXPERIENCE & ZERO-DISCONNECT NETWORK GUARDIAN
+    // =========================================================================
+    function initZeroDisconnectNetworkGuardian() {
+        const banner = document.getElementById('appReconnectingBanner');
+        let isOffline = false;
+        let failureCount = 0;
+        let checkTimer = null;
+
+        async function checkConnection() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const resp = await fetch('/api/status', {
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (resp.ok) {
+                    failureCount = 0;
+                    if (isOffline) {
+                        isOffline = false;
+                        if (banner) banner.classList.add('hidden');
+                        
+                        if (pusher && (pusher.connection.state === 'disconnected' || pusher.connection.state === 'unavailable')) {
+                            try { pusher.connect(); } catch (e) {}
+                        }
+
+                        if (window.hubClient && typeof window.hubClient.poll === 'function') {
+                            try { window.hubClient.poll(true); } catch (e) {}
+                        }
+
+                        if (typeof showToast === 'function') {
+                            showToast('✅ Sunucu bağlantısı yeniden kuruldu!', false);
+                        }
+                    }
+                } else {
+                    handleDisconnect();
+                }
+            } catch (err) {
+                handleDisconnect();
+            }
+        }
+
+        function handleDisconnect() {
+            failureCount++;
+            // Yalnızca ardışık 3 kontrol başarısız olduğunda bildirim göster (anlık 1-2 sn gecikmelerde kullanıcıyı telaşlandırmaz)
+            if (failureCount >= 3 && !isOffline) {
+                isOffline = true;
+                if (banner) banner.classList.remove('hidden');
+            }
+        }
+
+        function scheduleNextCheck() {
+            const interval = isOffline ? 2000 : 4500;
+            checkTimer = setTimeout(async () => {
+                await checkConnection();
+                scheduleNextCheck();
+            }, interval);
+        }
+
+        scheduleNextCheck();
+
+        window.addEventListener('online', () => {
+            failureCount = 0;
+            checkConnection();
+        });
+        window.addEventListener('offline', () => {
+            failureCount = 3;
+            handleDisconnect();
+        });
+    }
+
+    function initNativeDesktopInteractions() {
+        // 1. Sağ tık menüsü koruması (Sadece metin düzenlenebilir alanlarda açılır, tarayıcı menüsünü gizler)
+        document.addEventListener('contextmenu', (e) => {
+            if (!e.target.closest('input, textarea, [contenteditable]')) {
+                e.preventDefault();
+            }
+        }, { capture: true });
+
+        // 2. Tarayıcı kısayolları ve beyaz sayfa yenileme engeli
+        window.addEventListener('keydown', (e) => {
+            // F5 / Ctrl+R: Shift basılıysa tam yenilemeye izin ver, değilse yumuşak in-app veri yenilemesi yap
+            if (e.key === 'F5' || (e.ctrlKey && (e.key === 'r' || e.key === 'R'))) {
+                if (!e.shiftKey) {
+                    e.preventDefault();
+                    if (window.hubClient && typeof window.hubClient.poll === 'function') {
+                        try { window.hubClient.poll(true); } catch (err) {}
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast('🔄 Veriler güncellendi (Yumuşak Yenileme)', false);
+                    }
+                }
+            } else if (
+                // Tarayıcı menü ve diyaloglarını engelle (Yazdır, Kaydet, Kaynak Kodu, Aç, Yeni Sekme/Pencere, İndirilenler, Geçmiş, F7 İmleç)
+                (e.ctrlKey && ['p', 'P', 's', 'S', 'u', 'U', 'o', 'O', 'n', 'N', 't', 'T', 'w', 'W', 'j', 'J', 'h', 'H', 'g', 'G'].includes(e.key)) ||
+                e.key === 'F7'
+            ) {
+                e.preventDefault();
+            }
+        });
+
+        // 3. Hayalet görsel/link sürükleme engeli
+        document.addEventListener('dragstart', (e) => {
+            if (e.target && (e.target.tagName === 'IMG' || e.target.tagName === 'A')) {
+                if (!e.target.closest('.sortable-list, .player-item')) {
+                    e.preventDefault();
+                }
+            }
+        });
+    }
+
+    initZeroDisconnectNetworkGuardian();
+    initNativeDesktopInteractions();
 });
 
 

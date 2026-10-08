@@ -15,3 +15,9 @@ GEMINI.md
 app/data/local_commands.json
 local_commands.json
 *.local.json
+app/data/*.local.json
+app/data/streamer_auth.local.json
+streamer_auth.local.json
+app/data/local_auth.json
+app/data/match_captures/
+app/data/last_tab_capture.jpg

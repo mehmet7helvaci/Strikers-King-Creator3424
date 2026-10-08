@@ -1,35 +1,51 @@
 param(
-    [switch]$NoLaunch
+    [switch]$NoLaunch,
+    [int]$Port = 18888
 )
 
 $ErrorActionPreference = "SilentlyContinue"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
+$targetPort = if ($Port -and $Port -gt 0) { $Port } else { 18888 }
+
 # Eger sunucu zaten calisiyorsa cik
 try {
-    $existing = Invoke-WebRequest -Uri "http://localhost:18888/api/status" -TimeoutSec 1 -UseBasicParsing
+    $existing = Invoke-WebRequest -Uri "http://localhost:$targetPort/api/status" -TimeoutSec 1 -UseBasicParsing
     if ($existing.StatusCode -eq 200) {
         if (-not $NoLaunch) {
-            Start-Process "http://localhost:18888"
+            Start-Process "http://localhost:$targetPort"
         }
         exit 0
     }
 } catch {}
 
-$Port = 18888
 $listener = $null
 
-for ($p = 18888; $p -le 18895; $p++) {
-    try {
-        $temp = New-Object System.Net.HttpListener
-        $temp.Prefixes.Add("http://localhost:$p/")
-        $temp.Start()
-        $Port = $p
-        $listener = $temp
-        break
-    } catch {
-        if ($temp) { $temp.Close() }
+# First try designated target port
+try {
+    $temp = New-Object System.Net.HttpListener
+    $temp.Prefixes.Add("http://localhost:$targetPort/")
+    $temp.Start()
+    $Port = $targetPort
+    $listener = $temp
+} catch {
+    if ($temp) { $temp.Close() }
+}
+
+if (-not $listener) {
+    for ($p = 18888; $p -le 18895; $p++) {
+        if ($p -eq $targetPort) { continue }
+        try {
+            $temp = New-Object System.Net.HttpListener
+            $temp.Prefixes.Add("http://localhost:$p/")
+            $temp.Start()
+            $Port = $p
+            $listener = $temp
+            break
+        } catch {
+            if ($temp) { $temp.Close() }
+        }
     }
 }
 
@@ -64,6 +80,12 @@ $channelsPath = Join-Path $dataPath "channels"
 if (-not (Test-Path $channelsPath)) {
     New-Item -ItemType Directory -Path $channelsPath -Force | Out-Null
 }
+$matchCapturesPath = Join-Path $dataPath "match_captures"
+if (-not (Test-Path $matchCapturesPath)) {
+    New-Item -ItemType Directory -Path $matchCapturesPath -Force | Out-Null
+}
+try { Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue } catch {}
+try { Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue } catch {}
 $statsFile = Join-Path $dataPath "hub_stats.json"
 if (-not (Test-Path $statsFile)) {
     [System.IO.File]::WriteAllText($statsFile, "{}", [System.Text.Encoding]::UTF8)
@@ -82,6 +104,8 @@ $global:TunnelUrl = ""
 $global:AvatarCache = [System.Collections.Hashtable]::Synchronized(@{})
 $global:AvatarPending = [System.Collections.Hashtable]::Synchronized(@{})
 $global:WatcherState = @{ enabled = $false; activeMatch = ""; lastDetected = $null; events = [System.Collections.ArrayList]::new() }
+$global:ActiveBroadcasterTokens = [System.Collections.Hashtable]::Synchronized(@{})
+$authFile = Join-Path $dataPath "streamer_auth.local.json"
 
 function Get-HubBansContent {
     try {
@@ -169,8 +193,16 @@ function Refresh-TunnelUrl {
     return $global:TunnelUrl
 }
 
-while ($listener.IsListening) {
+while ($true) {
     try {
+        if (-not $listener -or -not $listener.IsListening) {
+            try {
+                if ($listener) { $listener.Stop(); $listener.Close() }
+            } catch {}
+            $listener = New-Object System.Net.HttpListener
+            $listener.Prefixes.Add("http://localhost:$Port/")
+            $listener.Start()
+        }
         $context = $listener.GetContext()
         $request = $context.Request
         $response = $context.Response
@@ -447,6 +479,237 @@ while ($listener.IsListening) {
                     enabled = $global:WatcherState.enabled
                     events = $unprocessed
                 } | ConvertTo-Json -Compress
+            }
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        # -------------------------------------------------------------
+        # MAÇ DOSYALARI VE CANLI SKOR EKRAN YAKALAMA API
+        # -------------------------------------------------------------
+        if ($rawUrl.StartsWith("/api/match/files")) {
+            $mId = if ($request.QueryString["matchId"]) { $request.QueryString["matchId"].Trim() } else { "" }
+            $filesList = @()
+            if (Test-Path $matchCapturesPath) {
+                $filterPattern = if ([string]::IsNullOrWhiteSpace($mId)) { "*.*" } else { "*$mId*.*" }
+                $allFiles = Get-ChildItem -Path $matchCapturesPath -Filter $filterPattern -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+                foreach ($f in $allFiles) {
+                    $ext = $f.Extension.ToLower()
+                    if ($ext -eq ".jpg" -or $ext -eq ".jpeg" -or $ext -eq ".png" -or $ext -eq ".webp") {
+                        $filesList += @{
+                            id = $f.BaseName
+                            filename = $f.Name
+                            matchId = $mId
+                            url = "data/match_captures/" + $f.Name
+                            size = $f.Length
+                            timestamp = [DateTimeOffset]::new($f.LastWriteTimeUtc).ToUnixTimeMilliseconds()
+                            timeStr = $f.LastWriteTime.ToString("HH:mm:ss")
+                        }
+                    }
+                }
+            }
+            $jsonResp = @{
+                success = $true
+                matchId = $mId
+                count = $filesList.Count
+                files = $filesList
+            } | ConvertTo-Json -Depth 4 -Compress
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($rawUrl.StartsWith("/api/match/capture")) {
+            if ($request.HttpMethod -eq "POST") {
+                try {
+                    $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                    $capBody = $reader.ReadToEnd()
+                    $reader.Close()
+                    $capData = ConvertFrom-Json $capBody
+
+                    $targetMatch = if ($capData.matchId) { $capData.matchId.ToString().Trim() } else { "single_match" }
+                    $safeMatch = ($targetMatch -replace '[^a-zA-Z0-9_-]', '')
+                    if ([string]::IsNullOrWhiteSpace($safeMatch)) { $safeMatch = "single_match" }
+
+                    $ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                    $fileName = "capture_${safeMatch}_${ts}.jpg"
+                    $destPath = Join-Path $matchCapturesPath $fileName
+
+                    $saved = $false
+                    if ($capData.imageBase64) {
+                        $rawB64 = $capData.imageBase64.ToString()
+                        if ($rawB64.Contains(",")) {
+                            $rawB64 = $rawB64.Substring($rawB64.IndexOf(",") + 1)
+                        }
+                        $imgBytes = [Convert]::FromBase64String($rawB64)
+                        [System.IO.File]::WriteAllBytes($destPath, $imgBytes)
+                        $saved = $true
+                    } elseif ($capData.filename -and (Test-Path (Join-Path $matchCapturesPath $capData.filename))) {
+                        $destPath = Join-Path $matchCapturesPath $capData.filename
+                        $fileName = $capData.filename
+                        $saved = $true
+                    }
+
+                    if ($saved) {
+                        $capEvent = @{
+                            id = [Guid]::NewGuid().ToString()
+                            timestamp = $ts
+                            player = "Scoreboard"
+                            type = "match_capture"
+                            matchId = $safeMatch
+                            filename = $fileName
+                            url = "data/match_captures/$fileName"
+                            summary = "Maç için skor tablosu yakalandı ($fileName)"
+                        }
+                        $global:WatcherState.events.Add($capEvent) | Out-Null
+
+                        $jsonResp = @{
+                            success = $true
+                            file = @{
+                                id = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+                                filename = $fileName
+                                matchId = $safeMatch
+                                url = "data/match_captures/$fileName"
+                                timestamp = $ts
+                            }
+                        } | ConvertTo-Json -Compress
+                    } else {
+                        $jsonResp = '{"success":false,"error":"Görsel verisi alınamadı"}'
+                    }
+                } catch {
+                    $jsonResp = "{""success"":false,""error"":""$($_.Exception.Message)""}"
+                }
+            } else {
+                $jsonResp = '{"success":false,"error":"Method not allowed"}'
+            }
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($rawUrl.StartsWith("/api/match/trigger-capture")) {
+            if ($request.HttpMethod -eq "POST") {
+                try {
+                    $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                    $tBody = $reader.ReadToEnd()
+                    $reader.Close()
+                    $tData = if (-not [string]::IsNullOrWhiteSpace($tBody)) { ConvertFrom-Json $tBody } else { $null }
+
+                    $targetMatch = if ($tData -and $tData.matchId) { $tData.matchId.ToString().Trim() } else { "single_match" }
+                    $safeMatch = ($targetMatch -replace '[^a-zA-Z0-9_-]', '')
+                    if ([string]::IsNullOrWhiteSpace($safeMatch)) { $safeMatch = "single_match" }
+
+                    $width = 1920
+                    $height = 1080
+                    try {
+                        if ([System.Windows.Forms.Screen]::PrimaryScreen -and [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width -gt 0) {
+                            $width = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
+                            $height = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height
+                        }
+                    } catch {}
+
+                    $bmp = New-Object System.Drawing.Bitmap $width, $height
+                    $g = [System.Drawing.Graphics]::FromImage($bmp)
+                    $capturedRealScreen = $false
+                    try {
+                        $size = New-Object System.Drawing.Size($width, $height)
+                        $g.CopyFromScreen(0, 0, 0, 0, $size, [System.Drawing.CopyPixelOperation]::SourceCopy)
+                        $capturedRealScreen = $true
+                    } catch {
+                        # Eger arka plan / headless konsolda masaustu pencere tanimlayicisi henuz acik degilse
+                        $bgBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(15, 23, 42))
+                        $g.FillRectangle($bgBrush, 0, 0, $width, $height)
+                        $bgBrush.Dispose()
+                        $textBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(0, 240, 255))
+                        $font = New-Object System.Drawing.Font("Arial", 24, [System.Drawing.FontStyle]::Bold)
+                        $g.DrawString("STRICKERS KING CREATOR - SCOREBOARD CAPTURE", $font, $textBrush, 50, 50)
+                        $font.Dispose()
+                        $textBrush.Dispose()
+                    }
+                    $g.Dispose()
+
+                    $ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                    $fileName = "capture_${safeMatch}_${ts}.jpg"
+                    $destPath = Join-Path $matchCapturesPath $fileName
+                    $bmp.Save($destPath, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+                    $bmp.Dispose()
+
+                    # Copy to last_tab_capture.jpg
+                    $lastTabPath = Join-Path $dataPath "last_tab_capture.jpg"
+                    Copy-Item $destPath $lastTabPath -Force -ErrorAction SilentlyContinue
+
+                    $capEvent = @{
+                        id = [Guid]::NewGuid().ToString()
+                        timestamp = $ts
+                        player = "Scoreboard"
+                        type = "match_capture"
+                        matchId = $safeMatch
+                        filename = $fileName
+                        url = "data/match_captures/$fileName"
+                        summary = "Maç için skor tablosu yakalandı ($fileName)"
+                    }
+                    $global:WatcherState.events.Add($capEvent) | Out-Null
+
+                    $jsonResp = @{
+                        success = $true
+                        file = @{
+                            id = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+                            filename = $fileName
+                            matchId = $safeMatch
+                            url = "data/match_captures/$fileName"
+                            timestamp = $ts
+                            timeStr = (Get-Date).ToString("HH:mm:ss")
+                        }
+                    } | ConvertTo-Json -Compress
+                } catch {
+                    $jsonResp = @{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress
+                }
+            } else {
+                $jsonResp = '{"success":false,"error":"Method not allowed"}'
+            }
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($rawUrl.StartsWith("/api/match/delete-file")) {
+            if ($request.HttpMethod -eq "POST") {
+                try {
+                    $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                    $delBody = $reader.ReadToEnd()
+                    $reader.Close()
+                    $delData = ConvertFrom-Json $delBody
+                    $fn = if ($delData.filename) { $delData.filename.ToString().Trim() } else { "" }
+                    $safeFn = [System.IO.Path]::GetFileName($fn)
+                    $targetFile = Join-Path $matchCapturesPath $safeFn
+                    if (Test-Path $targetFile) {
+                        Remove-Item $targetFile -Force -ErrorAction SilentlyContinue
+                        $jsonResp = '{"success":true,"deleted":true}'
+                    } else {
+                        $jsonResp = '{"success":false,"error":"Dosya bulunamadı"}'
+                    }
+                } catch {
+                    $jsonResp = '{"success":false,"error":"Silme hatası"}'
+                }
+            } else {
+                $jsonResp = '{"success":false,"error":"Method not allowed"}'
             }
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
             $response.ContentType = "application/json; charset=utf-8"
@@ -1027,6 +1290,29 @@ while ($listener.IsListening) {
             continue
         }
 
+        # 7. Hub Config (Read / Write hub_config.json)
+        if ($rawUrl.StartsWith("/api/hub/config")) {
+            $configPath = Join-Path $scriptDir "hub_config.json"
+            if ($request.HttpMethod -eq "POST") {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $bText = $reader.ReadToEnd()
+                $reader.Close()
+                if (-not [string]::IsNullOrWhiteSpace($bText)) {
+                    [System.IO.File]::WriteAllText($configPath, $bText, [System.Text.Encoding]::UTF8)
+                }
+                $jsonResp = '{"success":true,"message":"Yapılandırma kaydedildi"}'
+            } else {
+                $jsonResp = if (Test-Path $configPath) { [System.IO.File]::ReadAllText($configPath, [System.Text.Encoding]::UTF8) } else { '{"firebaseUrl":"","remoteUrl":""}' }
+            }
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
         # Health check
         if ($rawUrl.StartsWith("/api/local-commands")) {
             $localCmdsFile = Join-Path $dataPath "local_commands.json"
@@ -1043,13 +1329,95 @@ while ($listener.IsListening) {
             continue
         }
 
+        # Broadcaster Account & Security Endpoints (Local-only, gitignored credentials)
+        if ($rawUrl.StartsWith("/api/auth/login") -and $request.HttpMethod -eq "POST") {
+            $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+            $body = $reader.ReadToEnd()
+            $reader.Close()
+            $jsonResp = '{"success":false,"message":"Geçersiz istek"}'
+            try {
+                $reqObj = ConvertFrom-Json $body
+                $inputUser = if ($reqObj.username) { $reqObj.username.ToString().Trim() } else { "" }
+                $inputPass = if ($reqObj.password) { $reqObj.password.ToString() } else { "" }
+
+                if (Test-Path $authFile) {
+                    $authRaw = [System.IO.File]::ReadAllText($authFile, [System.Text.Encoding]::UTF8)
+                    $authObj = ConvertFrom-Json $authRaw
+                    if ($authObj -and $authObj.username -and $authObj.password) {
+                        if (($authObj.username.Trim().ToLower() -eq $inputUser.ToLower()) -and ($authObj.password -eq $inputPass)) {
+                            $token = [System.Guid]::NewGuid().ToString("N")
+                            $global:ActiveBroadcasterTokens[$token] = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                            $dName = if ($authObj.displayName) { $authObj.displayName } else { "Yayıncı" }
+                            $role = if ($authObj.role) { $authObj.role } else { "BROADCASTER_ADMIN" }
+                            $jsonResp = '{"success":true,"token":"' + $token + '","username":"' + $authObj.username + '","displayName":"' + $dName + '","role":"' + $role + '"}'
+                        } else {
+                            $jsonResp = '{"success":false,"message":"Hatalı kullanıcı adı veya şifre!"}'
+                        }
+                    } else {
+                        $jsonResp = '{"success":false,"message":"Yetkilendirme dosyası geçersiz"}'
+                    }
+                } else {
+                    $jsonResp = '{"success":false,"message":"Yetkilendirme dosyası bulunamadı"}'
+                }
+            } catch {
+                $jsonResp = '{"success":false,"message":"Sunucu kimlik doğrulama hatası"}'
+            }
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($rawUrl.StartsWith("/api/auth/status")) {
+            $token = $request.Headers["X-Auth-Token"]
+            if ([string]::IsNullOrWhiteSpace($token) -and $request.QueryString["token"]) {
+                $token = $request.QueryString["token"].Trim()
+            }
+            $isAuthed = $false
+            if (-not [string]::IsNullOrWhiteSpace($token) -and $global:ActiveBroadcasterTokens.ContainsKey($token)) {
+                $isAuthed = $true
+            }
+            $authExists = Test-Path $authFile
+            $jsonResp = '{"authenticated":' + ($isAuthed.ToString().ToLower()) + ',"authFileConfigured":' + ($authExists.ToString().ToLower()) + '}'
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($rawUrl.StartsWith("/api/auth/logout") -and $request.HttpMethod -eq "POST") {
+            $token = $request.Headers["X-Auth-Token"]
+            if ([string]::IsNullOrWhiteSpace($token) -and $request.QueryString["token"]) {
+                $token = $request.QueryString["token"].Trim()
+            }
+            if (-not [string]::IsNullOrWhiteSpace($token) -and $global:ActiveBroadcasterTokens.ContainsKey($token)) {
+                $global:ActiveBroadcasterTokens.Remove($token)
+            }
+            $jsonResp = '{"success":true,"message":"Çıkış yapıldı"}'
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $buffer.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.Close()
+            continue
+        }
+
         if ($rawUrl.StartsWith("/api/status")) {
             $jsonResp = "{""status"":""ok"",""port"":$Port}"
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
             $response.ContentType = "application/json; charset=utf-8"
             $response.ContentLength64 = $buffer.Length
             $response.StatusCode = 200
-            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            if ($request.HttpMethod -ne "HEAD") {
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            }
             $response.Close()
             continue
         }
@@ -1194,6 +1562,10 @@ while ($listener.IsListening) {
         }
         $response.Close()
     } catch {
-        # ignore client disconnects
+        # ignore client disconnects & ensure socket is never leaked
+        try {
+            if ($response) { $response.Close() }
+        } catch {}
+        Start-Sleep -Milliseconds 25
     }
 }

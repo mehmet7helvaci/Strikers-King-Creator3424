@@ -67,23 +67,10 @@ namespace StrickersClubCreator
             // 1. Detect if HTTP server is already running on any port in range 18888-18895
             int activePort = FindActiveServerPort();
 
+            Process serverProc = null;
             if (activePort == 0)
             {
-                // Start PowerShell HTTP server silently in background without console window
-                ProcessStartInfo psInfo = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = string.Format("-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File \"{0}\" -NoLaunch", serverScript),
-                    UseShellExecute = true,
-                    WindowStyle = ProcessWindowStyle.Hidden,
-                    WorkingDirectory = scriptDir
-                };
-
-                try
-                {
-                    Process.Start(psInfo);
-                }
-                catch { }
+                serverProc = StartServerProcess();
 
                 // Wait up to 6 seconds for server to start and detect active port
                 for (int i = 0; i < 24; i++)
@@ -99,15 +86,34 @@ namespace StrickersClubCreator
             if (activePort == 0)
                 activePort = 18888;
 
-            // Start silent native background screen & TAB scoreboard watcher
-            StartScoreboardWatcherThread(activePort);
-
             string targetUrl = isOverlayReq 
                 ? string.Format("http://localhost:{0}/?overlay=1", activePort)
                 : string.Format("http://localhost:{0}", activePort);
 
             // 2. Start Application in System Tray context with NotifyIcon & background match listener
-            Application.Run(new TrayApplicationContext(activePort, targetUrl));
+            Application.Run(new TrayApplicationContext(activePort, targetUrl, serverProc));
+        }
+
+        public static Process StartServerProcess(int port = 18888)
+        {
+            string serverScript = Path.Combine(scriptDir, "server.ps1");
+            ProcessStartInfo psInfo = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = string.Format("-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File \"{0}\" -NoLaunch -Port {1}", serverScript, port),
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                WorkingDirectory = scriptDir
+            };
+
+            try
+            {
+                return Process.Start(psInfo);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static int FindActiveServerPort()
@@ -152,96 +158,103 @@ namespace StrickersClubCreator
             return null;
         }
 
-        private static Thread watcherThread = null;
-        private static volatile bool isWatcherRunning = false;
+        private static Thread hotkeyThread = null;
+        private static volatile bool isHotkeyRunning = false;
+        private static NotifyIcon globalTrayIcon = null;
 
-        private static void StartScoreboardWatcherThread(int port)
+        public static void StartMatchCaptureHotkeyThread(int port, NotifyIcon trayIcon)
         {
-            if (isWatcherRunning) return;
-            isWatcherRunning = true;
+            if (isHotkeyRunning) return;
+            isHotkeyRunning = true;
+            globalTrayIcon = trayIcon;
 
-            watcherThread = new Thread(new ParameterizedThreadStart(WatcherWorkerLoop));
-            watcherThread.IsBackground = true;
-            watcherThread.SetApartmentState(ApartmentState.STA);
-            watcherThread.Start(port);
+            hotkeyThread = new Thread(new ParameterizedThreadStart(HotkeyWorkerLoop));
+            hotkeyThread.IsBackground = true;
+            hotkeyThread.SetApartmentState(ApartmentState.STA);
+            hotkeyThread.Start(port);
         }
 
-        public static void StopScoreboardWatcherThread()
+        public static void StopMatchCaptureHotkeyThread()
         {
-            isWatcherRunning = false;
+            isHotkeyRunning = false;
         }
 
-        private static void WatcherWorkerLoop(object stateObj)
+        private static void HotkeyWorkerLoop(object stateObj)
         {
             int port = (int)stateObj;
-            bool watcherEnabled = false;
-            DateTime lastCheckState = DateTime.MinValue;
-            DateTime lastScoreReported = DateTime.MinValue;
-            bool wasTabPressed = false;
-            DateTime tabPressedTime = DateTime.MinValue;
+            DateTime lastCaptureTime = DateTime.MinValue;
 
-            while (isWatcherRunning)
+            while (isHotkeyRunning)
             {
                 try
                 {
-                    DateTime now = DateTime.UtcNow;
+                    // F9 tuşunu dinle (0x78 = VK_F9)
+                    short f9State = GetAsyncKeyState(0x78);
+                    bool isF9Down = (f9State & 0x8000) != 0;
 
-                    // Poll enabled state every 2 seconds
-                    if ((now - lastCheckState).TotalSeconds >= 2.0)
+                    if (isF9Down)
                     {
-                        lastCheckState = now;
-                        try
+                        DateTime now = DateTime.UtcNow;
+                        if ((now - lastCaptureTime).TotalMilliseconds >= 1500)
                         {
-                            string stateUrl = string.Format("http://localhost:{0}/api/watcher/state", port);
-                            HttpWebRequest req = (HttpWebRequest)WebRequest.Create(stateUrl);
-                            req.Timeout = 800;
-                            using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
-                            using (StreamReader sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
-                            {
-                                string body = sr.ReadToEnd();
-                                watcherEnabled = body.IndexOf("\"enabled\":true", StringComparison.OrdinalIgnoreCase) >= 0;
-                            }
+                            lastCaptureTime = now;
+                            CaptureScreenForActiveMatch(port, globalTrayIcon);
                         }
-                        catch { }
                     }
+                }
+                catch { }
 
-                    if (watcherEnabled)
+                Thread.Sleep(100);
+            }
+        }
+
+        public static void CaptureScreenForActiveMatch(int port, NotifyIcon trayIcon = null)
+        {
+            try
+            {
+                string matchId = "single_match";
+                try
+                {
+                    string stateUrl = string.Format("http://localhost:{0}/api/watcher/state", port);
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(stateUrl);
+                    req.Timeout = 800;
+                    using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
+                    using (StreamReader sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
                     {
-                        // Check TAB key (0x09 = VK_TAB)
-                        short tabState = GetAsyncKeyState(0x09);
-                        bool isTabDown = (tabState & 0x8000) != 0;
-
-                        if (isTabDown)
+                        string body = sr.ReadToEnd();
+                        int mIdx = body.IndexOf("\"activeMatch\":");
+                        if (mIdx >= 0)
                         {
-                            if (!wasTabPressed)
+                            int valStart = body.IndexOf('\"', mIdx + 14);
+                            if (valStart >= 0)
                             {
-                                wasTabPressed = true;
-                                tabPressedTime = now;
-                            }
-                        }
-                        else if (wasTabPressed)
-                        {
-                            // TAB released after being held
-                            wasTabPressed = false;
-                            double heldMs = (now - tabPressedTime).TotalMilliseconds;
-                            if (heldMs >= 200 && (now - lastScoreReported).TotalSeconds >= 2.0)
-                            {
-                                lastScoreReported = now;
-                                CaptureAndAnalyzeScreen(port);
+                                int valEnd = body.IndexOf('\"', valStart + 1);
+                                if (valEnd > valStart)
+                                {
+                                    string extracted = body.Substring(valStart + 1, valEnd - valStart - 1).Trim();
+                                    if (!string.IsNullOrEmpty(extracted))
+                                    {
+                                        matchId = Regex.Replace(extracted, @"[^a-zA-Z0-9_-]", "");
+                                    }
+                                }
                             }
                         }
                     }
                 }
                 catch { }
 
-                Thread.Sleep(80);
-            }
-        }
+                if (string.IsNullOrEmpty(matchId)) matchId = "single_match";
 
-        private static void CaptureAndAnalyzeScreen(int port)
-        {
-            try
-            {
+                string capturesDir = Path.Combine(scriptDir, "data", "match_captures");
+                if (!Directory.Exists(capturesDir))
+                {
+                    Directory.CreateDirectory(capturesDir);
+                }
+
+                long ts = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+                string fileName = string.Format("capture_{0}_{1}.jpg", matchId, ts);
+                string imgPath = Path.Combine(capturesDir, fileName);
+
                 Rectangle bounds = Screen.PrimaryScreen.Bounds;
                 using (Bitmap bmp = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb))
                 {
@@ -249,27 +262,26 @@ namespace StrickersClubCreator
                     {
                         g.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bounds.Size, CopyPixelOperation.SourceCopy);
                     }
+                    bmp.Save(imgPath, ImageFormat.Jpeg);
+                }
 
-                    // Save captured TAB frame for live review & instant confirmation in UI
-                    try
-                    {
-                        string dataDir = Path.Combine(scriptDir, "data");
-                        if (!Directory.Exists(dataDir))
-                        {
-                            Directory.CreateDirectory(dataDir);
-                        }
-                        string imgPath = Path.Combine(dataDir, "last_tab_capture.jpg");
-                        bmp.Save(imgPath, ImageFormat.Jpeg);
-                    }
-                    catch { }
+                // Also save last_tab_capture.jpg for backward compatibility
+                try
+                {
+                    string lastPath = Path.Combine(scriptDir, "data", "last_tab_capture.jpg");
+                    File.Copy(imgPath, lastPath, true);
+                }
+                catch { }
 
-                    // Send detected TAB scoreboard event to server
-                    string reportUrl = string.Format("http://localhost:{0}/api/watcher/score", port);
+                // Post event to local server
+                try
+                {
+                    string reportUrl = string.Format("http://localhost:{0}/api/match/capture", port);
                     HttpWebRequest postReq = (HttpWebRequest)WebRequest.Create(reportUrl);
                     postReq.Method = "POST";
                     postReq.ContentType = "application/json; charset=utf-8";
                     postReq.Timeout = 1500;
-                    string payload = "{\"player\":\"TAB Skor Tablosu\",\"type\":\"tab_capture\",\"image\":\"data/last_tab_capture.jpg\",\"count\":1}";
+                    string payload = string.Format("{{\"matchId\":\"{0}\",\"filename\":\"{1}\"}}", matchId, fileName);
                     byte[] bytes = Encoding.UTF8.GetBytes(payload);
                     postReq.ContentLength = bytes.Length;
                     using (Stream os = postReq.GetRequestStream())
@@ -277,6 +289,17 @@ namespace StrickersClubCreator
                         os.Write(bytes, 0, bytes.Length);
                     }
                     using (HttpWebResponse presp = (HttpWebResponse)postReq.GetResponse()) { }
+                }
+                catch { }
+
+                if (trayIcon != null)
+                {
+                    trayIcon.ShowBalloonTip(
+                        2500,
+                        "📸 Maç Skor Ekranı Yakalandı!",
+                        string.Format("Görüntü kaydedildi ({0}). Golleri işlemek için maçın 📁 simgesine tıklayın.", fileName),
+                        ToolTipIcon.Info
+                    );
                 }
             }
             catch { }
@@ -289,18 +312,23 @@ namespace StrickersClubCreator
         private ContextMenuStrip contextMenu;
         private int activePort;
         private string targetUrl;
+        private Process serverProcess;
+        private Thread serverWatchdogThread;
+        private volatile bool isWatchdogRunning = false;
         private Process currentBrowserProc;
         private Thread hubNotificationThread;
         private volatile bool isNotificationRunning = false;
         private bool hasShownTrayBalloon = false;
 
-        public TrayApplicationContext(int port, string url)
+        public TrayApplicationContext(int port, string url, Process serverProc = null)
         {
             this.activePort = port;
             this.targetUrl = url;
+            this.serverProcess = serverProc;
 
             InitializeTray();
             StartHubNotificationListener();
+            StartServerWatchdog();
             LaunchBrowser();
         }
 
@@ -311,6 +339,12 @@ namespace StrickersClubCreator
             ToolStripMenuItem openItem = new ToolStripMenuItem("🎮 Uygulamayı Aç (Arayüz)");
             openItem.Click += delegate { LaunchBrowser(); };
             openItem.Font = new Font(openItem.Font, FontStyle.Bold);
+
+            ToolStripMenuItem captureItem = new ToolStripMenuItem("📸 Canlı Maç Ekranını Kaydet (F9)");
+            captureItem.Click += delegate { Program.CaptureScreenForActiveMatch(activePort, notifyIcon); };
+
+            ToolStripMenuItem browserItem = new ToolStripMenuItem("🌐 Varsayılan Tarayıcıda Aç");
+            browserItem.Click += delegate { try { Process.Start(targetUrl); } catch { } };
 
             ToolStripMenuItem obsItem = new ToolStripMenuItem("📺 OBS Canlı Overlay Aç");
             obsItem.Click += delegate
@@ -325,6 +359,8 @@ namespace StrickersClubCreator
             exitItem.Click += delegate { ExitApplication(); };
 
             contextMenu.Items.Add(openItem);
+            contextMenu.Items.Add(captureItem);
+            contextMenu.Items.Add(browserItem);
             contextMenu.Items.Add(obsItem);
             contextMenu.Items.Add(sep);
             contextMenu.Items.Add(exitItem);
@@ -348,6 +384,78 @@ namespace StrickersClubCreator
 
             notifyIcon.DoubleClick += delegate { LaunchBrowser(); };
             notifyIcon.BalloonTipClicked += delegate { LaunchBrowser(); };
+
+            // Start background F9 match capture hotkey listener
+            Program.StartMatchCaptureHotkeyThread(activePort, notifyIcon);
+        }
+
+        private void StartServerWatchdog()
+        {
+            if (isWatchdogRunning) return;
+            isWatchdogRunning = true;
+
+            serverWatchdogThread = new Thread(new ThreadStart(ServerWatchdogLoop));
+            serverWatchdogThread.IsBackground = true;
+            serverWatchdogThread.Start();
+        }
+
+        private void ServerWatchdogLoop()
+        {
+            int consecutiveFailures = 0;
+            while (isWatchdogRunning)
+            {
+                try
+                {
+                    Thread.Sleep(3000);
+                    if (!isWatchdogRunning) break;
+
+                    // 1. If server process crashed/exited, immediately restart it on the same designated port
+                    if (serverProcess != null && serverProcess.HasExited)
+                    {
+                        serverProcess = Program.StartServerProcess(activePort);
+                        consecutiveFailures = 0;
+                        Thread.Sleep(2000);
+                        continue;
+                    }
+
+                    // 2. Health check with safe 5000ms timeout
+                    bool isAlive = false;
+                    try
+                    {
+                        string statusUrl = string.Format("http://localhost:{0}/api/status", activePort);
+                        HttpWebRequest req = (HttpWebRequest)WebRequest.Create(statusUrl);
+                        req.Timeout = 5000;
+                        using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
+                        {
+                            if (resp.StatusCode == HttpStatusCode.OK)
+                            {
+                                isAlive = true;
+                            }
+                        }
+                    }
+                    catch { isAlive = false; }
+
+                    if (isAlive)
+                    {
+                        consecutiveFailures = 0;
+                    }
+                    else
+                    {
+                        consecutiveFailures++;
+                        // Only intervene if server is unresponsive for 6 consecutive checks (~18-20 seconds)
+                        if (consecutiveFailures >= 6)
+                        {
+                            consecutiveFailures = 0;
+                            if (serverProcess != null)
+                            {
+                                try { if (!serverProcess.HasExited) serverProcess.Kill(); } catch { }
+                            }
+                            serverProcess = Program.StartServerProcess(activePort);
+                        }
+                    }
+                }
+                catch { }
+            }
         }
 
         public void LaunchBrowser()
@@ -365,8 +473,17 @@ namespace StrickersClubCreator
                     "StrickersKingCreatorProfile"
                 );
 
+                // Native Desktop Application & Isolated Chromium flags:
+                // Prevents AMD Radeon RX 7000 / RDNA3 MPO & DWM black screen crash and suppresses browser UI
                 string browserArgs = string.Format(
-                    "--app=\"{0}\" --user-data-dir=\"{1}\" --name=\"Strickers King Creator\" --autoplay-policy=no-user-gesture-required --disable-http-cache",
+                    "--app=\"{0}\" --user-data-dir=\"{1}\" --name=\"Strickers King Creator\" " +
+                    "--window-size=1380,860 --start-maximized " +
+                    "--autoplay-policy=no-user-gesture-required --disable-http-cache " +
+                    "--disable-extensions --disable-background-networking --disable-component-update " +
+                    "--disable-backgrounding-occluded-windows --disable-renderer-backgrounding --disable-background-timer-throttling " +
+                    "--disable-blink-features=AutomationControlled --disable-default-apps --disable-sync --suppress-message-center " +
+                    "--disable-features=CalculateNativeWinOcclusion,DCompPresenter,Translate,OptimizationHints,MediaRouter --disable-gpu-watchdog " +
+                    "--no-first-run --no-default-browser-check",
                     targetUrl,
                     appDataDir
                 );
@@ -537,8 +654,9 @@ namespace StrickersClubCreator
 
         private void ExitApplication()
         {
+            isWatchdogRunning = false;
             isNotificationRunning = false;
-            Program.StopScoreboardWatcherThread();
+            Program.StopMatchCaptureHotkeyThread();
 
             if (notifyIcon != null)
             {
@@ -556,6 +674,11 @@ namespace StrickersClubCreator
             if (currentBrowserProc != null && !currentBrowserProc.HasExited)
             {
                 try { currentBrowserProc.Kill(); } catch { }
+            }
+
+            if (serverProcess != null && !serverProcess.HasExited)
+            {
+                try { serverProcess.Kill(); } catch { }
             }
 
             ExitThread();

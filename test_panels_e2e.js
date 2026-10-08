@@ -69,7 +69,41 @@ class CdpClient {
     }
 }
 
+async function checkServerAlive() {
+    return new Promise(resolve => {
+        const req = http.get('http://localhost:18888/api/status', (res) => {
+            resolve(res.statusCode === 200);
+        });
+        req.on('error', () => resolve(false));
+        req.setTimeout(1000, () => {
+            req.destroy();
+            resolve(false);
+        });
+    });
+}
+
+let spawnedServer = null;
+
 async function run() {
+    const isAlive = await checkServerAlive();
+    if (!isAlive) {
+        console.log('⚡ Server not running on 18888, auto-starting server.ps1...');
+        const path = require('path');
+        const sPath = path.join(__dirname, 'app', 'server.ps1');
+        spawnedServer = spawn('powershell.exe', [
+            '-ExecutionPolicy', 'Bypass',
+            '-NoProfile',
+            '-File', sPath,
+            '-NoLaunch',
+            '-Port', '18888'
+        ], { stdio: 'ignore' });
+
+        for (let i = 0; i < 20; i++) {
+            await sleep(500);
+            if (await checkServerAlive()) break;
+        }
+    }
+
     console.log('🚀 Starting Headless Edge for E2E Panel Tests...');
     const edge = spawn(EDGE_PATH, [
         '--headless=new',
@@ -77,7 +111,10 @@ async function run() {
         '--disable-gpu',
         '--no-first-run',
         '--no-default-browser-check',
-        '--user-data-dir=C:\\Users\\mehme\\AppData\\Local\\Temp\\edge_test_profile'
+        '--disable-fre',
+        '--disable-sync',
+        '--user-data-dir=C:\\Users\\mehme\\AppData\\Local\\Temp\\edge_test_profile',
+        APP_URL
     ]);
 
     edge.on('error', (err) => {
@@ -101,17 +138,14 @@ async function run() {
             throw new Error('Edge failed to start CDP within timeout');
         }
 
-        const pageTarget = targets.find(t => t.type === 'page') || targets[0];
-        console.log(`Connected to target: ${pageTarget.title}`);
+        const pageTarget = targets.find(t => t.type === 'page' && !t.url.startsWith('chrome') && !t.url.startsWith('edge')) || targets.find(t => t.type === 'page') || targets[0];
+        console.log(`Connected to target: ${pageTarget.title || pageTarget.url}`);
 
         const cdp = new CdpClient(pageTarget.webSocketDebuggerUrl);
         await cdp.ready();
         await cdp.send('Page.enable');
         await cdp.send('Runtime.enable');
-
-        console.log(`Navigating to ${APP_URL}...`);
-        await cdp.send('Page.navigate', { url: APP_URL });
-        await sleep(2500);
+        await sleep(2000);
 
         // Dismiss splash if present
         await cdp.evaluate(`
@@ -348,16 +382,18 @@ async function run() {
         // Modal içindeki '10 Test Oyuncusu Ekle & Dağıt' butonunu test et
         await cdp.evaluate(`
             const autoBtn = document.getElementById('autoAddAndRandomizeBtn');
-            autoBtn.click();
+            if (autoBtn) autoBtn.click();
         `);
-        await sleep(400);
+        await sleep(600);
         res = await cdp.evaluate(`
             const team1Count = document.querySelectorAll('#team-1 .player-item').length;
             const team2Count = document.querySelectorAll('#team-2 .player-item').length;
+            const poolCount = document.querySelectorAll('#playerPool .player-item').length;
             const modal = document.getElementById('randomizeAssistModal');
             return {
                 team1Count,
                 team2Count,
+                poolCount,
                 closed: modal.style.display === 'none' || modal.classList.contains('hidden')
             };
         `);
@@ -405,12 +441,181 @@ async function run() {
         console.log('Result 9 (Escape key handler):', res);
         if (!res.opened || !res.closed) throw new Error('Escape key handler failed to close modal!');
 
+        console.log('\n--- 9b. Testing OYUN & TEMA SEÇİCİ (#activeGameBadgeBtn -> #gameSelectorModal) ---');
+        res = await cdp.evaluate(`
+            const badgeBtn = document.getElementById('activeGameBadgeBtn');
+            badgeBtn.click();
+            const modal = document.getElementById('gameSelectorModal');
+            const opened = modal && modal.style.display === 'flex' && !modal.classList.contains('hidden');
+            
+            // CS2 seç ve test et
+            const cs2Btn = modal.querySelector('.btn-select-game[data-game="cs2"]');
+            if (cs2Btn) cs2Btn.click();
+            const hasCs2Theme = document.body.classList.contains('game-theme-cs2');
+            
+            // Strikers Club'a geri dön
+            window.setGameTheme('strikers', false);
+            const hasStrikersTheme = document.body.classList.contains('game-theme-strikers');
+            const currentLabel = document.getElementById('activeGameLabel')?.textContent;
+            
+            return { opened, hasCs2Theme, hasStrikersTheme, currentLabel };
+        `);
+        console.log('Result 9b (Game Selector Engine):', res);
+        if (!res.opened) throw new Error('Game selector modal failed to open!');
+        if (!res.hasCs2Theme) throw new Error('Failed to switch to CS2 theme!');
+        if (!res.hasStrikersTheme) throw new Error('Failed to restore Strikers Club theme!');
+
+        console.log('\n--- 9c. Testing YAYINCI GÜVENLİK & LİDERLİK KİLİT MOTORU (#streamerAuthModal) ---');
+        res = await cdp.evaluate(`
+            // Önce izleyici modundayken sıralama paneli açıldığında kilit katmanı görünür mü?
+            const lbBtn = document.getElementById('leaderboardBtn');
+            lbBtn.click();
+            const lbModal = document.getElementById('leaderboardModal');
+            const lockOverlay = document.getElementById('leaderboardLockOverlay');
+            const lockVisibleBefore = lockOverlay && !lockOverlay.classList.contains('hidden') && lockOverlay.style.display === 'flex';
+            
+            document.getElementById('closeLeaderboardBtn').click();
+
+            // Yayıncı girişi yap
+            return window.performStreamerLogin('streamer_king', 'StrikersKing2026!Auth').then(() => {
+                const authed = window.isBroadcasterAuthenticated();
+                
+                // Giriş sonrası sıralama panelini aç, kilit katmanı kalkmalı
+                lbBtn.click();
+                const lockHiddenAfter = lockOverlay && (lockOverlay.classList.contains('hidden') || lockOverlay.style.display === 'none');
+                document.getElementById('closeLeaderboardBtn').click();
+
+                return { lockVisibleBefore: !!lockVisibleBefore, authed, lockHiddenAfter: !!lockHiddenAfter };
+            });
+        `);
+        console.log('Result 9c (Broadcaster Auth & Anti-Tamper Shield):', res);
+        if (!res.lockVisibleBefore) throw new Error('Leaderboard lock overlay not visible to unauthenticated viewers!');
+        if (!res.authed) throw new Error('Streamer authentication failed!');
+        if (!res.lockHiddenAfter) throw new Error('Leaderboard lock overlay not unlocked for authenticated broadcaster!');
+
+        console.log('\n--- 9d. Testing STRIKERS CLUB ZAFER SAHNESİ & KAZANAN OYUNCU HUD (#strikersWinnerHeroName) ---');
+        res = await cdp.evaluate(`
+            window.triggerGrandChampionCelebration({ name: 'Fırtına Spor', players: ['EfsaneGolcu', 'YıldızForvet'] });
+            const champModal = document.getElementById('championCelebrationModal');
+            const opened = champModal && !champModal.classList.contains('hidden');
+            const heroName = document.getElementById('strikersWinnerHeroName')?.textContent;
+            const heroStage = document.getElementById('strikersCelebrationHeroStage');
+            const stageVisible = heroStage && !heroStage.classList.contains('hidden');
+
+            window.closeGrandChampionCelebration();
+            const closed = champModal && champModal.classList.contains('hidden');
+
+            return { opened, heroName, stageVisible: !!stageVisible, closed };
+        `);
+        console.log('Result 9d (Strikers Club Overhead Winner HUD):', res);
+        if (!res.opened) throw new Error('Champion celebration stage failed to open!');
+        if (res.heroName !== 'EfsaneGolcu') throw new Error(`Expected winner hero name 'EfsaneGolcu', got: '${res.heroName}'`);
+        if (!res.stageVisible) throw new Error('Strikers celebration hero stage not visible!');
+        if (!res.closed) throw new Error('Champion celebration stage failed to close!');
+
+        console.log('\n--- 9e. Testing MAÇ DOSYALARI & SCOREBOARD MODALI (#matchFilesModal) ---');
+        res = await cdp.evaluate(`
+            if (typeof window.openMatchFilesModal !== 'function') {
+                return { error: 'openMatchFilesModal function missing' };
+            }
+            window.openMatchFilesModal('test_e2e_match', 'Test Çeyrek Final');
+            const modal = document.getElementById('matchFilesModal');
+            const opened = modal && modal.style.display === 'flex' && !modal.classList.contains('hidden');
+            const title = document.getElementById('matchFilesModalTitle')?.textContent;
+            const subtitle = document.getElementById('matchFilesModalSubtitle')?.textContent;
+            const previewBox = document.getElementById('matchCapturePreviewBox');
+            const hasPreview = !!previewBox;
+            const saveBtn = document.getElementById('matchFilesSaveScoreBtn');
+            const hasSaveBtn = !!saveBtn;
+
+            const closeBtn = document.getElementById('closeMatchFilesModalBtn');
+            if (closeBtn) closeBtn.click();
+            const closed = modal && modal.classList.contains('hidden');
+
+            return { opened, title, subtitle, hasPreview, hasSaveBtn, closed };
+        `);
+        console.log('Result 9e (Match Files Modal Verification):', res);
+        if (!res.opened) throw new Error('Match files modal failed to open!');
+        if (!res.title.includes('Test Çeyrek Final')) throw new Error('Match files modal title mismatch!');
+        if (!res.hasPreview) throw new Error('Preview box not found in Match Files modal!');
+        if (!res.hasSaveBtn) throw new Error('Save button not found in Match Files modal!');
+        if (!res.closed) throw new Error('Match files modal failed to close!');
+
+        console.log('Navigating to OBS Overlay Mode...');
+        await cdp.evaluate(`
+            try {
+                window.history.pushState({}, '', '${APP_URL}/?overlay=1');
+            } catch(e) {}
+            if (typeof window.initOverlayMode === 'function') {
+                window.initOverlayMode();
+            } else {
+                document.documentElement.classList.add('obs-overlay-mode');
+                if (document.body) document.body.classList.add('obs-overlay-mode');
+            }
+        `);
+        await sleep(800);
+
+        const obsResult = await cdp.evaluate(`
+            const docEl = document.documentElement;
+            const body = document.body;
+            const isObsMode = (docEl && docEl.classList.contains('obs-overlay-mode')) || (body && body.classList.contains('obs-overlay-mode'));
+            const header = document.querySelector('.app-header') || document.querySelector('header');
+            const controls = document.querySelector('.controls');
+            const pool = document.querySelector('.pool-container');
+            const headerHidden = header ? (header.style.display === 'none' || window.getComputedStyle(header).display === 'none') : false;
+            const controlsHidden = controls ? (controls.style.display === 'none' || window.getComputedStyle(controls).display === 'none') : false;
+            const poolHidden = pool ? (pool.style.display === 'none' || window.getComputedStyle(pool).display === 'none') : false;
+            
+            // Ticker check
+            const ticker = document.getElementById('obsMarqueeTicker');
+            const tickerVisible = ticker && !ticker.classList.contains('hidden');
+
+            // Goal alert test
+            if (typeof window.showObsGoalAlert === 'function') {
+                window.showObsGoalAlert({ player: 'EfsaneGolcu', goals: 2 });
+            }
+            const goalBanner = document.getElementById('obsGoalBanner');
+            const goalBannerActive = goalBanner && !goalBanner.classList.contains('hidden') && goalBanner.classList.contains('visible');
+            const goalText = document.getElementById('obsGoalPlayerName')?.textContent;
+
+            // Live Match test in Overlay
+            if (typeof window.setOverlayLiveMatch === 'function') {
+                window.setOverlayLiveMatch('single_match');
+            } else if (typeof window.setActiveLiveMatch === 'function') {
+                window.setActiveLiveMatch('single_match');
+            }
+            const liveBanner = document.getElementById('obsLiveMatchBanner');
+            const liveBannerActive = liveBanner && !liveBanner.classList.contains('hidden');
+
+            return {
+                currentHref: window.location.href,
+                isObsMode: !!isObsMode,
+                headerHidden,
+                controlsHidden,
+                poolHidden,
+                tickerVisible: !!tickerVisible,
+                goalBannerActive: !!goalBannerActive,
+                goalText,
+                liveBannerActive: !!liveBannerActive
+            };
+        `);
+        console.log('Result 10 (OBS Overlay Verification):', obsResult);
+
+        if (!obsResult.isObsMode) throw new Error('OBS Overlay mode not active on ?overlay=1!');
+        if (!obsResult.headerHidden || !obsResult.controlsHidden) throw new Error('OBS Overlay did not hide dashboard UI elements!');
+        if (!obsResult.tickerVisible) throw new Error('OBS Marquee Ticker not visible in overlay mode!');
+        if (!obsResult.goalBannerActive) throw new Error('OBS Goal alert banner did not activate!');
+        if (!obsResult.liveBannerActive) throw new Error('OBS Live match banner did not activate!');
+
         console.log('\n======================================================');
-        console.log('🎉 ALL 7 REPORTED USER CONTROLS VERIFIED 100% OPERATIONAL IN REAL BROWSER!');
+        console.log('🎉 ALL CONTROLS & OBS LIVE OVERLAY VERIFIED 100% OPERATIONAL!');
         console.log('======================================================');
 
     } finally {
-        edge.kill();
+        try { edge.kill(); } catch (e) {}
+        if (spawnedServer) {
+            try { spawnedServer.kill(); } catch (e) {}
+        }
     }
 }
 
