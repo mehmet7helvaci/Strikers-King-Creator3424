@@ -176,22 +176,15 @@ Uygulama, her oyunun kendi görsel atmosferine, renklerine ve mevkilerine saniye
 
 ## 🚀 İndirme ve Hızlı Başlangıç
 
-Uygulamayı 3 farklı şekilde kullanabilirsiniz:
-
 ### Seçenek A: Google Drive ile İndir (Windows Masaüstü Paketi - Önerilen)
 Windows kullanıcıları için en hızlı ve güvenli indirme yöntemi:
 
-👉 **[Google Drive ile İndir (Windows & Full Paket)]([https://drive.google.com/drive/folders/17hDq4yT6n4bXzZ](https://drive.google.com/drive/folders/1ncXAam-sbA1cH8UbiotI4WhAhEuC6d1S?usp=sharing)**
+👉 **[Google Drive ile İndir (Windows & Full Paket)](https://drive.google.com/drive/folders/1ncXAam-sbA1cH8UbiotI4WhAhEuC6d1S?usp=sharing)**
 
 * Virüs taramasından geçmiş, yüksek hızlı bulut indirmesi.
 * Kurulum gerektirmez (Portable). İndirilen klasördeki **`StrickersKingCreator.exe`** veya **`Baslat.bat`** dosyasına çift tıklayarak anında başlatabilirsiniz.
 
-### Seçenek B: Doğrudan Web'den Aç (Kurulumsuz)
-Herhangi bir dosya indirmeden doğrudan tarayıcınızdan açıp kullanabilirsiniz:
-
-👉 **[Canlı Yayını Başlat (Web Sürümü)](https://mehmet7helvaci.github.io/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator/)**
-
-### Seçenek C: GitHub Kaynak Kodunu İndir
+### Seçenek B: GitHub Kaynak Kodunu İndir
 Geliştiriciler ve projeyi yerel git ile klonlamak isteyenler için:
 ```bash
 git clone https://github.com/mehmet7helvaci/TAKIM-SE-ME-UYGULAMASI-Strikers-King-Creator.git
